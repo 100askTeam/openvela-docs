@@ -1,0 +1,315 @@
+---
+title: "常见虚拟文件系统"
+---
+
+
+### binfs文件系统示例
+
+参考文件：nuttx\fs\binfs\fs_binfs.c
+
+#### 内嵌命令与内嵌APP
+
+openvela里含有“内嵌的命令”、“内嵌的APP”，所谓内嵌的命令就是在“apps\nshlib\nsh_command.c”中g_cmdmap数组里定义的“命令名、函数”：
+
+![](/img/openvela/image115.png)
+
+所谓“内嵌APP”，是由“apps\examples\hello\hello_main.c”这样的多个程序组成的。“apps\examples”目录下多个APP被脚本生成为“apps\builtin\builtin_list.h”，内容如下（它们就是一个个builtin_s结构体）：
+
+![](/img/openvela/image116.png)
+
+builtin_list.h又被builtin_list.c包含，构造出了g_builtins数组，它就表示了所有的“内嵌APP”：
+
+![](/img/openvela/image117.png)
+
+“apps/builtin/builtin_list.h”文件内容如下：
+
+要想知道系统里有哪些内嵌的APP，可以通过挂载binfs文件系统来查看，比如执行：
+
+mount -t binfs none /bin
+
+```
+ls /bin
+
+```
+binfs文件系统被用来“展示”openvela里内嵌的APP，是否挂载binfs对于系统没有影响。
+
+另外：所有的“内嵌命令”和“内嵌APP”，可以使用“help”命令显示出来。
+
+#### binfs文件系统解析
+
+binfs文件系统的核心在于：在“g_builtins\[\]”数组里根据index或者名字找到对应的项：
+
+![](/img/openvela/image118.png)
+
+- APP调用open函数传入path时，binfs_open遍历数组找到名字匹配的项：
+
+```
+index = builtin_isavail(relpath);
+
+filep-\>f_priv = (FAR void \*)((uintptr_t)index);
+
+```
+- APP调用opendir时，binfs_opendir只能打开binfs的根目录，设置index为0
+
+```
+bdir = fs_heap_zalloc(sizeof(\*bdir));
+
+bdir-\>index = 0;
+
+```
+- APP调用readdir时，binfs_readdir根据index获得对应内嵌APP的名字，累加index
+
+```
+bdir = (FAR struct binfs_dir_s \*)dir;
+
+index = bdir-\>index;
+
+name = builtin_getname(index);
+
+entry-\>d_type = DTYPE_FILE;
+
+strlcpy(entry-\>d_name, name, sizeof(entry-\>d_name));
+
+index++;
+
+bdir-\>index = index;
+
+```
+- APP调用rewinddir时，binfs_rewinddir里把index复位为0
+
+```
+((FAR struct binfs_dir_s \*)dir)-\>index = 0;
+
+```
+#### 上机实验
+
+配置项：
+
+CONFIG_FS_BINFS=y
+
+执行如下命令：
+
+nsh\&gt; mount -t binfs /bin
+
+nsh\&gt; ls /bin
+
+/bin:
+
+disp
+
+fb
+
+ft5x06
+
+getprop
+
+i2c
+
+lvgldemo
+
+mikey
+
+nsh
+
+rb
+
+sb
+
+setlogmask
+
+setprop
+
+sh
+
+showlogo
+
+### procfs文件系统
+
+参考文件：nuttx\fs\procfs\fs_procfs.c
+
+#### 特性与功能
+
+在 openvela系统中，procfs（Process File System，进程文件系统）是一种特殊的伪文件系统，其设计理念借鉴了 Unix/Linux 中的“/proc”文件系统，主要用于“以文件接口的形式暴露系统内核和进程的实时信息”，是用户态与内核态交互的重要桥梁。
+
+```
+.  虚拟文件接口
+
+```
+procfs 中的“文件”并非实际存储在物理设备上，而是由内核在运行时动态生成。当用户态程序读取这些文件时，内核会实时收集并返回相关信息（如进程状态、内存使用、系统配置等）；写入某些文件则可触发内核行为（如修改进程优先级）。
+
+```
+.  系统与进程信息暴露
+
+```
+主要提供两类信息：
+
+- 系统级信息：如 CPU 架构、内存总量、内核版本、已挂载文件系统列表等，通常通过 “/proc/cpuinfo”、“/proc/meminfo”、“/proc/filesystems” 等虚拟文件访问。
+
+- 进程级信息：每个运行中的进程在 “/proc” 下会有一个以进程 ID（PID）命名的子目录（如 “/proc/123”），包含该进程的状态（“status”）、内存映射（“maps”）、命令行参数（“cmdline”）等细节。
+
+```
+.  轻量化设计
+
+```
+作为嵌入式系统的组件，openvela的 procfs 针对资源受限场景进行了精简，仅保留核心功能（如必要的进程和系统信息接口），避免冗余开销，符合 openvela对内存和计算资源的严格控制要求。
+
+（4）调试与监控工具基础
+
+基于 procfs 提供的接口，开发者可以便捷地实现系统监控工具（如查看进程列表、资源占用）或调试工具（如跟踪进程状态变化），无需直接操作内核接口，降低了开发复杂度。
+
+（5） 与其他文件系统的区别
+
+- 不同于 BDFS（块设备文件系统）或 MDFS（内存设备文件系统），procfs 不依赖物理存储或内存块设备，完全是内核通过回调函数动态响应文件操作。
+
+- 作为”伪文件系统”，其主要作用是信息交互而非数据存储，因此通常以只读方式挂载（部分文件支持写入以配置系统）。
+
+总之，procfs 是 openvela中实现“通过文件系统接口访问系统内核信息”的关键组件，为嵌入式系统的调试、监控和管理提供了标准化、轻量化的解决方案。
+
+#### procfs文件系统解析
+
+procfs文件系统中的内容来自2方面：进程相关的文件存放在“/proc/\&lt;pid\&gt;”目录下，其他文件（比如/proc/cpufre、/proc/fs/blocks）等。
+
+![](/img/openvela/image119.png)
+
+### tmpfs文件系统示例
+
+参考文件：nuttx\fs\tmpfs\fs_tmpfs.c
+
+#### 特性与功能
+
+tmpfs（Temporary File System）是一种基于内存的文件系统：
+
+- 基本概念：tmpfs中的数据存储在RAM中，不写入磁盘，这使得它具有快速的读写速度，非常适合存储临时文件。不过，系统重启后数据会丢失。tmpfs的大小可以动态调整，其最大限制为系统可用内存。
+
+- 设计架构：openvela采用VFS（Virtual File System）架构，tmpfs是其具体文件系统实现之一。
+
+- 实现原理：tmpfs基于内存管理子系统，tmpfs不需要先格式化就能使用，可以直接挂载，在写入文件时即时分配内存
+
+- 应用场景：tmpfs通常用于临时文件存储，如/tmp、/var/tmp等临时目录，以及/run、/var/run等运行时目录。此外，对于需要快速读写文件但不要求持久保存的场景，tmpfs也能提供很高的性能，同时还可以减少对磁盘的读写操作，保护磁盘寿命。
+
+tmpfs的结构体如下：
+
+```
+const struct mountpt_operations g_tmpfs_operations =
+
+{
+
+```
+tmpfs_open, /\* open \*/
+
+tmpfs_close, /\* close \*/
+
+tmpfs_read, /\* read \*/
+
+tmpfs_write, /\* write \*/
+
+tmpfs_seek, /\* seek \*/
+
+tmpfs_ioctl, /\* ioctl \*/
+
+tmpfs_mmap, /\* mmap \*/
+
+tmpfs_truncate, /\* truncate \*/
+
+……
+
+#### tmpfs文件系统解析
+
+在tmpfs文件系统中，open/read/write一个文件时，在内核里用一个“tmpfs_file_s”结构体来描述一个文件，里面有它的存储位置、大小、当前读写位置，如下：
+
+```
+struct tmpfs_file_s
+
+{
+
+```
+/\* 前几个字段必须与通用TMPFS对象的结构布局保持一致（继承自基础对象tmpfs_object_s） \*/
+
+rmutex_t tfo_lock; /\* 对象互斥锁，用于保护文件对象的并发访问安全，防止多线程操作冲突 \*/
+
+```
+size_t tfo_alloc; /\* 文件对象的分配内存大小 \*/
+
+```
+uint8_t tfo_type; /\* 文件对象类型，参考枚举类型enum tmpfs_objtype_e \*/
+
+uint8_t tfo_refs; /\* 引用计数器，用于内存回收判断 \*/
+
+FAR struct tmpfs_directory_s \*tfo_parent; /\* 指向父目录对象的指针 \*/
+
+/\* 剩余字段是文件对象独有的（区别于目录对象的特有属性） \*/
+
+uint8_t tfo_flags; /\* 文件标志位，参考TFO_FLAG\_\*系列宏定义（如是否只读、是否追加等文件状态标识） \*/
+
+```
+size_t tfo_size; /\* 文件的有效数据大小（非分配内存大小） \*/
+
+```
+FAR uint8_t \*tfo_data; /\* 文件数据的起始地址指针 \*/
+
+```
+};
+
+```
+当APP打开tmpfs文件系统里的文件时，会调用“tmpfs_open”，里面会为所打开的文件创建一个“tmpfs_file_s”结构体，并记录在“filep-\&gt;priv”里，如下：
+
+```
+ret = tmpfs_find_file(fs, relpath, &tfo, NULL);
+
+filep-\>f_priv = tfo;
+
+```
+当APP调用read函数读取tmpfs文件系统里的文件时，根据filep-\&gt;f_priv所指向的tfo结构体得到文件所在内存位置，然后使用memcpy把内存的数据复制出来，如下：
+
+```
+startpos = filep-\>f_pos;
+
+nread = buflen;
+
+endpos = startpos + buflen;
+
+if (endpos \> tfo-\>tfo_size)
+
+{
+
+endpos = tfo-\>tfo_size;
+
+nread = endpos - startpos;
+
+}
+
+memcpy(buffer, &tfo-\>tfo_data\[startpos\], nread);
+
+filep-\>f_pos += nread;
+
+```
+当APP调用write函数写tmpfs文件系统里的文件时，根据filep-\&gt;f_priv所指向的tfo结构体得到文件所在内存位置，然后判断、扩大内存，最后使用memcpy把APP提供的数据写入内存，如下：
+
+```
+nwritten = buflen;
+
+endpos = startpos + buflen;
+
+if (endpos \> tfo-\>tfo_size)
+
+{
+
+```
+/\* 重新分配文件内存，以处理写入超出文件末尾的数据（即 “写超尾” 场景）. \*/
+
+```
+ret = tmpfs_realloc_file(tfo, (size_t)endpos);
+
+if (ret \< 0)
+
+{
+
+goto errout_with_lock;
+
+}
+
+}
+
+memcpy(&tfo-\>tfo_data\[startpos\], buffer, nwritten);
+
+```

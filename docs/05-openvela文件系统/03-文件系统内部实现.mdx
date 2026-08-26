@@ -1,0 +1,297 @@
+---
+title: "文件系统内部实现"
+---
+
+
+### 文件系统的挂载
+
+#### 核心结构体
+
+APP访问磁盘上的文件时，VFS只是把APP的open/read/write等操作转交给“真实的文件系统”，使用特定文件系统的代码去读写磁盘、Flash。
+
+“文件系统”被封装为“mountpt_operations”结构体。对于文件的操作，不仅仅是open/read/write，还有目录操作“opendir/closedir/readdir/rewinddir”、路径操作（Path）“unlink/mkdir/rmdir/rename/stat/chstat/syncfs”。
+
+这些函数放在“mountpt_operations”结构体里，如下：
+
+![](/img/openvela/image109.png)
+
+#### 块设备
+
+参考文件：nuttx\drivers\misc\ramdisk.c
+
+文件系统“mountpt_operations”结构体只是一套规则，它被用来在磁盘、Flash上解析数据、读写文件，最终要落实到“块设备”上——相对于LED、GPIO这样的设备，块设备是能存储“大块数据”的设备，比如SPI Flash等。
+
+LED、GPIO等设备驱动分别使用一个“file_operations”结构体来描述——它们被称为字符设备，类似的，块设备的驱动程序也使用一个“block_operations”结构体来描述：
+
+```
+struct block_operations
+
+{
+
+CODE int (\*open)(FAR struct inode \*inode);
+
+CODE int (\*close)(FAR struct inode \*inode);
+
+```
+CODE ssize_t (\*read)(FAR struct inode \*inode, FAR unsigned char \*buffer,
+
+```
+blkcnt_t start_sector, unsigned int nsectors);
+
+```
+CODE ssize_t (\*write)(FAR struct inode \*inode,
+
+FAR const unsigned char \*buffer,
+
+```
+blkcnt_t start_sector, unsigned int nsectors);
+
+```
+CODE int (\*geometry)(FAR struct inode \*inode,
+
+```
+FAR struct geometry \*geometry);
+
+CODE int (\*ioctl)(FAR struct inode \*inode, int cmd, unsigned long arg);
+
+```
+\#ifndef CONFIG_DISABLE_PSEUDOFS_OPERATIONS
+
+```
+CODE int (\*unlink)(FAR struct inode \*inode);
+
+```
+\#endif
+
+```
+};
+
+```
+相比于字符设备，块设备的read/write函数读写的数据以“扇区”为单位，除此之外“geometry”被用来获得块设备的“几何参数”，比如有多少个扇区、扇区大小、是否可写等信息。
+
+#### 挂载流程
+
+文件系统分为2类：一类是“虚拟文件系统”，无需操作真实的块设备，比如procfs文件系统的内容来自内核里的信息；另一类是“真实文件系统”，需要块设备提供数据。在挂载它们时前者无需提供块设备，后者需要指定块设备，比如下面两个命令：
+
+mount -t procfs none /proc
+
+mount -t yaffs /dev/usrdata /data
+
+mount命令对应的函数在“apps\nshlib\nsh_mntcmds.c”中：cmd_mount函数调用mount函数。
+
+mount // nuttx\fs\mount\fs_mount.c
+
+```
+nx_mount(source, target, filesystemtype, mountflags, data);
+
+if source != NULL
+
+// 尝试
+
+// 1.1 找到块设备驱动
+
+```
+find_blockdriver(source, mountflags, &drvr_inode)
+
+```
+// 1.2 找到"BDFS"(Block Device File System)块设备文件系统
+
+mops = mount_findfs(g_bdfsmap, filesystemtype);
+
+// 2.1 找到MTD设备驱动
+
+```
+find_mtddriver(source, &drvr_inode)
+
+```
+// 2.2 找到"MDFS"(Memory Device File System, 内存设备文件系统)
+
+mops = mount_findfs(g_mdfsmap, filesystemtype);
+
+// 2.3 找到"BDFS"(Block Device File System)块设备文件系统
+
+mops = mount_findfs(g_bdfsmap, filesystemtype);
+
+// 3. 尝试找到非块设备类型的文件系统，
+
+// 这些文件系统不依赖物理块设备（如硬盘、闪存等），
+
+// 而是基于内存、网络或虚拟设备实现。
+
+```
+mops = mount_findfs(g_nonbdfsmap, filesystemtype)
+
+```
+// 4. 找到挂载点
+
+SETUP_SEARCH(&desc, target, false);
+
+ret = inode_find(&desc);
+
+mountpt_inode = desc.node;
+
+// 5. 文件系统绑定块设备节点
+
+ret = mops-\>bind(drvr_inode, data, &fshandle);
+
+// 6. 如果前面没有找到挂载点
+
+// 就创建一个挂载点
+
+if (mountpt_inode == NULL)
+
+ret = inode_reserve(target, 0777, &mountpt_inode);
+
+// 7. 在挂载点记录所用的文件系统
+
+INODE_SET_MOUNTPT(mountpt_inode);
+
+mountpt_inode-\>u.i_mops = mops;
+
+```
+mountpt_inode-\&gt;i_private = fshandle
+
+上面寻找挂载点时，无论是使用“inode_find”还是“inode_reserve”，在传入的PATH路径如果碰到类型为挂载点的inode，就会返回错误。这意味着openvela跟Linux不一样：openvela无法在“挂载点下面再去挂载文件系统”。
+
+在Linux中下图是可行的：
+
+![](/img/openvela/image106.png)
+
+在openvela中，差异如下（注意图中的红色“注意”）：
+
+![](/img/openvela/image110.png)
+
+### 应用程序访问文件系统的内部细节
+
+理解文件系统的作用，核心在于“转交”。
+
+总的原则就是：APP在调用open函数时根据路径找到对应的inode：
+
+- 这个inode可能是“end of path”（路径的端点）：比如“/dev/hello”里找到了“hello”这个文件，它可能是驱动程序：以后open/read/write的操作就是调用驱动程序里的open/read/write
+
+- 这个inode可能是“mountpoint”：比如“/data/abc/1.txt”里找到了“/data”发现它是一个挂载点。那就调用它的“mountpt_operations”结构体的open/read/write来处理剩余的路径“abc/1.txt”。
+
+#### 文件系统的接口函数
+
+以Windows电脑使用场景为例，去访问一个文件时首先要打开某个目录：在文件浏览器里会列出目录里的文件，然后再双击打开文件。
+
+对于文件的操作，不仅仅是open/read/write，还有目录操作“opendir/closedir/readdir/rewinddir”、路径操作（Path）“unlink/mkdir/rmdir/rename/stat/chstat/syncfs”。
+
+这些函数放在“mountpt_operations”结构体里，如下：
+
+![](/img/openvela/image111.png)
+
+使用视频进行源代码情景分析，分析：ls命令的过程、open/read/write的过程。
+
+#### ls命令情景分析
+
+源码：apps\nshlib\nsh_fscmds.c。
+
+但我们执行“ls /”或“ls /data”时：
+
+```
+// apps\nshlib\nsh_fscmds.c
+
+```
+cmd_ls
+
+stat(fullpath, &st)
+
+```
+// nuttx\fs\vfs\fs_stat.c
+
+nx_stat(path, buf, 1);
+
+stat_recursive(path, buf, resolve);
+
+ret = inode_find(&desc);
+
+if (INODE_IS_MOUNTPT(inode))
+
+ret = inode-\>u.i_mops-\>stat(inode, desc.relpath, buf);
+
+```
+else
+
+```
+ret = inode_stat(inode, buf, resolve);
+
+// 根据inode自行构造stat
+
+else if (!S_ISDIR(st.st_mode))
+
+// 对于非目录
+
+```
+ls_handler
+
+```
+// 调用stat
+
+ret = stat(dirpath, &buf);
+
+// 打印
+
+```
+else
+
+```
+// 对于fullpath下的每一个"direntry"调用ls_handler把它的信息打印出来
+
+```
+ret = nsh_foreach_direntry(vtbl, "ls", fullpath, ls_handler,
+
+```
+dirp = opendir(dirpath);
+
+FAR struct dirent \*entryp = readdir(dirp);
+
+```
+ls_handler
+
+```
+// 调用stat
+
+ret = stat(dirpath, &buf);
+
+// 打印
+
+// 对于fullpath下的每一个"direntry"调用ls_recursive
+
+// 把它下面的子目录或文件信息打印出来
+
+```
+nsh_foreach_direntry(vtbl, "ls", fullpath, ls_recursive,
+
+上面的opendir、readdir，都是调用open、read函数。
+
+#### opendir/open函数情景分析
+
+opendir函数里是调用open函数，它传入“O_DIREDTORY”参数：
+
+- 根据path找到inode：这个inode可能是挂载点的inode
+
+- 根据挂载点找到文件系统，进而调用它的opendir函数
+
+- 最重要的是，“filep-\&gt;f_inode = &g_dir_inode;”，这在后面readdir时被用到
+
+使用open函数来打开非目录的文件时：
+
+- 根据path找到inode：这个inode可能是挂载点的inode，也可能是驱动程序的inode
+
+- 对于挂载点：根据挂载点找到文件系统，进而调用它的open函数
+
+- 对于驱动程序：调用file_operatons的open函数
+
+![](/img/openvela/image112.png)
+
+#### readdir/read/write函数情景分析
+
+readdir的本质是调用read。read函数内部实现如下：
+
+![](/img/openvela/image113.png)
+
+write函数内部实现如下：
+
+![](/img/openvela/image114.png)
+

@@ -1,0 +1,181 @@
+---
+title: "真实文件系统"
+---
+
+
+### romfs文件系统
+
+参考文件：nuttx\fs\romfs\fs_romfs.c
+
+示例映像文件：apps\examples\romfs\testdir.txt
+
+#### 特性与功能
+
+以下是关于 openvela中 ROMFS（只读文件系统）特性与功能的详细说明，可用于技术文档或开发参考：
+
+- 只读属性与稳定性
+
+ROMFS 作为只读文件系统，其内容在镜像构建后不可修改，从根本上避免了运行时意外篡改或损坏的风险。这一特性使其特别适合存储系统核心配置、固件程序、静态资源等需要长期保持一致性的文件，确保系统启动和运行的稳定性。
+
+可将系统关键组件（如内核镜像、启动脚本）与可写分区（如用户数据区）分离，即使可写分区损坏，ROMFS 中的核心资源仍可正常访问，提升系统抗故障能力。
+
+- 轻量级设计与高效性
+
+极简元数据结构：ROMFS 采用精简的文件索引结构（如线性存储的文件条目），减少了传统文件系统（如 ext4）中复杂的 inode、块分配表等开销，显著降低内存占用。
+
+快速挂载与访问：由于结构简单，ROMFS 挂载过程无需初始化复杂的数据结构，可在毫秒级完成，尤其适合嵌入式环境中对启动速度敏感的场景。
+
+空间利用率高：无冗余元数据和日志结构，最大限度利用存储空间，适合存储容量有限的设备（如嵌入式芯片、ROM 存储介质）。
+
+- 静态资源存储与访问
+
+主要用于存储系统运行所需的静态文件，例如：固件程序、配置文件（如网络参数、设备树描述文件）；只读数据（如字体、图标、预置证书）。
+
+通过标准文件路径即可访问，与常规文件系统使用方式一致。
+
+- 适用场景
+
+嵌入式设备（如物联网网关、工业控制器）：需稳定运行且存储资源有限的场景；
+
+固件系统：存储不可修改的固件程序和配置；
+
+安全敏感场景：防止核心文件被恶意篡改；
+
+快速启动需求：如车载系统、实时控制系统等对启动时间有严格要求的场景。
+
+所以，openvela的 ROMFS 为轻量级、高稳定性的嵌入式系统提供了高效的只读存储解决方案，平衡了资源占用、访问速度与安全性。
+
+#### romfs文件系统映像文件解析
+
+下图是一个romfs映像文件的简单示例，它由三部分组成：
+
+- Volume header：卷头，它含有“-rom1fs-”关键字、卷的长度、卷名
+
+- 一个或多个“FILE HEADER”（文件头部）：它是用来描述目录或文件
+
+第1个word表示“NEXT”，NEXT的低4bit表示类型（type，后面说明）；高28bit表示下一个“FILE HEADER”的地址，高28bit为0时表示这是最后一项。
+
+第2个word表示“INFO”，当前“FILE HEADER”是目录时，INFO指向“这个目录下的第1个子目录或文件”；当前“FILE HEADER”是硬连接时，INFO指向它所连接的目录或文件；当前“FILE HEADER”是文件时，INFO无意义（为0）。
+
+第3个word表示文件大小（file size），仅当“FILE HEADER”是文件时它才有意义。
+
+第4个word表示校验码。
+
+第4个word后存放目录名或文件名，名字以’\0’结尾，长度为16字节整数倍（不足16字节就补0）。
+
+- “FILE CONTENT”：如果一个“FILE HEADER”表示的是文件，那么紧随其后就是文件内容“FILE CONTENT”，它的长度不足16字节整数倍的话就补0凑齐。
+
+![](/img/openvela/image120.png)
+
+romfs文件系统中，同级目录、文件使用“FILE HEADER”的NEXT串起来，一个目录的“FILE HEADER”的INFO，指向其第1个子目录或文件。
+
+#### 源码情景分析
+
+（1）挂载时：记录了块设备
+
+![](/img/openvela/image121.png)
+
+```
+.  APP调用open函数时，如何通过romfs找到文件：
+
+```
+函数调用关系如下：
+
+romfs_open
+
+```
+// 得到挂载时的私有数据
+
+rm = filep-\>f_inode-\>i_private;
+
+// 找到目录项
+
+ret = romfs_finddirentry(rm, &nodeinfo, relpath);
+
+```
+……
+
+```
+romfs_devcacheread(rm, offset);
+
+ret = romfs_hwread(rm, rm-\>rm_buffer, sector, 1);
+
+// 调用块设备驱动来读数据
+
+FAR struct inode \*inode = rm-\>rm_blkdriver;
+
+```
+ssize_t nsectorsread =
+
+```
+inode-\>u.i_bops-\>read(inode, buffer, sector, nsectors);
+
+// romfs里open函数不支持打开目录(APP调用open打开目录时最终会转换到romfs的opendir)
+
+if (IS_DIRECTORY(nodeinfo.rn_next)) // 它判断的不是"下一目录项的类型", 而是当前目录项的类型
+
+// 错误
+
+else if (!IS_FILE(nodeinfo.rn_next)) // 特殊文件
+
+// 错误
+
+// 分配romfs_file_s, 它讲作为filep-\>f_priv
+
+len = strlen(relpath);
+
+rf = fs_heap_zalloc(sizeof(struct romfs_file_s) + len);
+
+// 在rf里记录文件信息
+
+rf-\>rf_size = nodeinfo.rn_size;
+
+rf-\>rf_type = (uint8_t)(nodeinfo.rn_next & RFNEXT_ALLMODEMASK);
+
+memcpy(rf-\>rf_path, relpath, len + 1);
+
+// rf-\>rf_startoffset = 文件内存所在的offset
+
+ret = romfs_datastart(rm, &nodeinfo, &rf-\>rf_startoffset);
+
+// 私有数据
+
+filep-\>f_priv = rf;
+
+.  APP调用read函数时
+
+```
+函数调用关系如下：
+
+romfs_read
+
+```
+// 文件私有数据: 文件数据地址记录在rf里
+
+rf = filep-\>f_priv;
+
+// 里面含有块设备驱动
+
+rm = filep-\>f_inode-\>i_private;
+
+// 确定读位置
+
+offset = rf-\>rf_startoffset + filep-\>f_pos;
+
+sector = SEC_NSECTORS(rm, offset);
+
+sectorndx = offset & SEC_NDXMASK(rm);
+
+ret = romfs_hwread(rm, userbuffer, sector, nsectors);
+
+// 调用块设备驱动来读数据
+
+FAR struct inode \*inode = rm-\>rm_blkdriver;
+
+```
+ssize_t nsectorsread =
+
+```
+inode-\>u.i_bops-\>read(inode, buffer, sector, nsectors);
+
+```

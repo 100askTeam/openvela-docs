@@ -1,0 +1,63 @@
+---
+title: "系统集成"
+---
+
+
+### 完整的框架
+
+增加了WIFI管理任务“wifi_manager”：负责监测WIFI状态并发送给GUI、重连WIFI。
+
+![](/img/openvela/image309.png)
+
+### 启动流程
+
+总入口为“/etc/init.d/rcS”，在代码中修改文件：
+
+~/vela-opensource/vendor/allwinnertech/boards/r528/r528s3-velaevb1/src/etc/init.d/rcS
+
+在文件最后加入：
+
+```
+sh /data/xiaozhi.sh &
+
+```
+/data/xiaozhi.sh文件位于如下目录：
+
+~/vela-opensource/vendor/allwinnertech/lichee/board/common/data/UDISK
+
+它的内容如下：
+
+\# 启动WIFI管理程序
+
+wifi_manager &
+
+\# 设置录音音量
+
+amixer set 19 255
+
+amixer set 20 255
+
+amixer set 21 255
+
+\# 设置播放音量
+
+amixer set 6 180
+
+amixer set 7 180
+
+amixer set 15 6
+
+\# 启动录音程序、播放程序
+
+arecord -D hw:snddmic -r 48000 -f 16 -c 2 -o &
+
+aplay -D hw:audiocodec -r 48000 -f 16 -c 2 -o &
+
+\# 启动控制中心
+
+control_center &
+
+\# 启动GUI
+
+lvgldemo &
+

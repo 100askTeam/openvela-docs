@@ -1,0 +1,1168 @@
+---
+title: "I2C驱动开发"
+---
+
+
+### I2C驱动子系统框架
+
+从硬件的角度看，主控芯片通过I2C控制器去访问I2C设备：
+
+- I2C控制器负责I2C传输，它并不了解传输的数据含义：它只提供传输能力
+
+- 我们需要阅读I2C设备手册，才能知道所收发的数据的含义
+
+![](/img/openvela/image73.png)
+
+从应用程序角度看：
+
+- I2C控制器驱动程序提供了传输能力
+
+- APP可以直接通过I2C控制器驱动程序来读写I2C设备，这时编写APP的人需要阅读芯片手册
+
+- APP可以通过I2C设备驱动程序来读写I2C设备，编写设备驱动程序的人需要阅读芯片手册，他编写的驱动程序可以让APP开发人员更轻松地使用I2C设备
+
+![](/img/openvela/image74.png)
+
+在上图中，APP可以通过I2C控制器驱动访问I2C设备1、I2C设备n；也可以通过I2C设备n的驱动程序来访问设备n。
+
+从驱动程序的角度看，I2C控制器驱动程序分为上半部、下半部，上半部把接口固定下来并实现通用的代码；下半部是硬件相关的代码。I2C设备驱动程序也可以分为上半部、下半部。下图的I2C设备以触摸屏ft5x06为例。
+
+![](/img/openvela/image75.png)
+
+### I2C控制器驱动上半部
+
+#### 下半部核心结构体
+
+分析：nuttx/drivers/i2c/i2c_driver.c
+
+我们从上往下分析更容易：从APP角度看问题可以不执着于底层硬件的操作细节。但是对于I2C控制器驱动的下半部，需要先有个大概认识，这有助于看懂上半部的代码。
+
+从I2C硬件的连线图可知，一个I2C控制器上面可以连接多个I2C设备。那么在进行I2C传输时就必须明确这几点：
+
+- 访问哪个设备？每个I2C设备都有自己独一的设备地址
+
+- 是读还是写？I2C传输是半双工的，每次传输要么是写要么是读
+
+- 传输的数据
+
+- 传输频率
+
+上述信息使用这2个结构体来描述：
+
+- i2c_msgs_s：被用来描述一个I2C传输，里面有设备地址、频率、读写flags、buffer、长度
+
+- i2c_transfer_s：里面有i2c_msgs_s数组，可以用来记录多个“I2C传输”
+
+\#define I2C_M_READ 0x0001 /\* 读取数据，从从机到主机 \*/
+
+\#define I2C_M_NOSTOP 0x0040 /\* 消息不应以STOP结束 \*/
+
+\#define I2C_M_NOSTART 0x0080 /\* 消息不应以START开始 \*/
+
+```
+struct i2c_msg_s
+
+{
+
+```
+uint32_t frequency; /\* I2C频率 \*/
+
+uint16_t addr; /\* 从机地址（7位或10位） \*/
+
+uint16_t flags; /\* 参见I2C_M\_\*定义 \*/
+
+FAR uint8_t \*buffer; /\* 要传输的缓冲区 \*/
+
+ssize_t length; /\* 缓冲区的字节长度 \*/
+
+```
+};
+
+struct i2c_transfer_s
+
+{
+
+```
+FAR struct i2c_msg_s \*msgv; /\* 传输的I2C消息数组 \*/
+
+```
+size_t msgc; /\* 数组中的消息数量 \*/
+
+};
+
+```
+上面2个结构体可以用来表示要传输的“消息”，谁实现这些消息的传输呢？使用“i2c_master_s”结构体来表示“I2C控制器的下半部”，也就是硬件操作的代码：
+
+```
+struct i2c_master_s
+
+{
+
+FAR const struct i2c_ops_s \*ops; /\* I2C vtable \*/
+
+};
+
+```
+里面的“struct i2c_ops_s”是核心，它有4个函数指针：传输、复位、设置、关闭，代码如下：
+
+```
+struct i2c_ops_s
+
+{
+
+```
+CODE int (\*transfer)(FAR struct i2c_master_s \*dev,
+
+```
+FAR struct i2c_msg_s \*msgs, int count);
+
+```
+\#ifdef CONFIG_I2C_RESET
+
+```
+CODE int (\*reset)(FAR struct i2c_master_s \*dev);
+
+```
+\#endif
+
+```
+CODE int (\*setup)(FAR struct i2c_master_s \*dev);
+
+CODE int (\*shutdown)(FAR struct i2c_master_s \*dev);
+
+};
+
+```
+所以，只要得到“i2c_master_s”结构体，就有了I2C传输能力；就可以用它里面的“ops-\&gt;transfer”指针来传输“i2c_transfer_s”，而“i2c_transfer_s”里含有一个或多个“i2c_msg_s”。
+
+#### 上半部源码分析
+
+每个I2C控制器注册的设备节点为“/dev/i2c0”、“/dev/i2c1”等。
+
+源码为“nuttx\drivers\i2c\i2c_driver.c”，向下提供“i2c_register函数；向上提供“static const struct file_operations g_i2cdrvr_fops”标准接口。
+
+关键代码如下：
+
+```
+int i2c_register(FAR struct i2c_master_s \*i2c, int bus)
+
+{
+
+FAR struct i2c_driver_s \*priv;
+
+```
+/\* 省略 \*/
+
+```
+priv = kmm_zalloc(sizeof(struct i2c_driver_s));
+
+if (priv)
+
+{
+
+```
+priv-\&gt;i2c = i2c; /\* 在priv中记录I2C控制器驱动的下半部 \*/
+
+/\* 省略 \*/
+
+```
+snprintf(devname, sizeof(devname), DEVNAME_FMT, bus);
+
+ret = register_driver(devname, &g_i2cdrvr_fops, 0666, priv);
+
+```
+/\* 省略 \*/
+
+```
+return OK;
+
+}
+
+return -ENOMEM;
+
+}
+
+```
+g_i2cdrvr_fops结构体中，只有open/close/ioctl有意义，其他函数都是空函数，代码如下：
+
+```
+static const struct file_operations g_i2cdrvr_fops =
+
+{
+
+```
+\#ifndef CONFIG_DISABLE_PSEUDOFS_OPERATIONS
+
+i2cdrvr_open, /\* open \*/
+
+i2cdrvr_close, /\* close \*/
+
+\#else
+
+NULL, /\* open \*/
+
+NULL, /\* close \*/
+
+\#endif
+
+i2cdrvr_read, /\* read \*/
+
+i2cdrvr_write, /\* write \*/
+
+NULL, /\* seek \*/
+
+i2cdrvr_ioctl, /\* ioctl \*/
+
+NULL, /\* mmap \*/
+
+NULL, /\* truncate \*/
+
+NULL, /\* poll \*/
+
+NULL, /\* readv \*/
+
+NULL /\* writev \*/
+
+\#ifndef CONFIG_DISABLE_PSEUDOFS_OPERATIONS
+
+, i2cdrvr_unlink /\* unlink \*/
+
+\#endif
+
+```
+};
+
+```
+i2cdrvr_open：如果I2C控制器驱动程序下半部含有setup成员，则调用它来进行初始化：
+
+```
+static int i2cdrvr_open(FAR struct file \*filep)
+
+{
+
+```
+/\* 省略 \*/
+
+```
+if (priv-\>i2c-\>ops-\>setup != NULL && priv-\>crefs == 0)
+
+{
+
+// 调用priv-\>i2c-\>ops-\>setup
+
+ret = I2C_SETUP(priv-\>i2c);
+
+```
+/\* 省略 \*/
+
+i2cdrvr_close：如果I2C控制器驱动程序下半部含有shutdown 成员，则调用它来进行关闭操作：
+
+```
+static int i2cdrvr_close(FAR struct file \*filep)
+
+{
+
+```
+/\* 省略 \*/
+
+```
+if (priv-\>i2c-\>ops-\>shutdown != NULL && priv-\>crefs == 1)
+
+{
+
+// 调用priv-\>i2c-\>ops-\>shutdown
+
+ret = I2C_SHUTDOWN(priv-\>i2c);
+
+```
+/\* 省略 \*/
+
+核心是i2cdrvr_ioctl，APP调用它来进行I2C数据传输：
+
+```
+static int i2cdrvr_ioctl(FAR struct file \*filep, int cmd, unsigned long arg)
+
+{
+
+```
+/\* 省略 \*/
+
+```
+case I2CIOC_TRANSFER:
+
+{
+
+```
+/\* 省略 \*/
+
+```
+transfer = (FAR struct i2c_transfer_s \*)((uintptr_t)arg);
+
+```
+/\* 省略 \*/
+
+```
+// 调用priv-\>i2c-\>ops-\>transfer进行数据传输
+
+ret = I2C_TRANSFER(priv-\>i2c, transfer-\>msgv, transfer-\>msgc);
+
+}
+
+```
+/\* 省略 \*/
+
+#### APP接口与工具
+
+openvel有I2C工具：apps/system/i2c/i2c_main.c，可以分析它掌握APP接口。
+
+从上小节可以知道，北向接口（APP使用的接口）为“open/close/ioctl”。核心是ioctl，使用示例如下：
+
+```
+//./a.out /dev/i2c-8 0x68 0x60
+
+int main(int argc, char \*\*argv)
+
+{
+
+int fd,ret;
+
+uint8_t val;
+
+char dev_name\[20\];
+
+unsigned int slave_address,reg_address;
+
+struct i2c_transfer_s work;
+
+snprintf(dev_name, sizeof(dev_name),"%s", argv\[1\]);
+
+fd = open(dev_name, O_RDWR);
+
+if (fd \< 0)
+
+{
+
+printf("open failed: %d\n", fd);
+
+return fd;
+
+}
+
+work.msgc = 2;
+
+work.msgv = (struct i2c_msg_s \*)malloc(work.msgc \* sizeof(struct i2c_msg_s));
+
+if (NULL == work.msgv)
+
+{
+
+printf("Memory alloc error\n");
+
+close(fd);
+
+return -1;
+
+}
+
+sscanf(argv\[2\], "%x", &slave_address);
+
+sscanf(argv\[3\], "%x", &reg_address);
+
+val = reg_address;
+
+(work.msgv\[0\]).frequency=400000;
+
+(work.msgv\[0\]).length = 1;
+
+(work.msgv\[0\]).addr = slave_address;
+
+(work.msgv\[0\]).buffer = &val;
+
+(work.msgv\[0\]).flags = I2C_M_NOSTOP;
+
+(work.msgv\[1\]).frequency=400000;
+
+(work.msgv\[1\]).length = 1;
+
+(work.msgv\[1\]).flags = I2C_M_READ;
+
+(work.msgv\[1\]).addr = slave_address;
+
+(work.msgv\[1\]).buffer = &val;
+
+ret = ioctl(fd, I2CIOC_TRANSFER, &work);
+
+if (ret \< 0)
+
+{
+
+printf("i2c: ioctl(I2CIOC_TRANSFER) failed: %d\n",fd);
+
+free( work.msgv);
+
+close(fd);
+
+return -1;
+
+}
+
+printf("reg:0x%02X val:%02x\n", reg_address, val);
+
+free( work.msgv);
+
+close(fd);
+
+return 0;
+
+}
+
+```
+上述代码的核心是“ret = ioctl(fd, I2CIOC_TRANSFER, &work);”，所以使用步骤为：
+
+① 构造“struct i2c_transfer_s”结构体，里面有一个“struct i2c_msg_s”数组
+
+② 构造一个或多个“struct i2c_msg_s”结构体，每个结构体表示一个I2C传输
+
+③ 调用ioctl
+
+ioctl所用结构体如下：
+
+\#define I2C_M_READ 0x0001 /\* 读取数据，从从机到主机 \*/
+
+\#define I2C_M_NOSTOP 0x0040 /\* 消息不应以STOP结束 \*/
+
+\#define I2C_M_NOSTART 0x0080 /\* 消息不应以START开始 \*/
+
+```
+struct i2c_msg_s
+
+{
+
+```
+uint32_t frequency; /\* I2C频率 \*/
+
+uint16_t addr; /\* 从机地址（7位或10位） \*/
+
+uint16_t flags; /\* 参见I2C_M\_\*定义 \*/
+
+FAR uint8_t \*buffer; /\* 要传输的缓冲区 \*/
+
+ssize_t length; /\* 缓冲区的字节长度 \*/
+
+```
+};
+
+struct i2c_transfer_s
+
+{
+
+```
+FAR struct i2c_msg_s \*msgv; /\* 传输的I2C消息数组 \*/
+
+```
+size_t msgc; /\* 数组中的消息数量 \*/
+
+};
+
+```
+既然APP可以操作“/dev/i2c0”这样的节点发起I2C传输，那自然可以制作一些调试I2C的工具。openvela里有这样的工具：I2C Tools。它的源码为：apps/system/i2c/i2c_main.c。
+
+如下配置内核后，即可得到i2c命令：
+
+CONFIG_I2C=y
+
+CONFIG_I2C_DRIVER=y //must be defined as yes, prerequesite for i2c tools
+
+CONFIG_I2C_SLAVE=y //I2C slave if needed
+
+CONFIG_I2C_BITBANG=y //bit-bang I2C if needed
+
+CONFIG_I2C_RESET=y //if needed
+
+CONFIG_SYSTEM_I2CTOOL=y
+
+i2c命令用法如下：
+
+nsh\&gt; i2c
+
+Usage: i2c \&lt;cmd\&gt; \[arguments\]
+
+Where \&lt;cmd\&gt; is one of:
+
+Show help : ?
+
+List buses : bus
+
+List devices : dev \[OPTIONS\] \&lt;first\&gt; \&lt;last\&gt;
+
+Read register : get \[OPTIONS\] \[\&lt;repetitions\&gt;\]
+
+Dump register : dump \[OPTIONS\] \[\&lt;num bytes\&gt;\]
+
+Show help : help
+
+Write register: set \[OPTIONS\] \&lt;value\&gt; \[\&lt;repetitions\&gt;\]
+
+Verify access : verf \[OPTIONS\] \[\&lt;value\&gt;\] \[\&lt;repetitions\&gt;\]
+
+Where common "sticky" OPTIONS include:
+
+\[-a addr\] is the I2C device address (hex). Default: 03 Current: 03
+
+\[-b bus\] is the I2C bus number (decimal). Default: 0 Current: 0
+
+\[-w width\] is the data width (8 or 16 decimal). Default: 8 Current: 8
+
+\[-s\|n\], send/don't send start between command and data. Default: -n Current: -n
+
+\[-i\|j\], Auto increment\|don't increment regaddr on repetitions. Default: NO Current: NO
+
+\[-f freq\] I2C frequency. Default: 400000 Current: 400000
+
+Special non-sticky options:
+
+\[-r regaddr\] is the I2C device register index (hex). Default: not used/sent
+
+NOTES:
+
+o An environment variable like \$PATH may be used for any argument.
+
+o Arguments are "sticky". For example, once the I2C address is
+
+specified, that address will be re-used until it is changed.
+
+WARNING:
+
+o The I2C dev command may have bad side effects on your I2C devices.
+
+Use only at your own risk.
+
+nsh\&gt;
+
+i2c命令的使用示例如下：
+
+i2c dev -b 0 0x38 0x40 \# 在I2C0上查询是否有设备地址从0x38到0x40的设备
+
+i2c get -b 0 -a 0x68 -r 0x00 \# 在I2C0上读取地址为0x68的设备，读取寄存器0
+
+READ Bus: 0 Addr: 68 Subaddr: 00 Value: d1
+
+/\*
+
+get:表示读取数据
+
+-b：总线号
+
+-a：从机地址
+
+-r：寄存器地址A
+
+\*/
+
+### I2C控制器驱动下半部
+
+过于复杂，使用视频来讲解。
+
+核心：
+
+![](/img/openvela/image76.png)
+
+#### 下半部源码分析
+
+以R528为例，配置项为：
+
+CONFIG_I2C=y
+
+CONFIG_I2C_DRIVER=y
+
+CONFIG_DRIVERS_TWI=y
+
+CONFIG_SYSTEM_I2CTOOL=y
+
+单板相关的代码实现I2C控制器驱动程序下半部，可以从这里开始阅读代码：
+
+```
+// apps/vendor/allwinnertech/chips/r528/r528_boot.c
+
+```
+\#ifdef CONFIG_DRIVERS_TWI
+
+```
+struct i2c_master_s \*i2c_bus;
+
+i2c_bus = r528_i2c_initialize("/dev/i2c0", 0);
+
+```
+\#ifdef CONFIG_SENSORS_BMI160_I2C
+
+```
+extern int bmi160_register(FAR const char \*devpath, FAR struct i2c_master_s \*dev);
+
+if (i2c_bus)
+
+bmi160_register(0, i2c_bus);
+
+```
+\#endif
+
+\#endif
+
+函数调用过程为：
+
+r528_i2c_initialize
+
+```
+priv-\>twi_port = i2c_id;
+
+priv-\>i2c_s.ops = &g_i2cops;
+
+handle = i2c_register((FAR struct i2c_master_s \*)priv, i2c_id);
+
+```
+可见，下半部的核心在“g_i2cops”结构体里，它在“vendor/allwinnertech/chips/r528/drv/twi/drv_twi.c”中如下定义：
+
+```
+static const struct i2c_ops_s g_i2cops =
+
+{
+
+```
+.transfer = r528_transfer,
+
+\#ifdef CONFIG_I2C_RESET
+
+.reset = r528_reset,
+
+\#endif
+
+```
+};
+
+```
+在“r528_transfer”中有硬件相关的设置：
+
+r528_transfer
+
+```
+// vendor/allwinnertech/chips/r528/drv/twi/drv_twi.c
+
+hal_twi_init(priv-\>twi_port);
+
+hal_twi_t \*twi = &hal_twi\[port\];
+
+// vendor/allwinnertech/chips/r528/drivers/rtos-hal/hal/source/twi/hal_twi.c
+
+```
+hal_twi_pinctrl_init(twi)
+
+```
+// vendor/allwinnertech/chips/r528/drivers/rtos-hal/hal/source/twi/
+
+// hal_twi.c
+
+twi-\>pin\[0\] = TWI2_SCK;
+
+twi-\>pin\[1\] = TWI2_SDA;
+
+twi-\>pinmux = TWI2_PIN_MUXSEL;
+
+// vendor/allwinnertech/chips/r528/drivers/rtos-hal/hal/source/
+
+// twi/platform/twi_sun8iw20.h
+
+```
+\#define TWI2_SCK GPIOE(12)
+
+\#define TWI2_SDA GPIOE(13)
+
+\#define TWI2_PIN_MUXSEL 2
+
+hal_twi_xfer
+
+#### 代码适配
+
+根据原理图可知板子使用I2C2接口，上面连接I2C触摸屏：
+
+![](/img/openvela/image77.png)
+
+所用引脚如下：
+
+|          |          |          |      |      |
+|----------|----------|----------|------|------|
+| 功能     | 复位引脚 | 中断引脚 | SDA  | SCL  |
+| 使用引脚 | PE0      | PE1      | PE13 | PE12 |
+
+所以需要修改I2C控制器驱动下半部代码里使用的I2C引脚：
+
+![](/img/openvela/image78.png)
+
+#### 设备驱动使用的接口
+
+既然I2C控制器提供了I2C传输能力，那么APP可以使用这些传输能力，I2C设备驱动程序也可以使用。只要获得I2C控制器驱动程序下半部提供的“i2c_master_s”结构体，就可以使用下面的宏进行I2C传输、复位、设置、关闭。下面代码的“d”就是“i2c_master_s”结构体指针。
+
+```
+// nuttx\include\nuttx\i2c\i2c_master.h
+
+```
+\#define I2C_TRANSFER(d,m,c) ((d)-\&gt;ops-\&gt;transfer(d,m,c))
+
+\#ifdef CONFIG_I2C_RESET
+
+\# define I2C_RESET(d) ((d)-\&gt;ops-\&gt;reset(d))
+
+\#endif
+
+\#define I2C_SETUP(d) ((d)-\&gt;ops-\&gt;setup(d))
+
+\#define I2C_SHUTDOWN(d) ((d)-\&gt;ops-\&gt;shutdown(d))
+
+### 触摸屏驱动开发实例
+
+#### I2C设备驱动程序开发方法
+
+在开发I2C设备驱动时需要知道：
+
+- 它连接在哪个I2C控制器下面：要得到对应的“i2c_master_s”结构体：这提供了传输能力
+
+- 还要阅读芯片手册：知道它的设备地址、操作方法
+
+- 最后，找到合适的“驱动程序上半部”并实现“先半部”：如果没有上半部，可以自己写一个单独的驱动程序
+
+当有了“i2c_master_s”结构体，就有了数据传输能力，剩下的只是实现“file_operations”结构体的各项成员函数。
+
+#### 分析ft5x05.c对外提供的接口
+
+ft5x06触摸IC的驱动程序为“nuttx/drivers/input/ft5x06.c”。
+
+使用触摸屏很简单，根据“ft5x06.c”提供的“file_operations”结构体，可以知道：
+
+- read：读取触摸屏数据
+
+- ioctl：设置、获得频率
+
+- poll：超时查询
+
+![](/img/openvela/image79.png)
+
+使用“open/read”即可编写出下面的应用程序：
+
+\#include \&lt;nuttx/input/touchscreen.h\&gt;
+
+```
+int main(int argc, char \*\*argv)
+
+{
+
+int fd;
+
+struct touch_sample_s buffer;
+
+int len;
+
+```
+/\* 1. 判断参数 \*/
+
+```
+if (argc \< 2)
+
+{
+
+printf("Usage: %s \<dev\>\n", argv\[0\]);
+
+printf("eg. %s /dev/input0\n", argv\[0\]);
+
+return -1;
+
+}
+
+```
+/\* 2. 打开文件 \*/
+
+```
+fd = open(argv\[1\], O_RDWR);
+
+if (fd == -1)
+
+{
+
+printf("can not open file %s\n", argv\[1\]);
+
+return -1;
+
+}
+
+```
+/\* 3. 写文件或读文件 \*/
+
+```
+while (1)
+
+{
+
+len = read(fd, &buffer, sizeof(buffer));
+
+if (len == sizeof(buffer))
+
+{
+
+printf("x = %d, y = %d, pressure = %d\n", buffer.point\[0\].x, buffer.point\[0\].y, buffer.point\[0\].pressure);
+
+}
+
+}
+
+close(fd);
+
+return 0;
+
+}
+
+```
+#### 分析ft5x05.c驱动程序
+
+框架如下：
+
+![](/img/openvela/image80.png)
+
+第1步：从上往下分析，框图如下：
+
+![](/img/openvela/image81.png)
+
+第2步：从下往上分析。
+
+需要在单板启动文件里调用“ft5x06_register(i2c, config, minor)”：
+
+- 第1个参数是“i2c_master_s”结构体
+
+- 第2个参数是中断相关的操作，也可以不使用中断
+
+- 第3个涉及设备名称，比如“/dev/input0”、“/dev/input1”
+
+使用ft5x06触摸屏芯片时，需要设置复位引脚、可以使用中断引脚。这些“独特的、非通用”的操作在下半部里实现：提供一个“ft5x06_config_s”结构体，代码如下：
+
+```
+struct ft5x06_config_s
+
+{
+
+```
+/\* 设备特性参数 \*/
+
+uint8_t address; /\* 7位I2C地址（仅使用第0-6位） \*/
+
+uint32_t frequency; /\* 默认I2C通信频率 \*/
+
+/\* IRQ/GPIO访问回调函数。这些操作均通过回调函数封装，
+
+\* 以实现FT5X06驱动与不同开发板、MCU在GPIO中断处理上的差异解耦。
+
+\*
+
+\* attach - 将FT5x06中断处理函数绑定到GPIO中断
+
+\* enable - 启用或禁用GPIO中断
+
+\* clear - 确认/清除所有未处理的GPIO中断
+
+\* wakeup - 向FT5x06发送WAKE中断，将FT5x06从休眠模式切换到工作模式
+
+\* nreset - 控制芯片复位引脚（低电平有效）
+
+\*/
+
+\#ifndef CONFIG_FT5X06_POLLMODE
+
+/\* 将FT5x06中断处理函数绑定到GPIO中断：返回值为执行结果，参数依次为配置结构体、中断服务函数、参数 \*/
+
+```
+int (\*attach)(FAR const struct ft5x06_config_s \*config, xcpt_t isr,
+
+FAR void \*arg);
+
+```
+/\* 启用/禁用GPIO中断：参数依次为配置结构体、启用状态（true=启用，false=禁用） \*/
+
+```
+void (\*enable)(FAR const struct ft5x06_config_s \*config, bool enable);
+
+```
+/\* 清除GPIO未处理中断：参数为配置结构体 \*/
+
+```
+void (\*clear)(FAR const struct ft5x06_config_s \*config);
+
+```
+\#endif
+
+/\* 唤醒FT5x06：参数为配置结构体 \*/
+
+```
+void (\*wakeup)(FAR const struct ft5x06_config_s \*config);
+
+```
+/\* 控制复位引脚：参数依次为配置结构体、引脚状态（true/false对应不同电平） \*/
+
+```
+void (\*nreset)(FAR const struct ft5x06_config_s \*config,
+
+bool state);
+
+};
+
+```
+#### 代码适配
+
+首先在单板启动文件里添加代码：
+
+![](/img/openvela/image82.png)
+
+然后实现“r528_ft5x06_register”函数（注意：为例加快实验，在“nuttx/drivers/input/ft5x06.c”里直接添加下面代码）：
+
+/\* 100ask for r528 \*/
+
+\#define FT5X06_I2C_ADDRESS (0x70 \&gt;\&gt; 1)
+
+\#define FT5X06_FREQUENCY 400000
+
+\#ifndef CONFIG_FT5X06_POLLMODE
+
+```
+static int r528_ft5x06_attach(const struct ft5x06_config_s \*config,
+
+```
+xcpt_t isr, void \*arg)
+
+```
+{
+
+if (isr)
+
+{
+
+iinfo("Attaching %p\n", isr);
+
+}
+
+```
+else
+
+```
+{
+
+iinfo("Detaching %p\n", g_priv_config.handler);
+
+}
+
+return OK;
+
+}
+
+```
+\#endif
+
+/\*\*\*\*\*\*\*\*\*\*\*\*\*\*\*\*\*\*\*\*\*\*\*\*\*\*\*\*\*\*\*\*\*\*\*\*\*\*\*\*\*\*\*\*\*\*\*\*\*\*\*\*\*\*\*\*\*\*\*\*\*\*\*\*\*\*\*\*\*\*\*\*\*\*\*\*
+
+\* Name: r528_ft5x06_enable
+
+\*
+
+\* Description:
+
+\* Enable or disable a GPIO interrupt
+
+\*
+
+\*\*\*\*\*\*\*\*\*\*\*\*\*\*\*\*\*\*\*\*\*\*\*\*\*\*\*\*\*\*\*\*\*\*\*\*\*\*\*\*\*\*\*\*\*\*\*\*\*\*\*\*\*\*\*\*\*\*\*\*\*\*\*\*\*\*\*\*\*\*\*\*\*\*\*\*/
+
+\#ifndef CONFIG_FT5X06_POLLMODE
+
+```
+static void r528_ft5x06_enable(const struct ft5x06_config_s \*config,
+
+bool enable)
+
+{
+
+irqstate_t flags;
+
+flags = enter_critical_section();
+
+if (enable)
+
+{
+
+}
+
+```
+else
+
+```
+{
+
+}
+
+leave_critical_section(flags);
+
+}
+
+```
+\#endif
+
+/\*\*\*\*\*\*\*\*\*\*\*\*\*\*\*\*\*\*\*\*\*\*\*\*\*\*\*\*\*\*\*\*\*\*\*\*\*\*\*\*\*\*\*\*\*\*\*\*\*\*\*\*\*\*\*\*\*\*\*\*\*\*\*\*\*\*\*\*\*\*\*\*\*\*\*\*
+
+\* Name: r528_ft5x06_clear
+
+\*
+
+\* Description:
+
+\* Acknowledge/clear any pending GPIO interrupt
+
+\*
+
+\*\*\*\*\*\*\*\*\*\*\*\*\*\*\*\*\*\*\*\*\*\*\*\*\*\*\*\*\*\*\*\*\*\*\*\*\*\*\*\*\*\*\*\*\*\*\*\*\*\*\*\*\*\*\*\*\*\*\*\*\*\*\*\*\*\*\*\*\*\*\*\*\*\*\*\*/
+
+\#ifndef CONFIG_FT5X06_POLLMODE
+
+```
+static void r528_ft5x06_clear(const struct ft5x06_config_s \*config)
+
+{
+
+```
+/\* Does nothing \*/
+
+```
+}
+
+```
+\#endif
+
+/\*\*\*\*\*\*\*\*\*\*\*\*\*\*\*\*\*\*\*\*\*\*\*\*\*\*\*\*\*\*\*\*\*\*\*\*\*\*\*\*\*\*\*\*\*\*\*\*\*\*\*\*\*\*\*\*\*\*\*\*\*\*\*\*\*\*\*\*\*\*\*\*\*\*\*\*
+
+\* Name: r528_ft5x06_wakeup
+
+\*
+
+\* Description:
+
+\* Issue WAKE interrupt to FT5x06 to change the FT5x06 from Hibernate to
+
+\* Active mode.
+
+\*
+
+\*\*\*\*\*\*\*\*\*\*\*\*\*\*\*\*\*\*\*\*\*\*\*\*\*\*\*\*\*\*\*\*\*\*\*\*\*\*\*\*\*\*\*\*\*\*\*\*\*\*\*\*\*\*\*\*\*\*\*\*\*\*\*\*\*\*\*\*\*\*\*\*\*\*\*\*/
+
+```
+static void r528_ft5x06_wakeup(const struct ft5x06_config_s \*config)
+
+{
+
+```
+/\* We do not have access to the WAKE pin in the implementation \*/
+
+```
+}
+
+```
+/\*\*\*\*\*\*\*\*\*\*\*\*\*\*\*\*\*\*\*\*\*\*\*\*\*\*\*\*\*\*\*\*\*\*\*\*\*\*\*\*\*\*\*\*\*\*\*\*\*\*\*\*\*\*\*\*\*\*\*\*\*\*\*\*\*\*\*\*\*\*\*\*\*\*\*\*
+
+\* Name: r528_ft5x06_nreset
+
+\*
+
+\* Description:
+
+\* Control the chip reset pin
+
+\*
+
+\*\*\*\*\*\*\*\*\*\*\*\*\*\*\*\*\*\*\*\*\*\*\*\*\*\*\*\*\*\*\*\*\*\*\*\*\*\*\*\*\*\*\*\*\*\*\*\*\*\*\*\*\*\*\*\*\*\*\*\*\*\*\*\*\*\*\*\*\*\*\*\*\*\*\*\*/
+
+```
+static void r528_ft5x06_nreset(const struct ft5x06_config_s \*config,
+
+bool nstate)
+
+{
+
+```
+/\* We do not have access to the RESET pin in the implementation \*/
+
+```
+}
+
+static const struct ft5x06_config_s g_ft5x06_config =
+
+{
+
+```
+.address = FT5X06_I2C_ADDRESS,
+
+.frequency = FT5X06_FREQUENCY,
+
+\#ifndef CONFIG_FT5X06_POLLMODE
+
+.attach = r528_ft5x06_attach,
+
+.enable = r528_ft5x06_enable,
+
+.clear = r528_ft5x06_clear,
+
+\#endif
+
+.wakeup = r528_ft5x06_wakeup,
+
+.nreset = r528_ft5x06_nreset
+
+```
+};
+
+int r528_ft5x06_register(struct i2c_master_s \*i2c_bus)
+
+{
+
+return ft5x06_register(i2c_bus, &g_ft5x06_config, 0);
+
+}
+
+```
+#### 测试
+
+配置项：
+
+CONFIG_EXAMPLES_FT5X06=y
+
+CONFIG_INPUT_FT5X06=y
+
+CONFIG_FT5X06_POLLMODE=y
+
+执行命令：
+
+nsh\&gt; ls /dev/
+
+/dev:
+
+……
+
+input0
+
+……
+
+nsh\&gt; ft5x06
+
+Usage: ft5x06 \&lt;dev\&gt;
+
+eg. ft5x06 /dev/input0
+
+nsh\&gt; ft5x06 /dev/input0
+
+x = 103, y = 181, pressure = 0
+
+x = 103, y = 181, pressure = 0
+
+x = 103, y = 181, pressure = 0
+
+x = 111, y = 181, pressure = 0
+

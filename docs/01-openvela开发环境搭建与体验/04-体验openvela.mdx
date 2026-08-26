@@ -1,0 +1,287 @@
+---
+title: "体验openvela"
+---
+
+
+### 编译openvela
+
+注意：以下是T113S3的openvela系统的编译方法，对于其他单板编译命令会有差异。
+
+执行如下命令编译、打包：
+
+```
+cd ~/vela-opensource/vendor/allwinnertech/lichee/
+
+source vela_env.sh
+
+source envsetup.sh
+
+lunch_nuttx \# 选择2
+
+m
+
+pack
+
+```
+其它命令：
+
+\# 清除
+
+```
+m c
+
+```
+\# 配置
+
+```
+m menuconfig
+
+```
+\# 进入目录~/vela-opensource/vendor/allwinnertech/lichee/
+
+```
+croot
+
+```
+### 烧写openvela
+
+#### 安装烧录驱动
+
+```
+**第1步：**下载并解压网盘《4_工具软件》里面的《2_全志线刷烧录驱动》，解压完成后，可以看到以下文件，
+
+```
+&lt;img src="C:\Users\MeiHao\AppData\Local\Temp\dsh_docx\pandoc\media/media/image11.png" style="width:5.76806in;height:1.79861in" alt="图形用户界面, 文本, 应用程序, 电子邮件 描述已自动生成" /&gt;
+
+```
+**第2步：**接上2跟USB线后，按住FEL按钮的同时短按RST按钮即可进入烧写模式，如下图所示步骤操作。
+
+```
+![](/img/openvela/image12.png)
+
+```
+**第3步：**打开设备管理器，进入烧写模式后，设备管理器会弹出一个未知设备。
+
+```
+&lt;img src="C:\Users\MeiHao\AppData\Local\Temp\dsh_docx\pandoc\media/media/image13.png" style="width:3.45972in;height:2.56111in" alt="Windows_FlashDevice_001" /&gt;
+
+```
+**第4步：**接下来鼠标右键点击这个未知设备，在弹出的对话框里， 点击浏览我计算机以查找驱动程序软件。
+
+```
+![](/img/openvela/image14.png)
+
+之后在弹出新的对话框里，点击浏览找到我们之前下载好的 usb烧录驱动文件夹内，找到 UsbDriver/ 这个目录，并进入，之后点击确定即可。
+
+![](/img/openvela/image15.png)
+
+注意进入到前面解压烧录驱动的 UsbDriver/ 文件夹，然后点击确定，如下图所示。
+
+![](/img/openvela/image16.png)
+
+此时，我们继续点击 下一页 按钮，这时系统就会提示安装一个驱动程序。在弹出的对话框里，我们点击**始终安装此驱动程序软件**等待安装完成。
+
+![](/img/openvela/image17.png)
+
+安装完成后，会提示，Windows已成功更新你的驱动程序。
+
+![](/img/openvela/image18.png)
+
+最后我们可以看到，设备管理器 里面的未知设备 变成了一个 USB Device(VID_1f3a_efe8)的设备，这时就表明设备驱动已经安装成功。
+
+&lt;img src="C:\Users\MeiHao\AppData\Local\Temp\dsh_docx\pandoc\media/media/image19.png" style="width:4.22153in;height:3.12569in" alt="Windows_FlashDevice_001" /&gt;
+
+#### 运行烧录软件
+
+全志线刷工具 AllwinnertechPhoeniSuit可以从网盘《4_工具软件》里面的《1_全志线刷烧录工具》下载，下载后，进行解压，进入AllwinnertechPhoeniSuit文件夹，可以找到**PhoenixSuit.exe**文件。
+
+&lt;img src="C:\Users\MeiHao\AppData\Local\Temp\dsh_docx\pandoc\media/media/image20.png" style="width:4.06588in;height:2.71923in" alt="图形用户界面 描述已自动生成" /&gt;
+
+双击**PhoenixSuit.exe**即可打开烧录软件。
+
+&lt;img src="C:\Users\MeiHao\AppData\Local\Temp\dsh_docx\pandoc\media/media/image21.png" style="width:3.99281in;height:2.99437in" alt="图形用户界面, 网站 描述已自动生成" /&gt;
+
+#### 烧录镜像
+
+```
+**第1步：**我们需要切换到**一键刷机**窗口，如下图所示，点击**红框标号1**，在弹出的新窗口内，我们点击**红框2**浏览 找到我们前面编译出来的镜像，也可以在网盘《4_工具软件》里面的《5_开发板系统镜像》找到，选中镜像后，最后点击**红框3** “全盘擦除升级”：
+
+```
+![](/img/openvela/image22.png)
+
+```
+**第2步：**点击完成后，**不需要理会其他任何信息**，也**不用点击立即升级**，这时 我们拿起已经连接好的开发板，**先按住 FEL** 烧写模式按键，之后**按一下 RST**复位键，就可以自动进入烧写模式并开始烧写。
+
+```
+![](/img/openvela/image23.png)
+
+烧写时会提示烧写进度条，烧写完成后 开发板会自己重启，并询问是否要升级，如下选择“N”即可：
+
+![](/img/openvela/image24.png)
+
+然后，就可以在串口里操作openvela了。
+
+### 使用MobaXterm操作openvela
+
+打开MobaXterm，点击左上角的“Session”，在弹出的界面选中“Serial”，如下图所示选择端口号（前面设备管理器显示的端口号COM17或COM19）、波特率（Speed 1500000）、流控（Flow Control: none）,最后点击“OK”即可：
+
+```
+**注意**：流控（Flow Control）一定要选择none，否则你将无法在MobaXterm中向串口输入数据。
+
+```
+![](/img/openvela/image25.png)
+
+然后即可如下打开串口：
+
+![](/img/openvela/image26.png)
+
+然后即可输入openvela的命令：
+
+![](/img/openvela/image27.png)
+
+### 测试
+
+注意：执行一个命令后，按住Ctrl+C退出。
+
+#### LED和按键
+
+执行如下命令：
+
+nsh\&gt; led
+
+可以看到LED1闪烁3下，然后按一下K1，LED1就亮一下：
+
+![](/img/openvela/image28.png)
+
+#### 触摸屏
+
+执行如下命令，并点击触摸屏，可以看到打印触点坐标：
+
+nsh\&gt; ft5x06 /dev/input0
+
+x = 89, y = 57, pressure = 0
+
+x = 89, y = 57, pressure = 0
+
+x = 89, y = 57, pressure = 0
+
+x = 89, y = 57, pressure = 0
+
+x = 98, y = 67, pressure = 0
+
+x = 106, y = 95, pressure = 0
+
+x = 110, y = 126, pressure = 0
+
+x = 113, y = 154, pressure = 0
+
+x = 116, y = 170, pressure = 0
+
+x = 148, y = 243, pressure = 0
+
+#### LCD
+
+执行fb命令，可以在屏幕上看到多个矩形色块：
+
+nsh\&gt; fb
+
+VideoInfo:
+
+fmt: 11
+
+xres: 320
+
+yres: 480
+
+nplanes: 1
+
+PlaneInfo (plane 0):
+
+fbmem: 0x41ddfff0
+
+fblen: 307200
+
+stride: 640
+
+display: 0
+
+bpp: 16
+
+Mapped FB: 0x41ddfff0
+
+```
+: ( 0, 0) (320,480)
+
+: ( 29, 43) (262,394)
+
+: ( 58, 86) (204,308)
+
+: ( 87,129) (146,222)
+
+: (116,172) ( 88,136)
+
+: (145,215) ( 30, 50)
+
+```
+Test finished
+
+#### 播放声音
+
+执行如下命令播放音乐（等它播放完毕，不要按Ctrl+C退出，否则需要重启才能再次播放）：
+
+amixer set 6 180
+
+amixer set 7 180
+
+amixer set 15 7
+
+aplay -D hw:audiocodec /data/moon.wav
+
+#### 录制声音
+
+执行如下命令录制声音：
+
+amixer set 19 255
+
+amixer set 20 255
+
+amixer set 21 255
+
+arecord -D hw:snddmic -r 44100 -f 16 -d 5 -c 2 /data/my.wav
+
+然后执行如下命令播放录制的声音：
+
+amixer set 6 180
+
+amixer set 7 180
+
+amixer set 15 7
+
+aplay -D hw:audiocodec /data/my.wav
+
+#### WIFI
+
+执行如下命令配置、测试WIFI（最好接上天线）：
+
+ifup wlan0
+
+wapi mode wlan0 2
+
+\# 100asktech 是WIFI密码,需要改成你自己的
+
+wapi psk wlan0 "100asktech" 3
+
+\# Programmers是WIFI AP名字,需要改成你自己的
+
+wapi essid wlan0 "Programmers" 1
+
+renew wlan0
+
+\# 查看IP
+
+ifconfig
+
+\# ping互联网, Ctrl+C退出
+
+ping news.qq.com
+

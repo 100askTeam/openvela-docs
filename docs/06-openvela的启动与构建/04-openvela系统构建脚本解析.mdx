@@ -1,0 +1,1587 @@
+---
+title: "openvela系统构建脚本解析"
+---
+
+
+参考资料：[&lt;u&gt;https://mi.feishu.cn/wiki/BA2IwuWKFimKQfkos6scggLLnrb&lt;/u&gt;](https://mi.feishu.cn/wiki/BA2IwuWKFimKQfkos6scggLLnrb)
+
+openvela支持很多芯片、支持很多单板，编译openvela后得到elf格式的文件“nuttx”，转换为二进制文件“nuttx.bin”。
+
+“nuttx.bin”运行时，可能需要一些资源，比如字库、图片，这些资源可以单独存储在Flash上。
+
+所以，单板的Flash上可能这样存储数据：
+
+![](/img/openvela/image139.png)
+
+不同产品的Flash规划不一样，所以本课程里只讲解nuttx.bin的生成过程。
+
+下面这个图是本章节的精华：
+
+&lt;img src="C:\Users\MeiHao\AppData\Local\Temp\dsh_docx\pandoc\media/media/image140.png" style="width:5.71181in;height:4.27014in" alt="yuque_diagram (5)" /&gt;
+
+### 配置与编译总体流程
+
+openvela里各个子目录可以看到Makefile、Make.defs、Make.dep，这3类文件的作用为：
+
+- Makefile：里面定义了编译的规则
+
+- Make.defs：用于管理参与编译的源文件列表
+
+- Make.dep：编译时生成的依赖规则，不用看
+
+#### 配置和编译的关键脚本：build.sh
+
+对于本课程使用的开发板，执行如下命令进行环境变量的设置、并选择工程：
+
+```
+cd ~/vela-opensource/vendor/allwinnertech/lichee/
+
+source vela_env.sh
+
+source envsetup.sh
+
+lunch_nuttx
+
+```
+You're building on Linux
+
+Lunch menu... pick a combo:
+
+1\. r528s3-evb4
+
+2\. r528s3-velaevb1
+
+Which would you like?: 2
+
+然后就可以执行“m”来编译，或者执行“m menuconfig”进行配置。执行“m”命令进行编译时，它会使用默认的配置文件。
+
+“m”是一个脚本函数，代码在“vendor/allwinnertech/lichee/ tools/scripts/envsetup.sh”中：
+
+![](/img/openvela/image141.png)
+
+要编译时，它会调用同文件的“mnuttx”函数，代码如下：
+
+![](/img/openvela/image142.png)
+
+所以，无论是编译还是配置，都调用源码根目录下的build.sh，如下：
+
+\# 配置
+
+```
+./build.sh vendor/allwinnertech/boards/r528/r528s3-velaevb1/configs/nsh/ menuconfig
+
+```
+\# 编译
+
+```
+./build.sh vendor/allwinnertech/boards/r528/r528s3-velaevb1/configs/nsh/ -e -Werror -j32
+
+```
+#### 配置过程
+
+“build.sh”的关键函数为“build_board”：
+
+![](/img/openvela/image143.png)
+
+“build_board”函数功能如下：
+
+![](/img/openvela/image144.png)
+
+无论是执行“m”命令进行编译，还是执行“m menuconfig”进入配置界面，都可以分为4个步骤：
+
+- 使用默认配置生成.config  
+  把“vendor/allwinnertech/boards/r528/r528s3-velaevb1/configs/nsh/defconfig”整理后得到“nuttx/.config”。所谓整理就是把include的文件展开，去掉重复项等。
+
+- 进入nuttx目录执行“make”或“make menuconfig”命令
+
+- 把nuttx/.config整理为nuttx/defconfig：比如排序、去掉重复项
+
+- 把nuttx/defconfig复制为默认配置文件：  
+  “vendor/allwinnertech/boards/r528/r528s3-velaevb1/configs/nsh/defconfig”
+
+#### 编译过程
+
+理解nuttx编译过程的关键字为“递归”。我们把nuttx的Makefile分为多个级别，如下：
+
+![](/img/openvela/image145.png)
+
+- 在“顶层目录”nuttx下执行“make”
+
+- 会分别进入第2层目录执行“make”：比如进入apps目录、sched目录分别执行“make”
+
+- 在apps目录下执行“make”，又会进入第3层目录执行make：比如进入“apps/builtin”、“apps/examples/hello”目录下执行“make”
+
+分析时，要从顶层“nuttx/Makefile”开始，它包含了很多文件，如下：
+
+![](/img/openvela/image146.png)
+
+把“nuttx/Makefile”里面包含的文件展开，把流程的关键部分保留下来，代码如下：
+
+include \$(TOPDIR)/Make.defs
+
+-include \$(TOPDIR)/.version
+
+CONFIG_APPS_DIR = ../apps
+
+```
+APPDIR := \$(realpath \${shell if \[ -r \$(CONFIG_APPS_DIR)/Makefile \]; then echo "\$(CONFIG_APPS_DIR)"; fi})
+
+```
+include tools/Directories.mk
+
+include tools/FlatLibs.mk
+
+\# \*\*\*\*\*\*\*\*\*\*\*\*\*\*\*\*\*\*\*\*\*\*\*\*\*\*\*\*\*\*\*\*\*\*
+
+\# 在nuttx/tools/FlatLibs.mk里设置
+
+NUTTXLIBS += staging/libsched.a staging/libapps.a ...
+
+\# \*\*\*\*\*\*\*\*\*\*\*\*\*\*\*\*\*\*\*\*\*\*\*\*\*\*\*\*\*\*\*\*\*\*
+
+BIN = nuttx\$(EXEEXT)
+
+all: \$(BIN)
+
+include/nuttx/config.h: \$(TOPDIR)/.config tools/mkconfig\$(HOSTEXEEXT)
+
+\$(Q) tools/mkconfig \$(TOPDIR) \&gt; \$@.tmp
+
+\$(Q) \$(call TESTANDREPLACEFILE, \$@.tmp, \$@)
+
+\# Link arch/\&lt;arch-name\&gt;/src/\&lt;chip-name\&gt; to arch/\&lt;arch-name\&gt;/src/chip
+
+\# Link arch/\&lt;arch-name\&gt;/include/\&lt;chip-name\&gt; to include/arch/chip
+
+\# 在 nuttx/tools/Directories.mk
+
+\# CONTEXTDIRS = boards drivers fs \$(APPDIR) \$(ARCH_SRC) mm
+
+CONTEXTDIRS_DEPS = \$(patsubst %,%/.context,\$(CONTEXTDIRS))
+
+context: tools/incdir\$(HOSTEXEEXT) include/nuttx/config.h include/nuttx/version.h .dirlinks \$(CONTEXTDIRS_DEPS) \| staging
+
+staging:
+
+\$(Q) mkdir -p \$@
+
+%.context: include/nuttx/config.h .dirlinks
+
+\$(Q) \$(MAKE) -C \$(patsubst %.context,%,\$@) TOPDIR="\$(TOPDIR)" context
+
+\$(Q) touch \$@
+
+include tools/LibTargets.mk
+
+\# \*\*\*\*\*\*\*\*\*\*\*\*\*\*\*\*\*\*\*\*\*\*\*\*\*\*\*\*\*\*\*\*\*\*
+
+\# 来自 tools/LibTargets.mk
+
+sched\$(DELIM)libsched\$(LIBEXT): pass2dep
+
+\$(Q) \$(MAKE) -C sched libsched\$(LIBEXT) EXTRAFLAGS="\$(KDEFINE) \$(EXTRAFLAGS)"
+
+staging\$(DELIM)libsched\$(LIBEXT): sched\$(DELIM)libsched\$(LIBEXT)
+
+\$(Q) \$(call INSTALL_LIB,\$\&lt;,\$@)
+
+\$(APPDIR)\$(DELIM)libapps\$(LIBEXT): pass2dep
+
+\$(Q) \$(MAKE) -C \$(APPDIR) EXTRAFLAGS="\$(EXTRAFLAGS)"
+
+staging\$(DELIM)libapps\$(LIBEXT): \$(APPDIR)\$(DELIM)libapps\$(LIBEXT)
+
+\$(Q) \$(call INSTALL_LIB,\$\&lt;,\$@)
+
+endif
+
+\# \*\*\*\*\*\*\*\*\*\*\*\*\*\*\*\*\*\*\*\*\*\*\*\*\*\*\*\*\*\*\*\*\*\*
+
+pass1: \$(USERLIBS)
+
+pass2: \$(NUTTXLIBS)
+
+\$(BIN): pass1 pass2
+
+\$(Q) \$(MAKE) -C \$(ARCH_SRC) EXTRA_OBJS="\$(EXTRA_OBJS)" LINKLIBS="\$(LINKLIBS)" APPDIR="\$(APPDIR)" EXTRAFLAGS="\$(KDEFINE) \$(EXTRAFLAGS)" \$(BIN)
+
+pass2dep: context tools/mkdeps\$(HOSTEXEEXT) tools/cnvwindeps\$(HOSTEXEEXT)
+
+```
+menuconfig:
+
+```
+\$(Q) \$(MAKE) clean_context
+
+\$(Q) \$(MAKE) apps_preconfig
+
+```
+$(Q) \${KCONFIG_ENV} \${KCONFIG_MENUCONFIG}
+
+```
+执行“m”命令编译时，会执行“make -C nuttx”，就是进入nuttx目录执行它里面Makefile的第1个目标“all”，这个目标的依赖关系为:
+
+![](/img/openvela/image147.png)
+
+编译Nuttx时，本质是进入nuttx目录执行“make all”，nuttx由staging目录下的各个“.a”文件组成：
+
+\$ ls staging/
+
+libapps.a libarch.a libbinfmt.a libboards.a libc.a libcrypto.a
+
+libdrivers.a libfs.a libmm.a libsched.a libxx.a
+
+所以要先生成这些“.a”文件。
+
+以libapps.a为例。在apps目录的源码里，它需要包含“include/nuttx/config.h”文件，使用里面的宏进行作为源码的条件编译开关。所以要生成libapps.a，要先生成config.h，这被称为“context”（上下文）。
+
+从顶层nuttx/Makefile开始，会进入apps目录、sched目录等目录，逐个编译出对应的“.a”文件，然后再把它们连接起来得到nuttx。
+
+在编译apps等目录时，又会先处理“context”等目标，然后才开始才编译代码。这些操作，都依赖于各个目录下的Makefile，比如apps/Makefile、sched/Makefile。
+
+这样，控制流程就从顶层nuttx/Makefile进入了下一级的Makefile。
+
+### sched的编译过程
+
+shced目录的编译比apps简单，先分析它。它的Makefile包含了其他文件：
+
+![](/img/openvela/image148.png)
+
+它的依赖关系如下：
+
+![](/img/openvela/image149.png)
+
+它就是把sched下面各个子目录的“Make.defs”里使用ASRCS指定的汇编文件、使用CSRCS指定的C文件，都编译为.o，然后打包为libsched.a。
+
+### APPS的编译过程
+
+分析APPS目录的编译过程，有一个关键变量“CONFIGURED_APPS”：它指定了“要编译哪些APP”，在里面指定了要编译哪些子目录，比如：
+
+![](/img/openvela/image150.png)
+
+#### Makefile
+
+“apps/Makefile”包含了很多文件，如下：
+
+![](/img/openvela/image151.png)
+
+把“apps/Makefile”展开后，保留重要部分，代码如下：
+
+```
+export APPDIR = \$(CURDIR)
+
+```
+include \$(APPDIR)/Make.defs
+
+\# \*\*\*\*\*\*\*\*\*\*\*\*\*\*\*\*\*\*\*\*\*\*\*\*\*\*\*\*\*\*\*\*\*\*\*\*\*\*\*\*
+
+TOPDIR ?= \$(APPDIR)/import
+
+-include \$(TOPDIR)/Make.defs
+
+```
+# \${TOPDIR}/tools/Config.mk
+
+```
+\# 定义了SDIR_template
+
+define SDIR_template
+
+\$(1)\_\$(2):
+
++\$(Q) \$(MAKE) -C \$(1) \$(2) APPDIR="\$(APPDIR)"
+
+endef
+
+SYMTABSRC = symtab_apps.c
+
+SYMTABOBJ = \$(SYMTABSRC:.c=\$(OBJEXT))
+
+\# Application Directories
+
+\# BUILDIRS : apps/的子目录下有Make.defs文件的话, 就会记录进BUILDIRS
+
+BUILDIRS := \$(dir \$(wildcard \$(APPDIR)/\*/Make.defs))
+
+BUILDIRS := \$(filter-out \$(APPDIR)/import/,\$(BUILDIRS))
+
+CONFIGDIRS := \$(filter-out \$(APPDIR)/builtin/,\$(BUILDIRS))
+
+CONFIGDIRS := \$(filter-out \$(dir \$(wildcard \$(APPDIR)/\*/Kconfig)),\$(CONFIGDIRS))
+
+CLEANDIRS := \$(dir \$(wildcard \$(APPDIR)/\*/Makefile))
+
+CONFIGURED_APPS :=
+
+define Add_Application
+
+include \$(1)Make.defs
+
+endef
+
+\# 包含 BUILDIRS 目录下的Make.defs文件
+
+\# 这些文件构造了 CONFIGURED_APPS
+
+\$(foreach BDIR, \$(BUILDIRS), \$(eval \$(call Add_Application,\$(BDIR))))
+
+BINDIR ?= \$(APPDIR)\$(DELIM)bin
+
+BIN ?= \$(APPDIR)\$(DELIM)libapps\$(LIBEXT)
+
+\# Tools
+
+MKKCONFIG ?= \$(APPDIR)\$(DELIM)tools\$(DELIM)mkkconfig.sh
+
+\# Builtin Registration
+
+BUILTIN_REGISTRY ?= \$(APPDIR)\$(DELIM)builtin\$(DELIM)registry
+
+DEPCONFIG ?= \$(TOPDIR)\$(DELIM).config
+
+define REGISTER
+
+\$(Q) echo "Register: \$1"
+
+```
+$(Q) echo "{ \\\$1\\, \$2, \$3, \$4 }," \> "\$(BUILTIN_REGISTRY)\$(DELIM)\$1.bdat"
+
+$(Q) if \[ ! -z \$4 \]; then \\
+
+echo "int \$4(int argc, char \*argv\[\]);" \> "\$(BUILTIN_REGISTRY)\$(DELIM)\$1.pdat"; \\
+
+fi;
+
+```
+\$(Q) touch "\$(BUILTIN_REGISTRY)\$(DELIM).updated"
+
+endef
+
+\# \*\*\*\*\*\*\*\*\*\*\*\*\*\*\*\*\*\*\*\*\*\*\*\*\*\*\*\*\*\*\*\*\*\*\*\*\*\*\*\*
+
+include \$(APPDIR)/tools/Wasm.mk
+
+all: \$(BIN)
+
+.PHONY: import install dirlinks export .depdirs preconfig depend clean distclean
+
+.PHONY: context postinstall clean_context context_all postinstall_all register register_all
+
+.PRECIOUS: \$(BIN)
+
+\$(foreach SDIR, \$(CONFIGURED_APPS), \$(eval \$(call SDIR_template,\$(SDIR),all)))
+
+\# 对于CONFIGURED_APPS里每个目录都构造一个规则
+
+\# 假设 CONFIGURED_APPS = /.../apps/examples/hello ...
+
+\# 有如下规则
+
+/.../apps/examples/hello_all:
+
+\$(Q) \$(MAKE) -C /.../apps/examples/hello all APPDIR="/.../apps"
+
+\$(foreach SDIR, \$(CONFIGURED_APPS), \$(eval \$(call SDIR_template,\$(SDIR),install)))
+
+\$(foreach SDIR, \$(CONFIGURED_APPS), \$(eval \$(call SDIR_template,\$(SDIR),postinstall)))
+
+\$(foreach SDIR, \$(CONFIGURED_APPS), \$(eval \$(call SDIR_template,\$(SDIR),context)))
+
+\$(foreach SDIR, \$(CONFIGURED_APPS), \$(eval \$(call SDIR_template,\$(SDIR),register)))
+
+\# 对于CONFIGURED_APPS里每个目录都构造一个规则
+
+\# 假设 CONFIGURED_APPS = /.../apps/examples/hello ...
+
+\# 有如下规则
+
+/.../apps/examples/hello_register:
+
+\$(Q) \$(MAKE) -C /.../apps/examples/hello register APPDIR="/.../apps"
+
+\$(foreach SDIR, \$(CONFIGURED_APPS), \$(eval \$(call SDIR_template,\$(SDIR),depend)))
+
+\$(foreach SDIR, \$(CLEANDIRS), \$(eval \$(call SDIR_template,\$(SDIR),clean)))
+
+\$(foreach SDIR, \$(CLEANDIRS), \$(eval \$(call SDIR_template,\$(SDIR),distclean)))
+
+\$(MKDEP): \$(TOPDIR)/tools/mkdeps.c
+
+\$(HOSTCC) \$(HOSTINCLUDES) \$(HOSTCFLAGS) \$\&lt; -o \$@
+
+\$(INCDIR): \$(TOPDIR)/tools/incdir.c
+
+\$(HOSTCC) \$(HOSTINCLUDES) \$(HOSTCFLAGS) \$\&lt; -o \$@
+
+IMPORT_TOOLS = \$(MKDEP) \$(INCDIR)
+
+context_wasm:
+
+\$(SYMTABSRC): \$(foreach SDIR, \$(CONFIGURED_APPS), \$(SDIR)\_all)
+
+\$(Q) \$(MAKE) install
+
+\$(Q) \$(APPDIR)\$(DELIM)tools\$(DELIM)mksymtab.sh \$(BINDIR) \$(SYMTABEXT) \&gt;\$@.tmp
+
+\$(Q) \$(call TESTANDREPLACEFILE, \$@.tmp, \$@)
+
+\$(SYMTABOBJ): %\$(OBJEXT): %.c
+
+\$(call COMPILE, \$\&lt;, \$@, -Onolink)
+
+\$(BIN): \$(SYMTABOBJ)
+
+\$(call ARLOCK, \$(call CONVERT_PATH,\$(BIN)), \$^)
+
+\$(call LINK_WASM)
+
+dirlinks:
+
+\$(Q) \$(MAKE) -C platform dirlinks
+
+context_all: \$(foreach SDIR, \$(CONFIGURED_APPS), \$(SDIR)\_context)
+
+register_all: \$(foreach SDIR, \$(CONFIGURED_APPS), \$(SDIR)\_register)
+
+postinstall_all: \$(foreach SDIR, \$(CONFIGURED_APPS), \$(SDIR)\_postinstall)
+
+staging:
+
+\$(Q) mkdir -p \$@
+
+context: \| staging
+
+\$(Q) \$(MAKE) context_all
+
+\$(Q) \$(MAKE) register_all
+
+\$(Q) \$(MAKE) context_wasm
+
+依赖关系如下图：
+
+![](/img/openvela/image152.png)
+
+#### 进入下一级目录构建context
+
+在顶层目录nuttx下执行make去编译libapps.a、libsched.a之前，都会先构建“context”。它会进入apps、sched目录使用它们的Makefile构建context：
+
+```
+make -C apps context
+
+```
+以“apps/Makefile”为例，它的context规则如下：
+
+context: \| staging
+
+\$(Q) \$(MAKE) context_all
+
+\$(Q) \$(MAKE) register_all
+
+\$(Q) \$(MAKE) context_wasm
+
+上述规则会再次进入“CONFIGURED_APPS”指定的下一级目录执行“make context”、“make register”等。
+
+注意：apps目录下各个子目录的Makedefs里，定义了“CONFIGURED_APPS”变量，它的值大概是这样：
+
+CONFIGURED_APPS = /.../apps/builtin /.../apps/examples/hello ...
+
+所以，会使用类似下面命令进入下一级：
+
+```
+make -C /.../apps/builtin register
+
+make -C /.../apps/examples/hello register
+
+```
+#### 进入下一级目录构建.o
+
+在顶层目录nuttx下执行make去编译libapps.a、libsched.a时，执行的是类似下面的命令（简化了）：
+
+```
+make -C apps all
+
+make -C sched all
+
+```
+就是：顶层Makefile进入下一级的目录，使用它们的Makefile去构建all目标。
+
+当构建apps/Makefile里的all目标时，它确定了“CONFIGURED_APPS”后，又分别进入这个变量表示的下一级目录，使用它们的Makefile构建各自的all目标，比如：
+
+```
+make -C apps/builtin all
+
+make -C apps/example/hello all
+
+```
+### app/builtin的编译过程
+
+“app/builtin/Makefile”是底层的Makefile，要真正做事情了。
+
+它包含了很多文件，如下：
+
+![](/img/openvela/image153.png)
+
+它的依赖关系如下：
+
+![](/img/openvela/image154.png)
+
+展开的Makefile如下：
+
+include \$(APPDIR)/Make.defs
+
+define AROBJSRULES
+
+\$(1) : \$(2)
+
+@ cp \$(2) \$(1)
+
+endef
+
+\# Source and object files
+
+CSRCS = builtin_list.c exec_builtin.c
+
+\# Registry entry lists
+
+PDATLIST = \$(strip \$(call RWILDCARD, registry, \*.pdat))
+
+BDATLIST = \$(strip \$(call RWILDCARD, registry, \*.bdat))
+
+ifeq (\$(CONFIG_WINDOWS_NATIVE),y)
+
+PDATLIST := \$(subst /,\\\$(PDATLIST))
+
+BDATLIST := \$(subst /,\\\$(BDATLIST))
+
+endif
+
+builtin_list.c: builtin_list.h builtin_proto.h
+
+echo 100ask create \$@
+
+builtin_list.h: registry\$(DELIM).updated
+
+echo 100ask create \$@
+
+ifeq (\$(BDATLIST),)
+
+\$(call DELFILE, builtin_list.h)
+
+\$(Q) touch builtin_list.h
+
+else
+
+\$(shell echo '' \&gt; builtin_list.h)
+
+\$(call SPLITVARIABLE,BDA,\$(BDATLIST),50) \\
+
+\$(foreach BATCH, \$(BDA_TOTAL), \\
+
+\$(shell \$(call CONFILE, builtin_list.h, \$(BDA\_\$(BATCH)))) \\
+
+)
+
+endif
+
+builtin_proto.h: registry\$(DELIM).updated
+
+echo 100ask create \$@
+
+ifeq (\$(PDATLIST),)
+
+\$(call DELFILE, builtin_proto.h)
+
+\$(Q) touch builtin_proto.h
+
+else
+
+\$(shell echo '' \&gt; builtin_proto.h)
+
+\$(call SPLITVARIABLE,PDA,\$(PDATLIST),50) \\
+
+\$(foreach BATCH, \$(PDA_TOTAL), \\
+
+\$(shell \$(call CONFILE, builtin_proto.h, \$(PDA\_\$(BATCH)))) \\
+
+)
+
+endif
+
+include \$(APPDIR)/Application.mk
+
+PROGNAME := \$(subst ",,\$(PROGNAME))
+
+\# Add the static application library to the linked libraries.
+
+LDLIBS += \$(call CONVERT_PATH,\$(BIN))
+
+PREFIX ?=
+
+\# Object files
+
+RASRCS = \$(filter %.s,\$(ASRCS))
+
+CASRCS = \$(filter %.S,\$(ASRCS))
+
+RAOBJS = \$(RASRCS:%=\$(PREFIX)%\$(SUFFIX)\$(OBJEXT))
+
+CAOBJS = \$(CASRCS:%=\$(PREFIX)%\$(SUFFIX)\$(OBJEXT))
+
+COBJS = \$(CSRCS:%=\$(PREFIX)%\$(SUFFIX)\$(OBJEXT))
+
+CXXOBJS = \$(CXXSRCS:%=\$(PREFIX)%\$(SUFFIX)\$(OBJEXT))
+
+RUSTOBJS = \$(RUSTSRCS:%=\$(PREFIX)%\$(SUFFIX)\$(OBJEXT))
+
+ZIGOBJS = \$(ZIGSRCS:%=\$(PREFIX)%\$(SUFFIX)\$(OBJEXT))
+
+DOBJS = \$(DSRCS:%=\$(PREFIX)%\$(SUFFIX)\$(OBJEXT))
+
+SWIFTOBJS = \$(SWIFTSRCS:%=\$(PREFIX)%\$(SUFFIX)\$(OBJEXT))
+
+AIDLOBJS = \$(patsubst %\$(AIDLEXT),%\$(CXXEXT),\$(AIDLSRCS))
+
+MAINCXXSRCS = \$(filter %\$(CXXEXT),\$(MAINSRC))
+
+MAINCSRCS = \$(filter %.c,\$(MAINSRC))
+
+MAINRUSTSRCS = \$(filter %\$(RUSTEXT),\$(MAINSRC))
+
+MAINZIGSRCS = \$(filter %\$(ZIGEXT),\$(MAINSRC))
+
+MAINDSRCS = \$(filter %\$(DEXT),\$(MAINSRC))
+
+MAINSWIFTSRCS = \$(filter %\$(SWIFTEXT),\$(MAINSRC))
+
+MAINCXXOBJ = \$(MAINCXXSRCS:%=\$(PREFIX)%\$(SUFFIX)\$(OBJEXT))
+
+MAINCOBJ = \$(MAINCSRCS:%=\$(PREFIX)%\$(SUFFIX)\$(OBJEXT))
+
+MAINRUSTOBJ = \$(MAINRUSTSRCS:%=\$(PREFIX)%\$(SUFFIX)\$(OBJEXT))
+
+MAINZIGOBJ = \$(MAINZIGSRCS:%=\$(PREFIX)%\$(SUFFIX)\$(OBJEXT))
+
+MAINDOBJ = \$(MAINDSRCS:%=\$(PREFIX)%\$(SUFFIX)\$(OBJEXT))
+
+MAINSWIFTOBJ = \$(MAINSWIFTSRCS:%=\$(PREFIX)%\$(SUFFIX)\$(OBJEXT))
+
+SRCS = \$(ASRCS) \$(CSRCS) \$(CXXSRCS) \$(MAINSRC)
+
+OBJS = \$(RAOBJS) \$(CAOBJS) \$(COBJS) \$(CXXOBJS) \$(RUSTOBJS) \$(ZIGOBJS) \$(DOBJS) \$(SWIFTOBJS) \$(EXTOBJS)
+
+ifneq (\$(BUILD_MODULE),y)
+
+OBJS += \$(MAINCOBJ) \$(MAINCXXOBJ) \$(MAINRUSTOBJ) \$(MAINZIGOBJ) \$(MAINDOBJ) \$(MAINSWIFTOBJ)
+
+endif
+
+all:: \$(PREFIX).built
+
+@:
+
+\$(RAOBJS): \$(PREFIX)%.s\$(SUFFIX)\$(OBJEXT): %.s
+
+\$(if \$(and \$(CONFIG_MODULES),\$(MODAELFFLAGS)), \\
+
+\$(call ELFASSEMBLE, \$\&lt;, \$@), \$(call ASSEMBLE, \$\&lt;, \$@))
+
+\$(CAOBJS): \$(PREFIX)%.S\$(SUFFIX)\$(OBJEXT): %.S
+
+\$(if \$(and \$(CONFIG_MODULES),\$(MODAELFFLAGS)), \\
+
+\$(call ELFASSEMBLE, \$\&lt;, \$@), \$(call ASSEMBLE, \$\&lt;, \$@))
+
+\$(COBJS): \$(PREFIX)%.c\$(SUFFIX)\$(OBJEXT): %.c
+
+\$(if \$(and \$(CONFIG_MODULES),\$(MODCFLAGS)), \\
+
+\$(call ELFCOMPILE, \$\&lt;, \$@), \$(call COMPILE, \$\&lt;, \$@))
+
+\$(CXXOBJS): \$(PREFIX)%\$(CXXEXT)\$(SUFFIX)\$(OBJEXT): %\$(CXXEXT)
+
+\$(if \$(and \$(CONFIG_MODULES),\$(MODCXXFLAGS)), \\
+
+\$(call ELFCOMPILEXX, \$\&lt;, \$@), \$(call COMPILEXX, \$\&lt;, \$@))
+
+\$(RUSTOBJS): \$(PREFIX)%\$(RUSTEXT)\$(SUFFIX)\$(OBJEXT): %\$(RUSTEXT)
+
+\$(if \$(and \$(CONFIG_MODULES),\$(CELFFLAGS)), \\
+
+\$(call ELFCOMPILERUST, \$\&lt;, \$@), \$(call COMPILERUST, \$\&lt;, \$@))
+
+\$(ZIGOBJS): \$(PREFIX)%\$(ZIGEXT)\$(SUFFIX)\$(OBJEXT): %\$(ZIGEXT)
+
+\$(if \$(and \$(CONFIG_MODULES), \$(CELFFLAGS)), \\
+
+\$(call ELFCOMPILEZIG, \$\&lt;, \$@), \$(call COMPILEZIG, \$\&lt;, \$@))
+
+\$(DOBJS): \$(PREFIX)%\$(DEXT)\$(SUFFIX)\$(OBJEXT): %\$(DEXT)
+
+\$(if \$(and \$(CONFIG_MODULES), \$(CELFFLAGS)), \\
+
+\$(call ELFCOMPILED, \$\&lt;, \$@), \$(call COMPILED, \$\&lt;, \$@))
+
+\$(SWIFTOBJS): \$(PREFIX)%\$(SWIFTEXT)\$(SUFFIX)\$(OBJEXT): %\$(SWIFTEXT)
+
+\$(if \$(and \$(CONFIG_MODULES), \$(CELFFLAGS)), \\
+
+\$(call ELFCOMPILESWIFT, \$\&lt;, \$@), \$(call COMPILESWIFT, \$\&lt;, \$@))
+
+\$(AIDLOBJS): %\$(CXXEXT): %\$(AIDLEXT)
+
+\$(call COMPILEAIDL, \$\&lt;)
+
+AROBJS :=
+
+ifneq (\$(OBJS),)
+
+SORTOBJS := \$(sort \$(OBJS))
+
+\$(eval \$(call SPLITVARIABLE,OBJS_SPILT,\$(SORTOBJS),100))
+
+\$(foreach BATCH, \$(OBJS_SPILT_TOTAL), \\
+
+\$(foreach obj, \$(OBJS_SPILT\_\$(BATCH)), \\
+
+\$(eval substitute := \$(patsubst %\$(OBJEXT),%\_\$(BATCH)\$(OBJEXT),\$(obj))) \\
+
+\$(eval AROBJS += \$(substitute)) \\
+
+\$(eval \$(call AROBJSRULES, \$(substitute),\$(obj))) \\
+
+) \\
+
+)
+
+endif
+
+\$(PREFIX).built: \$(AROBJS)
+
+echo 100ask builtin: AROBJS = \$(AROBJS)
+
+\$(call SPLITVARIABLE,ALL_OBJS,\$(AROBJS),100)
+
+\$(foreach BATCH, \$(ALL_OBJS_TOTAL), \\
+
+\$(if \$(strip \$(ALL_OBJS\_\$(BATCH))), \\
+
+\$(shell \$(call ARLOCK, \$(call CONVERT_PATH,\$(BIN)), \$(ALL_OBJS\_\$(BATCH)))) \\
+
+) \\
+
+)
+
+\$(Q) touch \$@
+
+ifeq (\$(BUILD_MODULE),y)
+
+\$(MAINCXXOBJ): \$(PREFIX)%\$(CXXEXT)\$(SUFFIX)\$(OBJEXT): %\$(CXXEXT)
+
+\$(if \$(and \$(CONFIG_MODULES),\$(MODCXXFLAGS)), \\
+
+\$(call ELFCOMPILEXX, \$\&lt;, \$@), \$(call COMPILEXX, \$\&lt;, \$@))
+
+\$(MAINCOBJ): \$(PREFIX)%.c\$(SUFFIX)\$(OBJEXT): %.c
+
+\$(if \$(and \$(CONFIG_MODULES),\$(MODCFLAGS)), \\
+
+\$(call ELFCOMPILE, \$\&lt;, \$@), \$(call COMPILE, \$\&lt;, \$@))
+
+\$(MAINZIGOBJ): \$(PREFIX)%\$(ZIGEXT)\$(SUFFIX)\$(OBJEXT): %\$(ZIGEXT)
+
+\$(if \$(and \$(CONFIG_MODULES),\$(CELFFLAGS)), \\
+
+\$(call ELFCOMPILEZIG, \$\&lt;, \$@), \$(call COMPILEZIG, \$\&lt;, \$@))
+
+\$(MAINDOBJ): \$(PREFIX)%\$(DEXT)\$(SUFFIX)\$(OBJEXT): %\$(DEXT)
+
+\$(if \$(and \$(CONFIG_MODULES),\$(CELFFLAGS)), \\
+
+\$(call ELFCOMPILED, \$\&lt;, \$@), \$(call COMPILED, \$\&lt;, \$@))
+
+\$(MAINSWIFTOBJ): \$(PREFIX)%\$(SWIFTEXT)\$(SUFFIX)\$(OBJEXT): %\$(SWIFTEXT)
+
+\$(if \$(and \$(CONFIG_MODULES),\$(CELFFLAGS)), \\
+
+\$(call ELFCOMPILESWIFT, \$\&lt;, \$@), \$(call COMPILESWIFT, \$\&lt;, \$@))
+
+\$(PROGLIST): \$(MAINCOBJ) \$(MAINCXXOBJ) \$(MAINRUSTOBJ) \$(MAINZIGOBJ) \$(MAINDOBJ) \$(MAINSWIFTOBJ)
+
+\$(Q) mkdir -p \$(BINDIR)
+
+\$(call ELFLD, \$(PROGOBJ\_\$@), \$(call CONVERT_PATH,\$@))
+
+\$(Q) chmod +x \$@
+
+ifneq (\$(CONFIG_DEBUG_SYMBOLS),y)
+
+\$(Q) \$(MODULESTRIP) \$@
+
+endif
+
+install:: \$(PROGLIST)
+
+@:
+
+-include \$(PREFIX)Make.dep
+
+\# Include Wasm specific definitions
+
+include \$(APPDIR)/tools/Wasm.mk
+
+### app/examples/hello的编译过程
+
+“app/examples/hello”是底层的Makefile，要真正做事情了。
+
+它包含了很多文件，如下：
+
+![](/img/openvela/image155.png)
+
+它的依赖关系如下：
+
+![](/img/openvela/image156.png)
+
+展开的Makefile为：
+
+include \$(APPDIR)/Make.defs
+
+\# include \$(APPDIR)/Make.defs
+
+define REGISTER
+
+\$(Q) echo "Register: \$1"
+
+```
+$(Q) echo "{ \\\$1\\, \$2, \$3, \$4 }," \> "\$(BUILTIN_REGISTRY)\$(DELIM)\$1.bdat"
+
+$(Q) if \[ ! -z \$4 \]; then \\
+
+echo "int \$4(int argc, char \*argv\[\]);" \> "\$(BUILTIN_REGISTRY)\$(DELIM)\$1.pdat"; \\
+
+fi;
+
+```
+\$(Q) touch "\$(BUILTIN_REGISTRY)\$(DELIM).updated"
+
+endef
+
+\# include \$(APPDIR)/Make.defs
+
+define AROBJSRULES
+
+\$(1) : \$(2)
+
+@ cp \$(2) \$(1)
+
+endef
+
+\# Hello, World! built-in application info
+
+PROGNAME = \$(CONFIG_EXAMPLES_HELLO_PROGNAME)
+
+PRIORITY = \$(CONFIG_EXAMPLES_HELLO_PRIORITY)
+
+STACKSIZE = \$(CONFIG_EXAMPLES_HELLO_STACKSIZE)
+
+MODULE = \$(CONFIG_EXAMPLES_HELLO)
+
+\# Hello, World! Example
+
+MAINSRC = hello_main.c
+
+include \$(APPDIR)/Application.mk
+
+\############################################################################
+
+\# apps/Application.mk
+
+\#
+
+\# Licensed to the Apache Software Foundation (ASF) under one or more
+
+\# contributor license agreements. See the NOTICE file distributed with
+
+\# this work for additional information regarding copyright ownership. The
+
+\# ASF licenses this file to you under the Apache License, Version 2.0 (the
+
+```
+# "License"); you may not use this file except in compliance with the
+
+```
+\# License. You may obtain a copy of the License at
+
+\#
+
+\# http:#www.apache.org/licenses/LICENSE-2.0
+
+\#
+
+\# Unless required by applicable law or agreed to in writing, software
+
+\# distributed under the License is distributed on an "AS IS" BASIS, WITHOUT
+
+\# WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied. See the
+
+\# License for the specific language governing permissions and limitations
+
+\# under the License.
+
+\#
+
+\############################################################################
+
+\# If this is an executable program (with MAINSRC), we must build it as a
+
+\# loadable module for the KERNEL build (always) or if the tristate module
+
+\# has the value "m"
+
+ifneq (\$(MAINSRC),)
+
+ifeq (\$(DYNLIB),y)
+
+BUILD_MODULE = y
+
+MODAELFFLAGS = \$(CMODULELFFLAGS)
+
+MODCFLAGS = \$(CMODULEFLAGS)
+
+MODCXXFLAGS = \$(CXXMODULEFLAGS)
+
+MODLDFLAGS = \$(LDMODULEFLAGS)
+
+```
+else ifneq (\$(or \$(filter y,\$(CONFIG_BUILD_KERNEL)), \$(filter m,\$(MODULE))),)
+
+```
+BUILD_MODULE = y
+
+MODAELFFLAGS = \$(AELFFLAGS)
+
+MODCFLAGS = \$(CELFFLAGS)
+
+MODCXXFLAGS = \$(CXXELFFLAGS)
+
+MODLDFLAGS = \$(LDELFFLAGS)
+
+endif
+
+endif
+
+\# The GNU make CURDIR will always be a POSIX-like path with forward slashes
+
+\# as path segment separators. If we know that this is a native build, then
+
+\# we need to fix up the path so the DELIM will match the actual delimiter.
+
+ifeq (\$(CONFIG_WINDOWS_NATIVE),y)
+
+```
+CWD = \$(strip \${shell echo %CD% \| cut -d: -f2})
+
+```
+else
+
+CWD = \$(CURDIR)
+
+endif
+
+SUFFIX ?= \$(subst \$(DELIM),.,\$(CWD))
+
+PROGNAME := \$(subst ",,\$(PROGNAME))
+
+\# Add the static application library to the linked libraries.
+
+LDLIBS += \$(call CONVERT_PATH,\$(BIN))
+
+\# When building a module, link with the compiler runtime.
+
+\# This should be linked after libapps. Consider that mbedtls in libapps
+
+\# uses \_\_udivdi3.
+
+ifeq (\$(BUILD_MODULE),y)
+
+\# Revisit: This only works for gcc and clang.
+
+\# Do other compilers have similar?
+
+COMPILER_RT_LIB = \$(shell \$(CC) \$(ARCHCPUFLAGS) --print-libgcc-file-name)
+
+ifeq (\$(wildcard \$(COMPILER_RT_LIB)),)
+
+\# if "--print-libgcc-file-name" unable to find the correct libgcc PATH
+
+\# then go ahead and try "--print-file-name"
+
+COMPILER_RT_LIB := \$(wildcard \$(shell \$(CC) \$(ARCHCPUFLAGS) --print-file-name \$(notdir \$(COMPILER_RT_LIB))))
+
+endif
+
+LDLIBS += \$(COMPILER_RT_LIB)
+
+endif
+
+\# Apps compilation can achieve out-of-tree intermediate products
+
+\# by specifying "PREFIX" to a directory in its own Makefile.
+
+\# Default value is NULL,
+
+\# Make sure the out-of-tree directory exists and ends with \$(DELIM) when setting it.
+
+PREFIX ?=
+
+\# Object files
+
+RASRCS = \$(filter %.s,\$(ASRCS))
+
+CASRCS = \$(filter %.S,\$(ASRCS))
+
+RAOBJS = \$(RASRCS:%=\$(PREFIX)%\$(SUFFIX)\$(OBJEXT))
+
+CAOBJS = \$(CASRCS:%=\$(PREFIX)%\$(SUFFIX)\$(OBJEXT))
+
+COBJS = \$(CSRCS:%=\$(PREFIX)%\$(SUFFIX)\$(OBJEXT))
+
+CXXOBJS = \$(CXXSRCS:%=\$(PREFIX)%\$(SUFFIX)\$(OBJEXT))
+
+RUSTOBJS = \$(RUSTSRCS:%=\$(PREFIX)%\$(SUFFIX)\$(OBJEXT))
+
+ZIGOBJS = \$(ZIGSRCS:%=\$(PREFIX)%\$(SUFFIX)\$(OBJEXT))
+
+DOBJS = \$(DSRCS:%=\$(PREFIX)%\$(SUFFIX)\$(OBJEXT))
+
+SWIFTOBJS = \$(SWIFTSRCS:%=\$(PREFIX)%\$(SUFFIX)\$(OBJEXT))
+
+AIDLOBJS = \$(patsubst %\$(AIDLEXT),%\$(CXXEXT),\$(AIDLSRCS))
+
+MAINCXXSRCS = \$(filter %\$(CXXEXT),\$(MAINSRC))
+
+MAINCSRCS = \$(filter %.c,\$(MAINSRC))
+
+MAINRUSTSRCS = \$(filter %\$(RUSTEXT),\$(MAINSRC))
+
+MAINZIGSRCS = \$(filter %\$(ZIGEXT),\$(MAINSRC))
+
+MAINDSRCS = \$(filter %\$(DEXT),\$(MAINSRC))
+
+MAINSWIFTSRCS = \$(filter %\$(SWIFTEXT),\$(MAINSRC))
+
+MAINCXXOBJ = \$(MAINCXXSRCS:%=\$(PREFIX)%\$(SUFFIX)\$(OBJEXT))
+
+MAINCOBJ = \$(MAINCSRCS:%=\$(PREFIX)%\$(SUFFIX)\$(OBJEXT))
+
+MAINRUSTOBJ = \$(MAINRUSTSRCS:%=\$(PREFIX)%\$(SUFFIX)\$(OBJEXT))
+
+MAINZIGOBJ = \$(MAINZIGSRCS:%=\$(PREFIX)%\$(SUFFIX)\$(OBJEXT))
+
+MAINDOBJ = \$(MAINDSRCS:%=\$(PREFIX)%\$(SUFFIX)\$(OBJEXT))
+
+MAINSWIFTOBJ = \$(MAINSWIFTSRCS:%=\$(PREFIX)%\$(SUFFIX)\$(OBJEXT))
+
+SRCS = \$(ASRCS) \$(CSRCS) \$(CXXSRCS) \$(MAINSRC)
+
+OBJS = \$(RAOBJS) \$(CAOBJS) \$(COBJS) \$(CXXOBJS) \$(RUSTOBJS) \$(ZIGOBJS) \$(DOBJS) \$(SWIFTOBJS) \$(EXTOBJS)
+
+ifneq (\$(BUILD_MODULE),y)
+
+OBJS += \$(MAINCOBJ) \$(MAINCXXOBJ) \$(MAINRUSTOBJ) \$(MAINZIGOBJ) \$(MAINDOBJ) \$(MAINSWIFTOBJ)
+
+endif
+
+ifneq (\$(strip \$(PROGNAME)),)
+
+PROGOBJ := \$(MAINCOBJ) \$(MAINCXXOBJ) \$(MAINRUSTOBJ) \$(MAINZIGOBJ) \$(MAINDOBJ) \$(MAINSWIFTOBJ)
+
+PROGLIST := \$(addprefix \$(BINDIR)\$(DELIM),\$(PROGNAME))
+
+REGLIST := \$(addprefix \$(BUILTIN_REGISTRY)\$(DELIM),\$(addsuffix .bdat,\$(PROGNAME)))
+
+NLIST := \$(shell seq 1 \$(words \$(PROGNAME)))
+
+\$(foreach i, \$(NLIST), \\
+
+\$(eval PROGNAME\_\$(word \$i,\$(PROGOBJ)) := \$(word \$i,\$(PROGNAME))) \\
+
+\$(eval PROGOBJ\_\$(word \$i,\$(PROGLIST)) := \$(word \$i,\$(PROGOBJ))) \\
+
+\$(eval PRIORITY\_\$(word \$i,\$(REGLIST)) := \\
+
+\$(if \$(word \$i,\$(PRIORITY)),\$(word \$i,\$(PRIORITY)),\$(lastword \$(PRIORITY)))) \\
+
+\$(eval STACKSIZE\_\$(word \$i,\$(REGLIST)) := \\
+
+\$(if \$(word \$i,\$(STACKSIZE)),\$(word \$i,\$(STACKSIZE)),\$(lastword \$(STACKSIZE)))) \\
+
+\$(eval UID\_\$(word \$i,\$(REGLIST)) := \\
+
+\$(if \$(word \$i,\$(UID)),\$(word \$i,\$(UID)),\$(lastword \$(UID)))) \\
+
+\$(eval GID\_\$(word \$i,\$(REGLIST)) := \\
+
+\$(if \$(word \$i,\$(GID)),\$(word \$i,\$(GID)),\$(lastword \$(GID)))) \\
+
+\$(eval MODE\_\$(word \$i,\$(REGLIST)) := \\
+
+\$(if \$(word \$i,\$(MODE)),\$(word \$i,\$(MODE)),\$(lastword \$(MODE)))) \\
+
+)
+
+endif
+
+\# Condition flags
+
+DO_REGISTRATION ?= y
+
+ifeq (\$(PROGNAME),)
+
+DO_REGISTRATION = n
+
+endif
+
+ifeq (\$(WASM_BUILD),y)
+
+DO_REGISTRATION = n
+
+endif
+
+ifeq (\$(DYNLIB),y)
+
+DO_REGISTRATION = n
+
+endif
+
+\# Compile flags, notice the default flags only suitable for flat build
+
+ZIGELFFLAGS ?= \$(ZIGFLAGS)
+
+RUSTELFFLAGS ?= \$(RUSTFLAGS)
+
+DELFFLAGS ?= \$(DFLAGS)
+
+SWIFTELFFLAGS ?= \$(SWIFTFLAGS)
+
+DEPPATH += --dep-path .
+
+DEPPATH += --obj-path .
+
+VPATH += :.
+
+\# Targets follow
+
+all:: \$(PREFIX).built
+
+@:
+
+.PHONY: clean depend distclean
+
+.PRECIOUS: \$(BIN)
+
+define ELFASSEMBLE
+
+\$(ECHO_BEGIN)"AS: \$1 "
+
+\$(Q) \$(MODULECC) -c \$(MODAELFFLAGS) \$(\$(strip \$1)\_AELFFLAGS) \$1 -o \$2
+
+\$(ECHO_END)
+
+endef
+
+define ELFCOMPILE
+
+\$(ECHO_BEGIN)"CC: \$1 "
+
+\$(Q) \$(MODULECC) -c \$(MODCFLAGS) \$(\$(strip \$1)\_CELFFLAGS) \$1 -o \$2
+
+\$(ECHO_END)
+
+endef
+
+define ELFCOMPILEXX
+
+\$(ECHO_BEGIN)"CXX: \$1 "
+
+\$(Q) \$(CXX) -c \$(MODCXXFLAGS) \$(\$(strip \$1)\_CXXELFFLAGS) \$1 -o \$2
+
+\$(ECHO_END)
+
+endef
+
+define ELFCOMPILERUST
+
+\$(ECHO_BEGIN)"RUSTC: \$1 "
+
+\$(Q) \$(RUSTC) --emit obj \$(RUSTELFFLAGS) \$(\$(strip \$1)\_RUSTELFFLAGS) \$1 -o \$2
+
+\$(ECHO_END)
+
+endef
+
+\# Remove target suffix here since zig compiler add .o automatically
+
+define ELFCOMPILEZIG
+
+\$(ECHO_BEGIN)"ZIG: \$1 "
+
+\$(Q) \$(ZIG) build-obj \$(ZIGELFFLAGS) \$(\$(strip \$1)\_ZIGELFFLAGS) --name \$(basename \$2) \$1
+
+\$(ECHO_END)
+
+endef
+
+define ELFCOMPILED
+
+\$(ECHO_BEGIN)"DC: \$1 "
+
+\$(Q) \$(DC) -c \$(DELFFLAGS) \$(\$(strip \$1)\_DELFFLAGS) \$1 -of \$2
+
+\$(ECHO_END)
+
+endef
+
+define ELFCOMPILESWIFT
+
+\$(ECHO_BEGIN)"SWIFTC: \$1 "
+
+\$(Q) \$(SWIFTC) -c \$(SWIFTELFFLAGS) \$(\$(strip \$1)\_SWIFTELFFLAGS) \$1 -o \$2
+
+\$(ECHO_END)
+
+endef
+
+define ELFLD
+
+\$(ECHO_BEGIN)"LD: \$2 "
+
+\$(Q) \$(MODULELD) \$(MODLDFLAGS) \$(LDMAP) \$(LDLIBPATH) \$(ARCHCRT0OBJ) \$1 \$(LDSTARTGROUP) \$(LDLIBS) \$(LDENDGROUP) -o \$2
+
+\$(ECHO_END)
+
+endef
+
+\# rename "main()" in \$1 to "xxx_main()" and save to \$2
+
+define RENAMEMAIN
+
+\$(ECHO_BEGIN)"Rename main() in \$1 and save to \$2"
+
+```
+$(Q) \${shell cat \$1 \| sed -e "s/fn\[ \]\\main/fn \$(addsuffix \_main,\$(PROGNAME\_\$@))/" \> \$2}
+
+```
+\$(ECHO_END)
+
+endef
+
+define COMPILEAIDL
+
+\$(ECHO_BEGIN)"AIDL: \$1 "
+
+\$(Q) \$(AIDL) \$(AIDLFLAGS) \$(\$(strip \$1)\_AIDLFLAGS) \$1
+
+\$(ECHO_END)
+
+endef
+
+define DELAIDLOUT
+
+\$(ECHO_BEGIN)"DELAIDLOUT: \$1 "
+
+\$(Q) \$(AIDL) \$(AIDLFLAGS) \$(\$(strip \$1)\_AIDLFLAGS) \$1 --delete
+
+\$(ECHO_END)
+
+endef
+
+\$(RAOBJS): \$(PREFIX)%.s\$(SUFFIX)\$(OBJEXT): %.s
+
+\$(if \$(and \$(CONFIG_MODULES),\$(MODAELFFLAGS)), \\
+
+\$(call ELFASSEMBLE, \$\&lt;, \$@), \$(call ASSEMBLE, \$\&lt;, \$@))
+
+\$(CAOBJS): \$(PREFIX)%.S\$(SUFFIX)\$(OBJEXT): %.S
+
+\$(if \$(and \$(CONFIG_MODULES),\$(MODAELFFLAGS)), \\
+
+\$(call ELFASSEMBLE, \$\&lt;, \$@), \$(call ASSEMBLE, \$\&lt;, \$@))
+
+\$(COBJS): \$(PREFIX)%.c\$(SUFFIX)\$(OBJEXT): %.c
+
+\$(if \$(and \$(CONFIG_MODULES),\$(MODCFLAGS)), \\
+
+\$(call ELFCOMPILE, \$\&lt;, \$@), \$(call COMPILE, \$\&lt;, \$@))
+
+\$(CXXOBJS): \$(PREFIX)%\$(CXXEXT)\$(SUFFIX)\$(OBJEXT): %\$(CXXEXT)
+
+\$(if \$(and \$(CONFIG_MODULES),\$(MODCXXFLAGS)), \\
+
+\$(call ELFCOMPILEXX, \$\&lt;, \$@), \$(call COMPILEXX, \$\&lt;, \$@))
+
+\$(RUSTOBJS): \$(PREFIX)%\$(RUSTEXT)\$(SUFFIX)\$(OBJEXT): %\$(RUSTEXT)
+
+\$(if \$(and \$(CONFIG_MODULES),\$(CELFFLAGS)), \\
+
+\$(call ELFCOMPILERUST, \$\&lt;, \$@), \$(call COMPILERUST, \$\&lt;, \$@))
+
+\$(ZIGOBJS): \$(PREFIX)%\$(ZIGEXT)\$(SUFFIX)\$(OBJEXT): %\$(ZIGEXT)
+
+\$(if \$(and \$(CONFIG_MODULES), \$(CELFFLAGS)), \\
+
+\$(call ELFCOMPILEZIG, \$\&lt;, \$@), \$(call COMPILEZIG, \$\&lt;, \$@))
+
+\$(DOBJS): \$(PREFIX)%\$(DEXT)\$(SUFFIX)\$(OBJEXT): %\$(DEXT)
+
+\$(if \$(and \$(CONFIG_MODULES), \$(CELFFLAGS)), \\
+
+\$(call ELFCOMPILED, \$\&lt;, \$@), \$(call COMPILED, \$\&lt;, \$@))
+
+\$(SWIFTOBJS): \$(PREFIX)%\$(SWIFTEXT)\$(SUFFIX)\$(OBJEXT): %\$(SWIFTEXT)
+
+\$(if \$(and \$(CONFIG_MODULES), \$(CELFFLAGS)), \\
+
+\$(call ELFCOMPILESWIFT, \$\&lt;, \$@), \$(call COMPILESWIFT, \$\&lt;, \$@))
+
+\$(AIDLOBJS): %\$(CXXEXT): %\$(AIDLEXT)
+
+\$(call COMPILEAIDL, \$\&lt;)
+
+AROBJS :=
+
+ifneq (\$(OBJS),)
+
+SORTOBJS := \$(sort \$(OBJS))
+
+\$(eval \$(call SPLITVARIABLE,OBJS_SPILT,\$(SORTOBJS),100))
+
+\$(foreach BATCH, \$(OBJS_SPILT_TOTAL), \\
+
+\$(foreach obj, \$(OBJS_SPILT\_\$(BATCH)), \\
+
+\$(eval substitute := \$(patsubst %\$(OBJEXT),%\_\$(BATCH)\$(OBJEXT),\$(obj))) \\
+
+\$(eval AROBJS += \$(substitute)) \\
+
+\$(eval \$(call AROBJSRULES, \$(substitute),\$(obj))) \\
+
+) \\
+
+)
+
+endif
+
+\$(PREFIX).built: \$(AROBJS)
+
+echo 100ask builtin: AROBJS = \$(AROBJS)
+
+\$(call SPLITVARIABLE,ALL_OBJS,\$(AROBJS),100)
+
+\$(foreach BATCH, \$(ALL_OBJS_TOTAL), \\
+
+\$(if \$(strip \$(ALL_OBJS\_\$(BATCH))), \\
+
+\$(shell \$(call ARLOCK, \$(call CONVERT_PATH,\$(BIN)), \$(ALL_OBJS\_\$(BATCH)))) \\
+
+) \\
+
+)
+
+\$(Q) touch \$@
+
+ifeq (\$(BUILD_MODULE),y)
+
+\$(MAINCXXOBJ): \$(PREFIX)%\$(CXXEXT)\$(SUFFIX)\$(OBJEXT): %\$(CXXEXT)
+
+\$(if \$(and \$(CONFIG_MODULES),\$(MODCXXFLAGS)), \\
+
+\$(call ELFCOMPILEXX, \$\&lt;, \$@), \$(call COMPILEXX, \$\&lt;, \$@))
+
+\$(MAINCOBJ): \$(PREFIX)%.c\$(SUFFIX)\$(OBJEXT): %.c
+
+\$(if \$(and \$(CONFIG_MODULES),\$(MODCFLAGS)), \\
+
+\$(call ELFCOMPILE, \$\&lt;, \$@), \$(call COMPILE, \$\&lt;, \$@))
+
+\$(MAINZIGOBJ): \$(PREFIX)%\$(ZIGEXT)\$(SUFFIX)\$(OBJEXT): %\$(ZIGEXT)
+
+\$(if \$(and \$(CONFIG_MODULES),\$(CELFFLAGS)), \\
+
+\$(call ELFCOMPILEZIG, \$\&lt;, \$@), \$(call COMPILEZIG, \$\&lt;, \$@))
+
+\$(MAINDOBJ): \$(PREFIX)%\$(DEXT)\$(SUFFIX)\$(OBJEXT): %\$(DEXT)
+
+\$(if \$(and \$(CONFIG_MODULES),\$(CELFFLAGS)), \\
+
+\$(call ELFCOMPILED, \$\&lt;, \$@), \$(call COMPILED, \$\&lt;, \$@))
+
+\$(MAINSWIFTOBJ): \$(PREFIX)%\$(SWIFTEXT)\$(SUFFIX)\$(OBJEXT): %\$(SWIFTEXT)
+
+\$(if \$(and \$(CONFIG_MODULES),\$(CELFFLAGS)), \\
+
+\$(call ELFCOMPILESWIFT, \$\&lt;, \$@), \$(call COMPILESWIFT, \$\&lt;, \$@))
+
+\$(PROGLIST): \$(MAINCOBJ) \$(MAINCXXOBJ) \$(MAINRUSTOBJ) \$(MAINZIGOBJ) \$(MAINDOBJ) \$(MAINSWIFTOBJ)
+
+\$(Q) mkdir -p \$(BINDIR)
+
+\$(call ELFLD, \$(PROGOBJ\_\$@), \$(call CONVERT_PATH,\$@))
+
+\$(Q) chmod +x \$@
+
+ifneq (\$(CONFIG_DEBUG_SYMBOLS),y)
+
+\$(Q) \$(MODULESTRIP) \$@
+
+endif
+
+install:: \$(PROGLIST)
+
+@:
+
+else
+
+\$(MAINCXXOBJ): \$(PREFIX)%\$(CXXEXT)\$(SUFFIX)\$(OBJEXT): %\$(CXXEXT)
+
+```
+$(eval \$\<\_CXXFLAGS += \${shell \$(DEFINE) "\$(CXX)" main=\$(addsuffix \_main,\$(PROGNAME\_\$@))})
+
+$(eval \$\<\_CXXELFFLAGS += \${shell \$(DEFINE) "\$(CXX)" main=\$(addsuffix \_main,\$(PROGNAME\_\$@))})
+
+```
+\$(if \$(and \$(CONFIG_MODULES),\$(MODCXXFLAGS)), \\
+
+\$(call ELFCOMPILEXX, \$\&lt;, \$@), \$(call COMPILEXX, \$\&lt;, \$@))
+
+\$(MAINCOBJ): \$(PREFIX)%.c\$(SUFFIX)\$(OBJEXT): %.c
+
+```
+$(eval \$\<\_CFLAGS += \${DEFINE_PREFIX}main=\$(addsuffix \_main,\$(PROGNAME\_\$@)))
+
+$(eval \$\<\_CELFFLAGS += \${DEFINE_PREFIX}main=\$(addsuffix \_main,\$(PROGNAME\_\$@)))
+
+```
+\$(if \$(and \$(CONFIG_MODULES),\$(MODCFLAGS)), \\
+
+\$(call ELFCOMPILE, \$\&lt;, \$@), \$(call COMPILE, \$\&lt;, \$@))
+
+\$(MAINRUSTOBJ): \$(PREFIX)%\$(RUSTEXT)\$(SUFFIX)\$(OBJEXT): %\$(RUSTEXT)
+
+\$(if \$(and \$(CONFIG_MODULES),\$(CELFFLAGS)), \\
+
+\$(call ELFCOMPILERUST, \$\&lt;, \$@), \$(call COMPILERUST, \$\&lt;, \$@))
+
+\$(MAINZIGOBJ): \$(PREFIX)%\$(ZIGEXT)\$(SUFFIX)\$(OBJEXT): %\$(ZIGEXT)
+
+\$(Q) \$(call RENAMEMAIN, \$\&lt;, \$(basename \$\&lt;)\_tmp.zig)
+
+\$(if \$(and \$(CONFIG_MODULES),\$(CELFFLAGS)), \\
+
+\$(call ELFCOMPILEZIG, \$(basename \$\&lt;)\_tmp.zig, \$@), \$(call COMPILEZIG, \$(basename \$\&lt;)\_tmp.zig, \$@))
+
+\$(Q) rm -f \$(basename \$\&lt;)\_tmp.zig
+
+\$(MAINDOBJ): \$(PREFIX)%\$(DEXT)\$(SUFFIX)\$(OBJEXT): %\$(DEXT)
+
+\$(if \$(and \$(CONFIG_MODULES),\$(CELFFLAGS)), \\
+
+\$(call ELFCOMPILED, \$\&lt;, \$@), \$(call COMPILED, \$\&lt;, \$@))
+
+\$(MAINSWIFTOBJ): \$(PREFIX)%\$(SWIFTEXT)\$(SUFFIX)\$(OBJEXT): %\$(SWIFTEXT)
+
+\$(if \$(and \$(CONFIG_MODULES),\$(CELFFLAGS)), \\
+
+\$(call ELFCOMPILESWIFT, \$\&lt;, \$@), \$(call COMPILESWIFT, \$\&lt;, \$@))
+
+install::
+
+@:
+
+endif \# BUILD_MODULE
+
+postinstall::
+
+@:
+
+context:: \$(AIDLOBJS)
+
+@:
+
+ifeq (\$(DO_REGISTRATION),y)
+
+\$(REGLIST): \$(DEPCONFIG) Makefile
+
+echo 100ask register REGLIST = \$(REGLIST)
+
+\$(eval PROGNAME\_\$@ := \$(basename \$(notdir \$@)))
+
+ifeq (\$(CONFIG_SCHED_USER_IDENTITY),y)
+
+\$(call REGISTER,\$(PROGNAME\_\$@),\$(PRIORITY\_\$@),\$(STACKSIZE\_\$@),\$(if \$(BUILD_MODULE),,\$(PROGNAME\_\$@)\_main),\$(UID\_\$@),\$(GID\_\$@),\$(MODE\_\$@))
+
+else
+
+\$(call REGISTER,\$(PROGNAME\_\$@),\$(PRIORITY\_\$@),\$(STACKSIZE\_\$@),\$(if \$(BUILD_MODULE),,\$(PROGNAME\_\$@)\_main))
+
+endif
+
+register:: \$(REGLIST)
+
+@:
+
+else
+
+register::
+
+@:
+
+endif
+
+\$(PREFIX).depend: Makefile \$(wildcard \$(foreach SRC, \$(SRCS), \$(addsuffix /\$(SRC), \$(subst :, ,\$(VPATH))))) \$(DEPCONFIG)
+
+\$(shell echo "# Gen Make.dep automatically" \&gt;\$(PREFIX)Make.dep)
+
+\$(call SPLITVARIABLE,ALL_DEP_OBJS,\$^,100)
+
+\$(foreach BATCH, \$(ALL_DEP_OBJS_TOTAL), \\
+
+\$(shell \$(MKDEP) \$(DEPPATH) --obj-suffix .c\$(SUFFIX)\$(OBJEXT) "\$(CC)" -- \$(CFLAGS) -- \$(filter %.c,\$(ALL_DEP_OBJS\_\$(BATCH))) \&gt;\&gt;\$(PREFIX)Make.dep) \\
+
+\$(shell \$(MKDEP) \$(DEPPATH) --obj-suffix .S\$(SUFFIX)\$(OBJEXT) "\$(CC)" -- \$(CFLAGS) -- \$(filter %.S,\$(ALL_DEP_OBJS\_\$(BATCH))) \&gt;\&gt;\$(PREFIX)Make.dep) \\
+
+\$(shell \$(MKDEP) \$(DEPPATH) --obj-suffix \$(CXXEXT)\$(SUFFIX)\$(OBJEXT) "\$(CXX)" -- \$(CXXFLAGS) -- \$(filter %\$(CXXEXT),\$(ALL_DEP_OBJS\_\$(BATCH))) \&gt;\&gt;\$(PREFIX)Make.dep) \\
+
+)
+
+\$(Q) touch \$@
+
+depend:: \$(PREFIX).depend
+
+@:
+
+```
+clean::
+
+```
+\$(call DELFILE, .built)
+
+\$(call CLEANAROBJS)
+
+\$(call CLEAN)
+
+```
+distclean:: clean
+
+```
+\$(call DELFILE, Make.dep)
+
+\$(call DELFILE, .depend)
+
+\$(foreach AIDLSRC,\$(AIDLSRCS),\$(call DELAIDLOUT,\$(AIDLSRC)))
+
+-include \$(PREFIX)Make.dep
+
+\# Include Wasm specific definitions
+
+include \$(APPDIR)/tools/Wasm.mk
+

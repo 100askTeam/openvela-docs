@@ -1,0 +1,127 @@
+---
+title: "GUI开发"
+---
+
+
+### LCD驱动改进
+
+在Framebuffer里，依次保存着各个像素的颜色，每个像素对应的2字节数据，低字节在前高字节在后。如下图所示：
+
+![](/img/openvela/image95.png)
+
+对于我们使用的SPI LCD，使用SPI传输一个像素的数据时，它传输的第1个字节是“高字节数据”，第2个字节是“低字节数据”，如下图所示：
+
+![](/img/openvela/image96.png)
+
+也就是对于一个像素的2字节颜色数据，在Framebuffer里、在GUI程序里，都是默认“低字节在前、高字节在后”。但是进行SPI传输时是“高字节在前、低字节在后”。有两种解决方法：修改GUI程序、修改驱动程序。
+
+为了保持GUI程序不变，我们修改驱动程序：在发出SPI数据前，先调整字节顺序。
+
+### 触摸屏驱动改进
+
+#### 修改触摸屏驱动使用中断方式
+
+原理图为：
+
+![](/img/openvela/image299.png)
+
+触摸屏的状态有三种：被按下、滑动、被松开。驱动程序里根据读取的寄存器分辨状态：
+
+![](/img/openvela/image300.png)
+
+使用轮询模式时，大概率会错过“按下、松开”这2个瞬间的数据。所以我们要使用中断方式来改造触摸屏驱动程序。
+
+代码在如下目录：
+
+![](/img/openvela/image301.png)
+
+配置openvela的触摸屏使用中断方式，不配置下面选项即可：
+
+\# CONFIG_FT5X06_POLLMODE
+
+#### 让LVGL使用触摸屏
+
+CONFIG_LV_USE_NUTTX_TOUCHSCREEN=y
+
+CONFIG_LV_USE_NUTTX=y
+
+#### 运行
+
+运行命令lvgldemo即可显示、操作。
+
+#### 再次改进
+
+原来的驱动程序在发生多次中断时，如果APP没有及时读走，数据会丢失。但是在多任务系统中，lvgldemo不一定能及时运行，所以需要改进驱动程序：增加一个队列，让中断程序把数据存入队列。APP读取数据时，直接读取队列。
+
+![](/img/openvela/image302.png)
+
+### 小智机器人GUI程序代码分析
+
+#### 功能与框架
+
+核心功能有2个：
+
+```
+.  聊天交互：显示状态、表情、文本；
+
+```
+    ![](/img/openvela/image303.png)
+
+② WIFI相关：扫描WIFI热点、选择并输入密码、显示WIFI状态
+
+![](/img/openvela/image304.png)
+
+程序框架为：GUI程序接收其他进程发来的信息，更新界面。跟其他程序的交互如下：
+
+![](/img/openvela/image305.png)
+
+#### 聊天交互的代码
+
+GUI启动一个IPC线程，在线程里接收control_center、wifi_manager发来的数据，
+
+```
+// apps/examples/lvgldemo/lvgldemo.c
+
+```
+main
+
+```
+// apps/examples/lvgldemo/lv_100ask_xz_ai_main.c
+
+```
+lv_100ask_xz_ai_main
+
+/\* 初始化UI交互系统 \*/
+
+```
+ui_system_init();
+
+```
+g_ipc_ep = ipc_endpoint_create_udp(UI_PORT_DOWN, UI_PORT_UP,
+
+```
+process_ui_data, NULL);
+
+```
+“process_ui_data”函数是核心：
+
+![](/img/openvela/image306.png)
+
+上述代码会设置GUI界面的各个控件，代码如下：
+
+![](/img/openvela/image307.png)
+
+#### WIFI相关的代码
+
+点击左上角的“WIFI”图标，会启动一个脚本来扫描WIFI热点并记录在“ /tmp/wifi_scan_result.txt”文件里，然后解析这个文件在界面上显示出来。代码如下：
+
+![](/img/openvela/image308.png)
+
+之所以使用脚本“/data/get_wifi.sh”来扫描WIFI热点，是为了便于扩展：其他场景使用的命令可能不同，那么修改这个脚本文件即可。在如下目录里创建文件：
+
+~/vela-opensource/vendor/allwinnertech/lichee/board/common/data/UDISK/get_wifi.sh
+
+“get_wifi.sh”的内容为：
+
+wapi scan wlan0
+

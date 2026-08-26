@@ -1,0 +1,239 @@
+---
+title: "VFS（虚拟文件系统）的使用"
+---
+
+
+openvela中“一切都是文件”：APP使用标准的open/read/write等接口，既可以访问驱动程序来操作硬件，也可以访问存储在磁盘、Flash上的普通文件。APP和驱动程序、磁盘文件之间，必定有一个“负责中转的人”——它就是VFS（Virtual FileSystem，虚拟文件系统）。
+
+&lt;img src="C:\Users\MeiHao\AppData\Local\Temp\dsh_docx\pandoc\media/media/image102.png" style="width:5.75972in;height:2.50208in" alt="IMG_256" /&gt;
+
+### 挂载及文件访问
+
+#### 文件路径
+
+openvela文件系统的名称使用类似 UNIX 文件、文件夹的风格，目录结构如下图所示：
+
+&lt;img src="C:\Users\MeiHao\AppData\Local\Temp\dsh_docx\pandoc\media/media/image103.png" style="width:4.91111in;height:3.3125in" alt="23_files" /&gt;
+
+openvela的文件系统有根目录，使用“/”来表示。而在根目录下的 f1.bin 文件则使用“/f1.bin”来表示，2018 目录下的 f1.bin 目录则使用“/data/2018/f1.bin”来表示。即目录的分割符号是“/”，这与 UNIX/Linux 完全相同，与 Windows 则不相同（Windows 操作系统上使用 \\ 来作为目录的分割符）。
+
+在openvela里，任何一个文件路径的起源都是“/”，这些文件都在同一棵“树”上面。这跟Windows不同，Windows有C盘、D盘、……，有多棵“树”。
+
+#### 挂载点
+
+在Windows电脑的磁盘上有2个分区，可以看到如下盘符：
+
+&lt;img src="C:\Users\MeiHao\AppData\Local\Temp\dsh_docx\pandoc\media/media/image104.png" style="width:5.32292in;height:0.625in" alt="24_windows_disk" /&gt;
+
+假设C盘是NTFS格式，D盘是FAT32格式，可以这样说：
+
+- 磁盘的第1个分区，挂载在“C:\\上，它的文件系统格式是NTFS
+
+- 磁盘的第2个分区，挂载在“D:\\上，它的文件系统格式是FAT32
+
+当我们去访问C盘上的文件时，会使用NTFS的规则去分区1上找到文件、读写文件。当我们去访问D盘上的文件时，会使用FAT32的规则去分区1上找到文件、读写文件。在这个场景里，我们看到几个关键词：
+
+- 存储数据的硬件：磁盘的第1个分区、第2个分区
+
+- 挂载点：“C:\\或“D:\\
+
+- 文件系统类型：NTFS或FAT32
+
+我们称之为：把磁盘第1个分区以NTFS文件系统的格式挂载在“C:\\上，把磁盘第2个分区以FAT32文件系统的格式挂载在“D:\\上。
+
+openvela中有一样的概念，在启动脚本中有如下指令：
+
+![](/img/openvela/image105.png)
+
+它们的含义是：
+
+- “mount -t romfs /dev/res /resource”：
+
+把存储设备或分区/dev/res，使用romfs文件系统的格式，挂载在“/resource”上。
+
+- “mount -t yaffs /dev/usrdata /data”:
+
+把存储设备或分区/dev/usrdata，使用yaffs 文件系统的格式，挂载在“/data”上。
+
+#### 根文件系统
+
+在Windows、Linux这样的操作系统里必须有“根文件系统”才能运行。以Windows为例，根文件系统就是C盘上的文件，系统启动时、启动后，都依赖于C盘的文件。
+
+在openvela中也有根文件夹系统的概念，但是有2点差别：
+
+- 这个根文件系统不是必须的，没有它openvela系统也能正常运行
+
+- 这个根文件系统是一种基于内存的文件系统，不需要任何存储介质或块驱动程序的支持
+
+openvela中的根文件系统被称为“伪根文件系统”，里面文件的来源不是真实的磁盘、Flash，比如：
+
+- 注册中断时调用“register_driver”会生成特殊的节点文件，比如“/dev/hello”
+
+- 执行mount命令时也会先创建挂载点再进行挂载，比如执行“mount -t yaffs /dev/usrdata /data”时，它会创建“/data”目录再挂载
+
+- APP也可以调用open函数来创建文件
+
+- 这些文件在断电后会消失
+
+如果要支持常规的文件，需要把Flash等块设备挂载到系统里，然后才能读写里面的文件。就比如执行“mount -t yaffs /dev/usrdata /data”后，就可以在“/data/”下使用常规文件了。
+
+#### 如何访问多级挂载目录下的文件
+
+openvela不支持多级目录的挂载，以Linux为例讲解。假设Linux系统中执行了这3条挂载命令：
+
+mount -t ext4 /dev/sda1 /
+
+mount -t vfat /dev/sda2 /mnt/usrdata
+
+mount -t ntfs /dev/sda3 /mnt/usrdata/123/u-disk
+
+当应用程序要访问“/mnt/usrdata/123/u-disk/1.txt”时，过程是这样的：
+
+- 碰到“/”目录时，使用ext4文件系统读取/dev/sda1，发现它里面的“mnt”是目录
+
+- 继续读取“mnt”目录下的“usrdata”，发现它是一个挂载点，对应设备为“/dev/sda2”、文件系统是vfat
+
+- 使用vfat文件系统读取/dev/sda2，发现它里面的“123”是目录
+
+- 继续读取“123”目录下的“u-disk”，发现它是一个挂载点，对应设备为“/dev/sda3”、文件系统是ntfs
+
+- 使用ntfs文件系统读取/dev/sda3，找到“1.txt”
+
+如下图所示：
+
+![](/img/openvela/image106.png)
+
+举例：
+
+- /1.txt、/abc、/abc/2.txt、/mnt/3.txt，甚至是“/mnt/usrdata”：都位于/dev/sda1，都使用ext4来解析
+
+- /mnt/usrdata/a.txt、/mnt/usrdata/abc、甚至是“/mnt/usrdata/123/u-disk”：都位于/dev/sda2，都使用vfat来解析
+
+- /mnt/usrdata/123/u-disk/下的文件、目录，位于/dev/sda3，使用ntfs来解析
+
+### VFS中文件的管理方式
+
+#### VFS的作用
+
+openvela中怎么支持多种文件系统？最简单的办法就是：APP调用open/read/write来访问文件，内核里找到挂载点后，就调用挂载点文件系统的open/read/write函数。如下图所示：
+
+![](/img/openvela/image107.png)
+
+APP为何能通过统一的open/read/write接口访问驱动程序、访问不同存储设备上、不同文件系统的文件？
+
+关键点在于VFS：VFS（Virtual File System，虚拟文件系统） 是一个抽象层，它为不同类型的文件系统（如 ROMFS、FAT、EXT2、RAMFS 等）和设备提供了统一的接口。VFS 的核心作用是屏蔽底层不同文件系统的实现差异，使应用程序能够通过统一的标准接口（如open()、read()、write()、close()等）访问各种存储设备或虚拟文件系统，而无需关心具体的底层实现细节。
+
+#### openvela中VFS的实现
+
+VFS的关键在于：APP调用open函数传入文件名时：
+
+- VFS能根据文件名找到驱动程序，然后调用驱动程序的open/read/write等函数
+
+- 或者找到对应的文件系统，然后使用这个文件系统的open/read/write函数操作文件
+
+openvela的伪根文件系统中，每个文件在内核里都有一个inode结构体：
+
+- 对于驱动程序，它的inode结构体记录有驱动程序的file_operations结构体
+
+- 对于挂载点，它的inode结构体记录有文件系统的mountpt_operations
+
+VFS里为了高效地根据文件名找到inode节点，使用了“g_root_inode目录项树”，假设有如下文件：
+
+/
+
+├── data/
+
+│ └── 1.txt
+
+├── dev/
+
+│ ├── console
+
+│ └── uart3
+
+└── var/
+
+那么“g_root_inode树”的结构如下：
+
+![](/img/openvela/image108.png)
+
+openvela的VFS（虚拟文件系统）层中，“g_root_inode”代表根目录的索引节点（inode），它是整个文件系统目录树的起点。目录项树的组织依赖于索引节点间的链接关系，其中“i_child”和 “”i_peer”是构建这一树形结构的关键指针，其特点如下：
+
+- 整体结构特点
+
+g_root_inode作为根目录的inode，其目录项树呈现 “多叉树结构”，每个节点（inode）代表一个目录或文件
+
+根节点“g_root_inode”是整个树的根，对应“/”目录。
+
+父子关系：目录类型的inode可以包含子节点（文件或子目录），通过指针维护层级关系。
+
+平级关系：同一目录下的所有子节点（文件或目录）之间是平级关系，也通过指针关联。
+
+- “i_child”指针：维护父子层级关系
+
+“i_child”是inode结构体中的一个指针，用于指向当前目录的第一个子节点（inode），核心作用是建立父子层级关系：
+
+仅目录类型的inode才有有效的“i_child”指针，文件类型的inode该指针为 “NULL”。
+
+例如，“g_root_inode”根目录的 “i_child”会指向其第一个直接子目录或文件（如 “/data”的inode）。
+
+若一个目录为空（如“/var”没有子项），则其“i_child”为“NULL”。
+
+- “i_peer”指针：维护平级兄弟关系
+
+“i_peer”也是inode结构体中的指针，用于指向当前节点的 下一个平级兄弟节点（inode），核心作用是建立“同一目录内的平级关系”：
+
+同一目录下的所有子节点通过“i_peer”串联成一个单向链表，它按照name排序。
+
+例如，“/dev”目录下有“console” 和“uart3”两个文件，“console”的“i_peer”会指向“uart3”的inode，而“uart3” 的“i_peer”为“NULL”（链表末尾）。
+
+结合“i_child”和“i_peer”：父目录的“i_child”指向链表的第一个节点，再通过每个节点的“i_peer”依次遍历所有子节点。
+
+总结：
+
+- “i_child”和“i_peer”共同构建了目录项树的 层级结构 和 平级关系，使文件系统能够高效地遍历和管理文件/目录。
+
+- 遍历目录时，先通过“i_child”进入子目录的第一个节点，再通过“i_peer”依次访问所有平级节点，形成完整的树形遍历逻辑。
+
+- 这种设计既节省内存（无需连续空间存储子节点），又能灵活支持动态增删文件/目录（只需调整指针指向）。
+
+#### VFS中inode的操作
+
+在操作文件时（无论是读取文件还是创建文件），都要先调用open函数。这需要根据文件path名找到对应的inode。
+
+open函数调用关系如下：
+
+```
+// nuttx\fs\vfs\fs_open.c
+
+int open(FAR const char \*path, int oflags, ...)
+
+```
+nx_vopen
+
+file_vopen(&filep, path, ...)
+
+```
+ret = inode_find(&desc);
+
+else if (INODE_IS_MOUNTPT(inode))
+
+```
+ret = inode-\&gt;u.i_mops-\&gt;open(filep, desc.relpath, ...)
+
+```
+else if (INODE_IS_DRIVER(inode) \|\| INODE_IS_PIPE(inode))
+
+ret = inode-\>u.i_ops-\>open(filep);
+
+```
+fd = file_allocate_from_tcb(tcb, filep.f_inode, ...)
+
+inode_fild函数：根据path找到inode：
+
+- 这个inode可能是“end of path”（路径的端点）：比如“/dev/hello”里找到了“hello”这个文件，它可能是驱动程序：以后open/read/write的操作就是调用驱动程序里的open/read/write
+
+- 这个inode可能是“mountpoint”：比如“/data/abc/1.txt”里找到了“/data”发现它是一个挂载点。那就调用它的“mountpt_operations”结构体的open/read/write来处理剩余的路径“abc/1.txt”。
+
+在视频里展示插入新文件的过程。
+

@@ -29,14 +29,14 @@ const config = {
   organizationName: '100askTeam', // Usually your GitHub org/user name.
   projectName: 'openvela-docs', // Usually your repo name.
 
-  onBrokenLinks: 'throw',
+  onBrokenLinks: 'warn',
 
   // Even if you don't use internationalization, you can use this field to set
   // useful metadata like html lang. For example, if your site is Chinese, you
   // may want to replace "en" with "zh-Hans".
   i18n: {
     defaultLocale: 'zh-Hans',
-    locales: ['zh-Hans', 'en'],
+    locales: ['zh-Hans'],
   },
   presets: [
     [
@@ -50,23 +50,7 @@ const config = {
           editUrl:
             'https://github.com/100askTeam/openvela-docs/tree/master/',
         },
-        blog: {
-          showReadingTime: true,
-          feedOptions: {
-            type: ['rss', 'atom'],
-            xslt: true,
-          },
-          blogSidebarTitle: '所有文章',
-          blogSidebarCount: 'ALL',
-          // Please change this to your repo.
-          // Remove this to remove the "edit this page" links.
-          editUrl:
-            'https://github.com/100askTeam/openvela-docs/tree/master/blog/',
-          // Useful options to enforce blogging best practices
-          onInlineTags: 'ignore',
-          onInlineAuthors: 'ignore',
-          onUntruncatedBlogPosts: 'ignore',
-        },
+        blog: false,
         theme: {
           customCss: './src/css/custom.css',
         },
@@ -95,48 +79,10 @@ const config = {
           src: 'img/logo.svg',
         },
         items: [
-          { to: '/blog', label: 'Blog', position: 'right' },
+          { to: '/docs/openvela开发环境搭建与体验/课程介绍与资料下载', label: '文档', position: 'left' },
           {
-            type: 'dropdown',
-            label: 'DshanPi-A1',
-            position: 'left',
-            items: [
-              {
-              type: 'docSidebar',
-              sidebarId: 'dshanpia1Sidebar',
-              label: 'DshanPi-A1',
-              },
-              {
-              type: 'docSidebar',
-              sidebarId: 'dshanpia1cm5Sidebar',
-              label: 'DshanPi-A1(CM5)',
-              },         
-            ],
-          },
-          {
-            type: 'dropdown',
-            label: 'RK3568系列',
-            position: 'left',
-            items: [
-              {
-              type: 'docSidebar',
-              sidebarId: 'dshanpir1Sidebar',
-              label: 'DshanPi-R1+',
-              },
-              {
-              type: 'docSidebar',
-              sidebarId: 'dshanpirk3568Sidebar',
-              label: '100ASK-RK3568',
-              },
-            ],
-          },
-          {
-            href: 'https://github.com/dshanpi/Docs',
+            href: 'https://github.com/100askTeam/openvela-docs',
             label: 'GitHub',
-            position: 'right',
-          },
-          {
-            type: 'localeDropdown',
             position: 'right',
           },
         ],

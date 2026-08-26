@@ -1,0 +1,56 @@
+---
+title: "AI聊天机器人程序框架"
+---
+
+
+### 产品体验
+
+烧录映像文件后重启系统，设置WIFI，激活设备（在https://xiaozhi.me/里注册账号，输入开发板界面调试的激活码），即可体验AI聊天机器人。
+
+### 功能拆解与程序框架设计
+
+#### 功能拆解
+
+AI聊天机器人具备如下功能：
+
+① 认证：使用https上报设备信息（MAC地址等），进行激活操作
+
+② 聊天交互：使用websocket上传语音数据（opus格式），获得回复
+
+回复的信息有：语音提问对应的文本，回答的语音和文本、表情  
+③ 声音采集与压缩：从麦克采集到原始音频数据后，使用opus压缩
+
+④ 声音解压与播放：服务器会下发opus压缩音频数据，需要解压后播放
+
+⑤ 在屏幕上显示语音对应的文本（包括问题与回答）、显示表情
+
+#### 程序框架设计
+
+下图中椭圆形表示任务（可能是进程，也可能是线程）：
+
+① arecord：采集数据，压缩后发送给control_center
+
+② aplay：等待contro_center的音频数据，解压后播放
+
+③ control_center：它有2个线程
+
+UDP线程读取arecord上传的音频数据，然后使用websocket协议发送出去；
+
+websocket线程实现跟服务器的通信：上报音频数据，接收下发数据并转发给aplay或LVGL
+
+④ LVGL：显示表情、文字、状态
+
+![](/img/openvela/image278.png)
+
+#### 任务间数据传输方法
+
+上图中传输数据类型由3类：红色表示采集的音频数据，蓝色表示播放的音频数据，绿色表示音频对应的文字、表情、状态。
+
+arecord、aplay、LVGL和control_center之间，都使用网络进行数据传输（本地回环设备，无需真实网卡）。
+
+任务间数据传输的方法还可以选择其他方式，比如消息队列、共享内存等等。
+
+#### 服务器协议
+
+&lt;img src="C:\Users\MeiHao\AppData\Local\Temp\dsh_docx\pandoc\media/media/image279.png" style="width:5.76319in;height:4.2in" alt="yuque_diagram (9)" /&gt;
+

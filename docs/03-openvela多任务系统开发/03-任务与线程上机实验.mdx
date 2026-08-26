@@ -1,0 +1,467 @@
+---
+title: "任务与线程上机实验"
+---
+
+
+### 第1个程序：Hello
+
+openvela中含有hello示例程序，可以直接配置使用它。
+
+它的源码为：apps/examples/hello/hello_main.c。
+
+#### 配置openvela
+
+执行如下命令：
+
+ROOT_PATH=/home/ubuntu/vela-opensource
+
+aw_path=/home/ubuntu/vela-opensource/vendor/allwinnertech/lichees
+
+```
+cd ~/vela-opensource/vendor/allwinnertech/lichee/
+
+source vela_env.sh
+
+source envsetup.sh
+
+lunch_nuttx \# 选择2
+
+m
+
+cd ~/vela-opensource
+
+```
+\# 配置
+
+```
+./build.sh vendor/allwinnertech/boards/r528/r528s3-velaevb1/configs/nsh/ menuconfig
+
+```
+在配置界面输入“/HELLO”，找到配置项，输入2个回车选中它（也可以输入Y选中它，表示编译进内核里；输入M表示编译为模块），然后按Q退出配置（会提示你输入Y保存配置）。如下图所示：
+
+![](/img/openvela/image40.png)
+
+#### 编译、烧写、运行
+
+执行如下命令编译、打包：
+
+```
+cd ~/vela-opensource/vendor/allwinnertech/lichee/
+
+m
+
+pack
+
+```
+烧写映像文件、启动单板后，可以执行hello命令启动程序，如下：
+
+nsh\&gt; hello
+
+Hello, World!!
+
+hello.c里的main函数在编译时被替换为“hello_main”，nsh根据输入的“hello”找到对应的“hello_main”函数，创建进程运行hello_main，打印出“Hello, World!!”。
+
+#### 修改配置文件自动启动hello程序
+
+修改文件：
+
+~/vela-opensource/vendor/allwinnertech/boards/r528/r528s3-velaevb1/src/etc/init.d/rcS
+
+在文件最后加入：
+
+hello &
+
+然后重新执行如下命令编译、打包：
+
+```
+cd ~/vela-opensource/vendor/allwinnertech/lichee/
+
+m
+
+pack
+
+```
+烧写映像文件、启动单板后，可以在串口看到hello程序自动运行了。
+
+### 编写第1个线程
+
+我们要创建2个线程，一个线程让全局变量g_a累加，另一个线程打印g_a。
+
+代码如下：
+
+```
+ static volatile int g_a;
+
+ void \* add_thread(void \*arg)
+
+ {
+
+ volatile int \*p = (volatile int \* )arg;
+
+ while (1)
+
+ {
+
+ (\*p)++;
+
+ sleep(1);
+
+ }
+
+ return NULL;
+
+ }
+
+```
+47
+
+```
+ void \* print_thread(void \*arg)
+
+ {
+
+ volatile int \*p = (volatile int \* )arg;
+
+ while (1)
+
+ {
+
+ printf("val = %d\n", \*p);
+
+ sleep(1);
+
+ }
+
+ return NULL;
+
+ }
+
+ int main(int argc, FAR char \*argv\[\])
+
+ {
+
+ pthread_t tid1, tid2;
+
+```
+61
+
+```
+ pthread_create(&tid1, NULL, add_thread, &g_a);
+
+ pthread_create(&tid2, NULL, print_thread, &g_a);
+
+```
+64
+
+```
+ while (1)
+
+ {
+
+ printf("Hello, World!!\n");
+
+ sleep(5);
+
+ }
+
+```
+70
+
+```
+ return 0;
+
+ }
+
+```
+第62、63行，创建了2个线程。
+
+### FIFO调度机制体验
+
+本节代码位于“source/3-2-3_FIFO调度机制体验”，替换“apps/examples/hello/hello_main.c”。
+
+pthread_create函数在如下文件中定义：
+
+vela-opensource\nuttx\libs\libc\pthread\pthread_create.c
+
+它的调用关系为：
+
+pthread_create //vela-opensource\nuttx\libs\libc\pthread\pthread_create.c
+
+nx_pthread_create // nuttx\sched\pthread\pthread_create.c
+
+当我们在调用pthread_create时传入的attr参数为NULL时，就会使用默认参数：
+
+```
+// vela-opensource\nuttx\include\nuttx\pthread.h
+
+```
+\#elif defined(CONFIG_SMP)
+
+\# define PTHREAD_ATTR_INITIALIZER \\
+
+```
+{ \\
+
+```
+PTHREAD_DEFAULT_PRIORITY, /\* priority \*/ \\
+
+PTHREAD_DEFAULT_POLICY, /\* policy \*/ \\
+
+PTHREAD_EXPLICIT_SCHED, /\* inheritsched \*/ \\
+
+PTHREAD_CREATE_JOINABLE, /\* detachstate \*/ \\
+
+0, /\* affinity \*/ \\
+
+NULL, /\* stackaddr \*/ \\
+
+PTHREAD_STACK_DEFAULT, /\* stacksize \*/ \\
+
+```
+}
+
+```
+openvela的配置项“CONFIG_RR_INTERVAL”默认为0，相同优先级的线程使用的调度机制是FIFO。
+
+如果一个线程不主动放弃运行，它就会一直霸占住某个CPU核，可以一直运行。
+
+如果有多个CPU核，就能运行多个线程。
+
+本程序创建了3个最高优先级的线程，它们都不会主动休眠；而T113S3只有2个CPU核，那么只有2个线程能运行，并且命令行终端无法使用了。
+
+核心代码如下：
+
+```
+ static volatile int g_a;
+
+ void \* add_thread(void \*arg)
+
+ {
+
+ volatile int \*p = (volatile int \* )arg;
+
+ while (1)
+
+ {
+
+ (\*p)++;
+
+ //sleep(1);
+
+ for (volatile int i = 0; i \< 100000000; i++);
+
+ }
+
+ return NULL;
+
+ }
+
+```
+50
+
+```
+ void \* print_thread(void \*arg)
+
+ {
+
+ volatile int \*p = (volatile int \* )arg;
+
+ while (1)
+
+ {
+
+ printf("val = %d\n", \*p);
+
+ //sleep(1);
+
+ for (volatile int i = 0; i \< 100000000; i++);
+
+ }
+
+ return NULL;
+
+ }
+
+ int main(int argc, FAR char \*argv\[\])
+
+ {
+
+ struct sched_param param;
+
+ pthread_t tid1, tid2;
+
+ pthread_attr_t default_attr = { \\
+
+ 225, /\* priority \*/ \\
+
+ PTHREAD_DEFAULT_POLICY, /\* policy \*/ \\
+
+ PTHREAD_EXPLICIT_SCHED, /\* inheritsched \*/ \\
+
+ PTHREAD_CREATE_JOINABLE, /\* detachstate \*/ \\
+
+ 0, /\* affinity \*/ \\
+
+ NULL, /\* stackaddr \*/ \\
+
+ PTHREAD_STACK_DEFAULT, /\* stacksize \*/ \\
+
+ };
+
+```
+75
+
+76 /\* Set current thread priority to 225 \*/
+
+```
+ param.sched_priority = 225;
+
+ sched_setparam(0, &param);
+
+```
+79
+
+```
+ pthread_create(&tid1, &default_attr, add_thread, &g_a); // 100
+
+ pthread_create(&tid2, &default_attr, print_thread, &g_a);
+
+```
+82
+
+```
+ while (1)
+
+ {
+
+ printf("Hello, World!! g_a = %d\n", g_a);
+
+ //sleep(5);
+
+ for (volatile int i = 0; i \< 100000000; i++);
+
+ }
+
+```
+89
+
+```
+ return 0;
+
+ }
+
+```
+这3个线程（主线程、add_thread、print_thread）的sleep函数都改成无休眠的延时：
+
+```
+for (volatile int i = 0; i \< 100000000; i++);
+
+```
+设置它们的优先级为最高：第67行、第77~78行。
+
+实验现象：主线程（打印Hello, World）、add_thread线程能运行（g_a的值在变化），print_thread无法运行（没有打印“val = ”），shell终端无法操作，输出信息如下：
+
+nsh\&gt; Hello, World!! g_a = 0
+
+Hello, World!! g_a = 2
+
+Hello, World!! g_a = 3
+
+Hello, World!! g_a = 4
+
+Hello, World!! g_a = 5
+
+Hello, World!! g_a = 6
+
+Hello, World!! g_a = 7
+
+Hello, World!! g_a = 8
+
+原因：T113S3有2个CPU核，能同时运行2个线程。这个2线程没有主动放弃运行，所以其它线程无法运行。当前运行的2个线程是add_thread（可以看到g_a的值在变化、主线程（可以看到在打印Hello, World）。
+
+### RR调度机制体验
+
+本节代码位于“source/3-2-4_RR调度机制体验”，跟上一节课程的代码完全一样，替换“apps/examples/hello/hello_main.c”。
+
+#### 配置openvela使用时间片轮转
+
+执行如下命令：
+
+ROOT_PATH=/home/ubuntu/vela-opensource
+
+aw_path=/home/ubuntu/vela-opensource/vendor/allwinnertech/lichees
+
+```
+cd ~/vela-opensource/vendor/allwinnertech/lichee/
+
+source vela_env.sh
+
+source envsetup.sh
+
+lunch_nuttx \# 选择2
+
+m
+
+cd ~/vela-opensource
+
+```
+\# 配置
+
+```
+m menuconfig
+
+```
+在配置界面输入“/RR_INTERVAL”，找到配置项，输入2个回车选中它并输入“1”，然后按Q退出配置（会提示你输入Y保存配置）。如下图所示：
+
+![](/img/openvela/image41.png)
+
+#### 编译、烧写、运行
+
+执行如下命令编译、打包：
+
+```
+cd ~/vela-opensource/vendor/allwinnertech/lichee/
+
+m
+
+pack
+
+```
+烧写映像文件、启动单板后，可以执行hello命令启动程序，如下：
+
+nsh\&gt; Hello, World!! g_a = 0
+
+val = 1
+
+val = 1
+
+Hello, World!! g_a = 1
+
+Hello, World!! g_a = 2
+
+val = 2
+
+Hello, World!! g_a = 3
+
+val = 3
+
+Hello, World!! g_a = 4
+
+val = 4
+
+Hello, World!! g_a = 6
+
+val = 6
+
+Hello, World!! g_a = 7
+
+val = 7
+
+val = 7
+
+Hello, World!! g_a = 8
+
+Hello, World!! g_a = 8
+
+使用RR调度机制时，主线程（打印Hello, World）、add_thread线程（g_a的值在变化），print_thread运行（打印“val = ”）都能运行。
+

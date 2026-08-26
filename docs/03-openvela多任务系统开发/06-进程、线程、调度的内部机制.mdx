@@ -1,0 +1,645 @@
+---
+title: "进程、线程、调度的内部机制"
+---
+
+
+### 创建进程/线程的内部原理
+
+#### 芯片架构（以ARM架构为例）
+
+ARM芯片属于精简指令集计算机(RISC：Reduced Instruction Set Computing)，它所用的指令比较简单，有如下特点：
+
+① 对内存只有读、写指令
+
+② 对于数据的运算是在CPU内部实现
+
+③ 使用RISC指令的CPU复杂度小一点，易于设计
+
+![](/img/openvela/image56.png)
+
+对于上图所示的加法运算a = a + b，在RISC中要使用4条汇编指令：
+
+① 读内存a
+
+② 读内存b
+
+③ 计算a+b
+
+④ 把结果写入内存
+
+问题：在CPU内部，用什么来保存a、b、a+b ？
+
+CPU内部都有R0、R1、……、R15等寄存器；它们可以用来“暂存”数据。
+
+对于R13、R14、R15，还另有用途：
+
+- R13：别名SP(Stack Pointer)，栈指针
+
+- R14：别名LR(Link Register)，用来保存返回地址
+
+- R15：别名PC(Program Counter)，程序计数器，表示当前指令地址，写入新值即可跳转
+
+![](/img/openvela/image57.png)
+
+#### C函数内部机制
+
+对于一个C函数，它的本质是各类汇编指令对内存的操作：
+
+- 在内存（栈）里保存寄存器、返回地址
+
+- 在内存（栈）里分配局部变量
+
+- 使用机器码读写内存、计算、跳转
+
+以一个add函数为例，它的C代码如下：
+
+```
+int add(volatile int a, volatile int b)
+
+{
+
+volatile int sum;
+
+sum = a + b;
+
+return sum;
+
+}
+
+```
+把上述代码存为add.c，使用如下命令生成反汇编码文件add.dis：
+
+arm-none-eabi-gcc -O2 -c -o add.o add.c
+
+arm-none-eabi-objdump -D add.o \&gt; add.dis
+
+add.dis内容如下：
+
+00000000 \&lt;add\&gt;:
+
+```
+: e24dd010 sub sp, sp, \#16
+
+: e58d0004 str r0, \[sp, \#4\]
+
+: e58d1000 str r1, \[sp\]
+
+```
+c: e59d3004 ldr r3, \[sp, \#4\]
+
+```
+: e59d2000 ldr r2, \[sp\]
+
+: e0833002 add r3, r3, r2
+
+: e58d300c str r3, \[sp, \#12\]
+
+```
+1c: e59d000c ldr r0, \[sp, \#12\]
+
+```
+: e28dd010 add sp, sp, \#16
+
+: e12fff1e bx lr
+
+```
+在视频里演示add函数的执行过程。
+
+#### 线程启动、切换时要做什么
+
+假设线程A运行到add函数的中间，比如运行到下图位置时，切换到线程B。
+
+![](/img/openvela/image58.png)
+
+这个“切换”动作要做什么事情？保存线程A的现场——就是现场A被切换瞬间所有寄存器的值，恢复B的现场以运行线程B。
+
+为什么要“保存A的现场”？
+
+- 线程A说：我辛辛苦苦刚把寄存器R3算出来，还没使用呢，调度器大哥你要帮我保存起来啊，下次我能再次运行时，你要帮我恢复R3
+
+- 把R3保存进哪里？从哪里恢复R3？线程A的栈！
+
+怎么“恢复B的现场”？
+
+- 找到上次“B的现场”存储的位置
+
+- 从里面读取各个数值，写到CPU寄存器里
+
+- 从上次被打断的位置继续运行
+
+第1次启动线程A、线程B时，也是通过“恢复现场”来实现的，这以为着创建线程A、线程B时，要“构造、伪造它们的现场”：就是在各自的栈里，构造各个寄存器的值。比如线程A的栈里PC寄存器的位置，要存入线程A的入口函数地址。
+
+#### 创建线程时做什么
+
+创建一个进程或一个线程时，需要提供什么参数？或者它内部会生成什么内容？下面的信息是必须的：
+
+- 你要做什么事情？必定有一个入口函数
+
+- 栈：就是一块内存，当程序运行是用来保存局部变量、CPU寄存器、返回地址等
+
+- 优先级
+
+- TCB（Task Control Block，任务控制块）：就是一个结构体，用来记录任务的细节，比如上面提到的入口函数、栈、优先级等
+
+创建一个进程或线程时，必定实现如下功能：
+
+- 分配TCB、分配栈
+
+- 在TCB里记录各类信息
+
+- 在栈里伪造“现场”
+
+- 把TCB放入“就绪链表”，甚至可能触发调度
+
+### 创建进程/线程源码情景分析
+
+openvela里调度的基本单元是线程，进程也是“特殊的线程”。线程的创建函数“pthread_create”、进程创建函数“task_create”是类似的。
+
+先列出最终结果：
+
+#### 创建线程的结果（图）
+
+使用pthread_create创建线程的图示：
+
+![](/img/openvela/image59.png)
+
+#### 创建进程的结果（图）
+
+使用task_create创建线程的图示：
+
+![](/img/openvela/image60.png)
+
+#### TCB和栈的构造（源码情景分析）
+
+pthread_create函数调用关系如下：
+
+pthread_create // nuttx/libs/libc/pthread/pthread_create.c
+
+```
+// nuttx/sched/pthread/pthread_create.c
+
+```
+nx_pthread_create(pthread_startup, thread, attr, pthread_entry,
+
+```
+arg);
+
+// 1. 分配TCB
+
+ptcb = kmm_zalloc(sizeof(struct pthread_tcb_s));
+
+// 2. 使用APP提供的栈或者分配栈
+
+```
+up_use_stack/up_create_stack
+
+```
+// 3. 初始化TCB
+
+// nuttx/sched/task/task_setup.c
+
+```
+ret = pthread_setup_scheduler(ptcb, param.sched_priority, pthread_start,
+
+```
+entry);
+
+```
+nxthread_setup_scheduler // nuttx/sched/task/task_setup.c
+
+```
+tcb-\>start = start; // pthread_start
+
+// 注意entry.pthread和entry.main是union
+
+tcb-\>entry.main = (main_t)entry;
+
+// 4. 初始化TCB里处理器相关的部分（伪造现场）
+
+up_initial_state(tcb);
+
+xcp-\>regs\[REG_PC\] = (uint32_t)tcb-\>start;
+
+// 5. 设置参数
+
+// nuttx/sched/pthread/pthread_create.c
+
+pthread_tcb_setup(ptcb, parent, trampoline, arg);
+
+ptcb-\>trampoline = trampoline; // pthread_startup
+
+ptcb-\>arg = arg;
+
+// 6. 设置调度相关的参数
+
+ptcb-\>cmn.flags \|= TCB_FLAG_SCHED_RR;
+
+ptcb-\>cmn.timeslice = MSEC2TICK(CONFIG_RR_INTERVAL);
+
+// 7. 放入就绪链表
+
+nxtask_activate((FAR struct tcb_s \*)ptcb);
+
+```
+task_create函数调用关系如下：
+
+task_create // nuttx/sched/task/task_create.c
+
+```
+// nuttx/sched/task/task_create.c
+
+```
+task_create_with_stack
+
+nxtask_create // nuttx/sched/task/task_create.c
+
+nxthread_create //
+
+```
+// 1. 分配TCB
+
+```
+tcb = kmm_zalloc(...)
+
+nxtask_init // nuttx/sched/task/task_init.c
+
+```
+// 2. 使用APP提供的栈或者分配栈
+
+```
+up_use_stack/up_create_stack
+
+```
+// 3. 初始化TCB
+
+```
+ret = nxtask_setup_scheduler(tcb, priority, nxtask_start,
+
+```
+entry, ttype);
+
+// 4. 放入就绪链表
+
+nxtask_activate(tcb);
+
+```
+### 进程_线程的启动和调度机制
+
+#### 调度方法的生活示例演绎
+
+本节讲解“RR调度机制”。
+
+![](/img/openvela/image31.png)
+
+以上述生活场景为例，妈妈正在“轮流”给小孩喂饭、回复同事微信信息：
+
+- 如果厨房着火了，那么需要“立刻”去灭火。因为“灭火”的优先级最高！
+
+- 如果电脑收到了邮件，那么妈妈会这样做：先喂饭、再回复微信信息，最后才看邮件。大家优先级都一样，凭什么“邮件”可以插队？这不公平。所以“回复邮件”排到最后。
+
+- 如果洗衣机的衣服洗好了，那么它也去排队。但是妈妈没有处理完“喂饭、回信息、回邮件”的话，她不会去晾衣服——因为晾衣服的优先级最低。
+
+如果有两个“妈妈”呢？比如妈妈的双胞胎妹妹来帮忙：
+
+![](/img/openvela/image61.png)
+
+- 平时，妈妈喂饭，小姨回复微信信息
+
+- 如果厨房着火了，小姨去灭火；妈妈一会喂饭、一会回复微信信息
+
+- 灭火完毕后，妈妈、小姨一个负责喂饭、另一个负责回复信息
+
+- 如果厨房里的高压锅冒气了，妈妈、小姨都可能去处理
+
+- 如果洗衣机的衣服洗好了，那么它也去排队。但是妈妈、小姨忙不过来，就没人晾衣服
+
+#### 线程状态与切换图
+
+在涉及FIFO、RR调度机制时，还有一个前提：是否“可抢占”，意思是有更高优先级的就绪任务时，它是否可以即刻运行。如果可以即刻运行，那么就是“可抢占调度”。
+
+我们讲解FIFO、RR调度机制时，是指同一优先级下的任务如何调度。
+
+使用“可抢占调度”和“RR调度”时，进程/线程被创建后，它能否立刻运行？
+
+- 如果它的优先级比“所有就绪的任务”都高，那么它就可以“抢占”CPU立刻运行
+
+- 如果它的优先级是最高的，但是跟它一样高的任务正在运行，它就去排队
+
+- 如果它的优先级比较低，那么也去后面排队
+
+提问：去哪里找到“所有就绪的任务”来进行比较？去哪里“排队”？
+
+回答：这必定涉及“任务链表”，有“就绪任务链表”，也有其他链表。一个任务在哪个链表里，跟它的“状态”有关。
+
+在文件“nuttx/include/nuttx/sched.h”中，定义了线程的多个状态，如下：
+
+![](/img/openvela/image62.png)
+
+openvela里有如下用于管理任务的链表：
+
+\#define list_readytorun() (&g_readytorun)
+
+\#define list_pendingtasks() (&g_pendingtasks)
+
+\#define list_waitingforsignal() (&g_waitingforsignal)
+
+\#define list_waitingforfill() (&g_waitingforfill)
+
+\#define list_stoppedtasks() (&g_stoppedtasks)
+
+\#define list_inactivetasks() (&g_inactivetasks)
+
+\#define list_assignedtasks(cpu) (&g_assignedtasks\[cpu\])
+
+任务状态之间的转换关系为：
+
+![](/img/openvela/image63.png)
+
+#### UP系统FIFO调度源码分析
+
+看视频。
+
+进程、线程创建过程如下，最后都会调用“nxtask_activate”：
+
+task_create
+
+task_create_with_stack
+
+nxtask_create
+
+nxthread_create
+
+nxtask_init
+
+nxtask_setup_scheduler
+
+nxtask_activate
+
+posix_spawn
+
+nxposix_spawn_exec
+
+exec_spawn
+
+exec_internal
+
+exec_module
+
+nxtask_init
+
+nxtask_setup_scheduler
+
+nxtask_activate
+
+pthread_create
+
+nx_pthread_create
+
+pthread_setup_scheduler
+
+nxtask_activate
+
+kthread_create
+
+kthread_create_with_stack
+
+nxthread_create
+
+nxtask_init
+
+nxtask_activate
+
+nxtask_activate: // nuttx/sched/task/task_activate.c
+
+```
+if (nxsched_add_readytorun(tcb)) --\> nxsched_add_prioritized
+
+{
+
+up_switch_context(tcb, rtcb);
+
+}
+
+```
+RR调度的过程：
+
+\# tick中断初始化过程
+
+nx_start \&gt; clock_initialize \&gt; up_timer_initialize \&gt;
+
+```
+irq_attach(29, (xcpt_t)platform_tick, NULL);
+
+// vendor/allwinnertech/chips/r528/r528_timerisr.c
+
+```
+platform_tick
+
+nxsched_process_timer // nuttx/sched/sched/sched_processtimer.c
+
+nxsched_process_scheduler
+
+\# 对于RR调度机制
+
+nxsched_process_scheduler // nuttx/sched/sched/sched_processtimer.c
+
+```
+for (i = 0; i \< CONFIG_SMP_NCPUS; i++)
+
+{
+
+nxsched_cpu_scheduler(i); // nuttx/sched/sched/sched_processtimer.c
+
+// nuttx/sched/sched/sched_roundrobin.c
+
+nxsched_process_roundrobin(rtcb, 1, false);
+
+tcb-\>timeslice -= decr;
+
+if (tcb-\>timeslice \<= 0 && !nxsched_islocked_tcb(tcb))
+
+// 当前任务重新排序
+
+if (nxsched_reprioritize_rtr(tcb, tcb-\>sched_priority))
+
+{
+
+// 有必要的话切换任务
+
+up_switch_context(this_task(), rtcb);
+
+}
+
+```
+\# 对于FIFO调度机制
+
+\# define nxsched_process_scheduler() // nuttx/sched/sched/sched_processtimer.c
+
+### 任务状态控制函数
+
+在可抢占调度机制下，无论是FIFO还是RR调度机制，如果新创建的任务优先级最高，那么它可以立刻运行。对于FIFO机制，如果新建的任务优先级不是最高，那么它无法立刻运行，只有当前的任务主动放弃运行，其他任务才能运行。
+
+无论是FIFO还是RR调度机制，当前任务都可以调用sleep、sem_wait等函数进入阻塞状态。这些函数的内部机制是怎样的？
+
+#### sleep函数源码分析
+
+sleep函数会让当前任务从“任务就绪链表”里移到“等待信号的链表”，并且启动任务自身的“看门狗定时器”。
+
+tick中断里会判断“看门狗定时器”的时间是否超时，如果超时则把对应任务唤醒：从“等待信号的链表”里移到“任务就绪链表”。
+
+代码如下：
+
+第1步：sleep函数调用过程
+
+sleep(time) // nuttx/libs/libc/unistd/lib_sleep.c
+
+clock_nanosleep // nuttx/sched/signal/sig_nanosleep.c
+
+nxsig_clockwait // nuttx/sched/signal/sig_timedwait.c
+
+```
+if (rqtp && rqtp-\>tv_sec == 0 && rqtp-\>tv_nsec == 0)
+
+{
+
+sched_yield();
+
+return -EAGAIN;
+
+}
+
+// 启动看门狗定时器
+
+// 参数都是(..., nxsig_timeout, rtcb)
+
+```
+wd_start_abstick/wd_start_realtime/wd_start_abstime
+
+```
+// 从就绪链表移除
+
+nxsched_remove_self(rtcb);
+
+// 放入“等待信号的链表”
+
+rtcb-\>task_state = TSTATE_WAIT_SIG;
+
+dq_addlast((FAR dq_entry_t \*)rtcb, &g_waitingforsignal);
+
+// 切换任务
+
+up_switch_context(this_task(), rtcb);
+
+```
+第2步：看门狗定时器超时的函数调用过程
+
+nxsched_process_timer // nuttx/sched/sched/sched_processtimer.c
+
+```
+wd_timer(clock_systime_ticks()); // nuttx/sched/wdog/wd_start.c
+
+// 判断看门狗定时器是否超时
+
+wd_expiration(ticks); // nuttx/sched/wdog/wd_start.c
+
+wdog = list_first_entry(&g_wdactivelist, struct wdog_s, node);
+
+// 比较看看是否超时
+
+```
+clock_compare(wdog-\&gt;expired, ticks)
+
+```
+// 若超时，从g_wdactivelist链表移除
+
+list_delete(&wdog-\>node);
+
+// 运行看门口定时器的超时函数
+
+func = wdog-\>func;
+
+CALL_FUNC(func, wdog-\>arg);
+
+```
+nxsig_timeout // nuttx/sched/signal/sig_timedwait.c
+
+```
+// 把任务从“等待信号的链表”移除
+
+dq_rem((FAR dq_entry_t \*)wtcb, list_waitingforsignal());
+
+// 把任务放入就绪链表并可能调度
+
+if (nxsched_add_readytorun(wtcb))
+
+{
+
+up_switch_context(wtcb, rtcb);
+
+}
+
+```
+#### sem_wait函数源码分析
+
+任务A调用sem_wait时可能会阻塞，那么它将被从“任务就绪链表”里移除，然后放入semaphore本身的链表。
+
+任务B调用sem_post时，会从semaphore本身的链表找到任务A，然后把它唤醒。
+
+第1步：sem_wait函数的调用过程：
+
+sem_wait // nuttx/libs/libc/semaphore/sem_wait.c
+
+```
+nxsem_wait(sem); // nuttx/sched/semaphore/sem_wait.c
+
+```
+nxsem_wait_slow // nuttx/sched/semaphore/sem_wait.c
+
+```
+rtcb-\>waitobj = sem;
+
+rtcb-\>errcode = OK;
+
+// 从就绪链表移除
+
+nxsched_remove_self(rtcb);
+
+// 放入“这个semaphore的链表”
+
+rtcb-\>task_state = TSTATE_WAIT_SEM;
+
+nxsched_add_prioritized(rtcb, SEM_WAITLIST(sem));
+
+// 切换任务
+
+up_switch_context(this_task(), rtcb);
+
+ret = rtcb-\>errcode != OK ? -rtcb-\>errcode : OK;
+
+```
+第2步：sem_post函数的调用过程：
+
+sem_post // nuttx/libs/libc/semaphore/sem_post.c
+
+nxsem_post // nuttx/sched/semaphore/sem_post.c
+
+nxsem_post_slow // nuttx/sched/semaphore/sem_post.c
+
+```
+sem_count = atomic_fetch_add(NXSEM_COUNT(sem), 1);
+
+// 从“这个semaphore的链表”里移除任务
+
+stcb = (FAR struct tcb_s \*)dq_remfirst(SEM_WAITLIST(sem));
+
+// 把任务放入就绪链表并可能调度
+
+if (nxsched_add_readytorun(stcb))
+
+{
+
+up_switch_context(stcb, rtcb);
+
+}
+
+```

@@ -1,0 +1,753 @@
+---
+title: "基于VirtIO的跨核通信"
+---
+
+
+### VirtIO的概念
+
+#### 概念与作用
+
+VirtIO 是虚拟化领域中一种半虚拟化（Paravirtualization）的 I/O 技术标准。它的核心目标是：在虚拟化环境下，为虚拟机（Guest）提供一种高效、标准化的 I/O（输入/输出）抽象层，从而大幅提升网络、磁盘等设备的性能，同时避免为每个虚拟设备编写复杂的全硬件模拟代码。
+
+在没有 VirtIO 这类技术时，传统的虚拟化 I/O 主要有两种方式：
+
+① 全虚拟化（Full Virtualization） Hypervisor 完全模拟真实的物理硬件（如 Intel e1000 网卡、IDE 磁盘）。这种方式兼容性最好，Guest 无需修改就能运行，但性能很差——因为每次 I/O 操作都要经过复杂的硬件指令模拟、多次上下文切换，并且数据需要多次拷贝。
+
+② 设备直通（Device Pass-through） 如 PCI 直通或 SR-IOV，将物理设备直接分配给虚拟机。性能接近物理机，但成本高、灵活性差（一台设备只能分配给一个虚拟机），且不支持热迁移等高级功能。
+
+VirtIO 试图在“兼容性”和“性能”之间找到一个平衡点——它定义了一套虚拟设备的标准接口，让 Guest 和 Hypervisor 之间能够以高吞吐、低延迟的方式通信，同时保持较好的通用性。
+
+VirtIO 采用 前端（Front-end）/后端（Back-end） 架构：
+
+```
+.  前端驱动（Front-end Driver）
+
+```
+运行在虚拟机内部（Guest OS）。它是一个标准的设备驱动，比如 VirtIO-net、VirtIO-blk，但不会去模拟具体的硬件寄存器，而是通过一种称为 virtqueue 的共享内存环形队列与后端通信。
+
+② 后端设备（Back-end Device）
+
+运行在 Hypervisor（宿主机）中，负责真正处理 I/O 请求。例如 QEMU 中的 VirtIO-net-pci 设备或 vhost 内核模块。后端将请求翻译为对宿主机物理硬件或文件的 I/O 操作。
+
+③ virtqueue（虚拟队列）
+
+前端和后端之间通过共享内存进行数据交换，避免陷入（trap）和模拟指令的开销。virtqueue 是一种高效的环形缓冲区（Ring Buffer），用于存放 I/O 请求和响应，配合 零拷贝（Zero Copy） 技术，进一步减少数据复制。
+
+④ VirtIO 规范（Specification）
+
+定义了设备类型（块设备、网络设备、控制台等）、配置空间、virtqueue 操作方式等。这套规范由 OASIS 标准化，保证了不同 Hypervisor（如 QEMU/KVM、Cloud Hypervisor）和不同 Guest OS（Linux、Windows）之间的互操作性
+
+使用VirtIO可以在Guest和Host之间通信，双方通信的本质是使用基于共享内存的环形缓冲区。而一个芯片内部两个核之间也有共享内存，那么VirtIO也就可以用于跨核通信。VirtIO用作虚拟化时需要有guest-host。现在使用VirtIO来进行跨核通信，那么仍然要提供2个角色：guest-host， 只不过guest、host地位是平等的，guest不是运行在host上面。如下图所示：
+
+![](/img/openvela/image159.png)
+
+#### 使用场景
+
+在跨芯片传输时RPMSG中通常使用UART、SPI作为传输层，但是在芯片内跨核传输时更多使用“基于共享内存的VirtIO”作为传输层，可以提高数据传输速率。
+
+VirtIO 提出了以下两种核心机制：
+
+① 特性扩展机制。
+
+a\. 提供适用于所有驱动的 feature 扩展机制，便于扩展 VirtIO driver 的功能。
+
+b\. 支持 feature 的协商，确保向前和向后兼容性。
+
+② 基于共享内存的数据传输机制（vring/virtqueue）。
+
+适用于所有驱动，设计简单，支持零拷贝和无锁操作，更有通知抑制和批量提交等高级特性。
+
+VirtIO作为一套独立于RPMSG的软件框架，openvela在它上面也实现了很多功能，如下表所示。
+
+```
+**注意**：
+
+```
+① VirtIO XXX 一定可以用在虚拟化场景下，后端是 QEMU 实现；
+
+② VirtIO XXX 用在跨核场景下时，依赖另外一个核心实现对应的Vhost XXX（目前openvela里尚未实现所有VirtIO服务的Vhost端）
+
+|               |                                                                                         |                                                                     |
+|---------------|-----------------------------------------------------------------------------------------|---------------------------------------------------------------------|
+| 服务层组件    | 功能描述                                                                                | 跨核通信场景                                                        |
+| VirtIO RPMB   | 远程重放保护内存块（Replay Protected Memory Block）虚拟化，提供安全防重放攻击的存储访问 | 跨核安全密钥/证书存储，如安全核心向应用核心提供可信凭据             |
+| VirtIO Rpmsg  | 基于共享内存的轻量级消息传递框架，运行于 VirtIO 传输层之上                              | 核间 IPC 通信基础                                                   |
+| VirtIO Net    | 虚拟网络设备，提供标准以太网接口                                                        | 网络协议栈多核代理，Client 核心通过 Server 核心共享网络栈           |
+| VirtIO Block  | 虚拟块设备，提供磁盘/Flash 的标准块存储接口                                             | 从核访问主核管理的存储资源，如 DSP 读取主核文件系统                 |
+| VirtIO Serial | 虚拟串口设备，提供多路复用的字符流传输                                                  | 调试日志跨核透传，替代物理串口实现多核统一调试接口                  |
+| VirtIO Rng    | 虚拟随机数生成器，提供熵源访问                                                          | 安全核心（TEE）向应用核心提供硬件级随机数服务                       |
+| VirtIO GPU    | 虚拟图形处理单元，支持 2D/3D 渲染和显示输出                                             | GPU 核心为 MCU 提供图形加速，实现可穿戴设备 UI 渲染                 |
+| VirtIO Input  | 虚拟输入设备（键盘、鼠标、触摸等）事件传递                                              | 传感器核心（MCU）采集触控/按键事件，通过 RPMsg 上报至应用核心处理   |
+| VirtIO Crypto | 虚拟密码学加速器，提供对称/非对称加密、哈希运算                                         | NPU/安全核心提供硬件加密服务，供资源受限的 MCU 核心调用             |
+| VirtIO 9P     | 9P 协议文件系统透传，基于文件的命名空间共享                                             | 轻量级文件共享，主核向从核暴露配置文件或资源目录                    |
+| VirtIO FS     | 高性能虚拟文件系统，支持目录挂载和 POSIX 语义                                           | 跨核文件系统挂载，如 Linux 域直接访问 RTOS 域的 Flash 分区          |
+| VirtIO Socket | 虚拟套接字（VSOCK），提供主机与客户机间的套接字通信                                     | 用户态跨核 Socket 代理，使应用层无需修改即可跨核通信                |
+| VirtIO Video  | 虚拟视频编解码设备，支持 H.264/H.265 等格式                                             | NPU/DSP 核心提供视频编解码能力，供主控核心调用处理摄像头/视频流数据 |
+
+### VirtIO上机体验
+
+本课程使用QEMU模拟器来学习VirtIO。
+
+#### 下载源码
+
+本课程录制于2026年4月1号，里面的源码来自GIT仓库。当你学习时，如果去GIT仓库下载源码，那么得到的最新源码跟课程所用源码不一样。所以，我们制作了“openvela-locked-20260401.xml”，它指定了各个GIT子仓库的版本号。
+
+使用如下命令下载源码：
+
+参考:
+
+https://gitee.com/open-vela/docs/blob/dev/zh-cn/quickstart/openvela_ubuntu_quick_start.md
+
+步骤一：准备工作
+
+```
+sudo apt update
+
+sudo apt install git curl cmake python3 libc++abi-dev build-essential
+
+```
+\# 第一步：配置官方源并安装 (确保获取最新版)
+
+curl -s https://packagecloud.io/install/repositories/github/git-lfs/script.deb.sh \| sudo bash
+
+```
+sudo apt-get install git-lfs
+
+```
+\# 第二步：初始化配置 (重要：必须执行此步，否则 LFS 不会生效)
+
+```
+git lfs install
+
+```
+步骤二：下载源代码
+
+curl -sSL "https://storage.googleapis.com/git-repo-downloads/repo" \&gt; repo
+
+chmod +x repo
+
+```
+sudo mv repo /usr/local/bin
+
+mkdir openvela && cd openvela
+
+```
+\# 根据锁定文件下载GIT仓库
+
+repo init -u https://gitee.com/open-vela/manifests.git -m ~/openvela-locked-20260401.xml --repo-url=https://mirrors.tuna.tsinghua.edu.cn/git/git-repo/ --git-lfs
+
+repo sync -c -j8
+
+步骤三：打补丁
+
+\# 打上补丁：qemu_compile_error_fix.patch
+
+```
+cd vendor/openvela/
+
+```
+patch -p1 \&lt; ~/qemu_compile_error_fix.patch
+
+#### 编译
+
+执行如下命令编译：
+
+```
+cd openvela
+
+```
+\# 编译server
+
+```
+./build.sh vendor/openvela/boards/vela/configs/qemu-arm64-v8a-server -j8 && cp nuttx/nuttx arm64_server
+
+```
+\# 编译ap
+
+```
+./build.sh vendor/openvela/boards/vela/configs/qemu-arm64-v8a-ap -j8 && cp nuttx/nuttx arm64_ap
+
+```
+#### 测试
+
+ap 是 application processor 的意思。server名称的由来是：为了方便rpmsg验证，把很多rpmsg服务的server端放在这个核心里面。
+
+对于VirtIO，server是master（VirtIO driver），ap是slave（vhost，VirtIO device）。
+
+先运行ap，命令如下：
+
+qemu-system-aarch64 -cpu cortex-a53 -machine virt,virtualization=on,gic-version=3 -nographic -serial mon:stdio -object memory-backend-file,discard-data=on,id=shmmem-shmem0,mem-path=/dev/shm/my_shmem0,size=4194304,share=yes -device ivshmem-plain,id=shmem0,memdev=shmmem-shmem0,addr=0xb -kernel ./arm64_ap -gdb tcp::7776
+
+再运行server，命令如下：
+
+qemu-system-aarch64 -cpu cortex-a53 -machine virt,virtualization=on,gic-version=3 -nographic -serial mon:stdio -object memory-backend-file,discard-data=on,id=shmmem-shmem0,mem-path=/dev/shm/my_shmem0,size=4194304,share=yes -device ivshmem-plain,id=shmem0,memdev=shmmem-shmem0,addr=0xb -kernel ./arm64_server -gdb tcp::7775
+
+下面的实验是：server端访问“/dev/random”来使用跨核通信，获得ap端生成的随机数。
+
+![](/img/openvela/image199.png)
+
+在server的终端里执行如下命令可以看到设备节点（如果没有先运行ap，则无法看到如下节点；先运行server再运行ap，在server中也可以看到这些节点）：
+
+![](/img/openvela/image200.png)
+
+在server上执行“hexdump /dev/random count=10”可以从ap端得到随机数：
+
+![](/img/openvela/image201.png)
+
+要退出QEMU，分别在2个终端里按快捷键“Ctrl + A”，再按“X”。
+
+#### 其他命令
+
+如果需要修改配置，命令如下（配置后再使用前面的命令来编译）：
+
+```
+cd openvela
+
+```
+\# 配置server
+
+```
+./build.sh vendor/openvela/boards/vela/configs/qemu-arm64-v8a-server menuconfig
+
+```
+\# 配置ap
+
+```
+./build.sh vendor/openvela/boards/vela/configs/qemu-arm64-v8a-ap menuconfig
+
+```
+如果你想从官方源码开始学习，下载官方源码的命令如下：
+
+参考:
+
+https://gitee.com/open-vela/docs/blob/dev/zh-cn/quickstart/openvela_ubuntu_quick_start.md
+
+步骤一：准备工作
+
+```
+sudo apt update
+
+sudo apt install git curl cmake python3 libc++abi-dev build-essential
+
+```
+\# 第一步：配置官方源并安装 (确保获取最新版)
+
+curl -s https://packagecloud.io/install/repositories/github/git-lfs/script.deb.sh \| sudo bash
+
+```
+sudo apt-get install git-lfs
+
+```
+\# 第二步：初始化配置 (重要：必须执行此步，否则 LFS 不会生效)
+
+```
+git lfs install
+
+```
+步骤二：下载源代码
+
+curl -sSL "https://storage.googleapis.com/git-repo-downloads/repo" \&gt; repo
+
+chmod +x repo
+
+```
+sudo mv repo /usr/local/bin
+
+mkdir openvela && cd openvela
+
+```
+repo init -u https://gitee.com/open-vela/manifests.git -b dev -m openvela.xml --repo-url=https://mirrors.tuna.tsinghua.edu.cn/git/git-repo/ --git-lfs
+
+repo sync -c -j8
+
+### VirtIO的本质（环形缓冲区）与层次
+
+#### 环形缓冲区
+
+使用共享内存进行跨核通信时，特别适合使用环形缓冲区：
+
+① 一方写buffer
+
+② 另一方读buffer。
+
+环形缓冲区实际上还是一维数组，假设有N个数组项，从第0个数组项开始遍历，访问完第N-1个数组项后，再从0开始——这就是“环形”的含义，如下图所示：
+
+![](C:\Users\MeiHao\AppData\Local\Temp\dsh_docx\pandoc\media/media/image202.emf)
+
+环形缓冲区的工作原理如下图所示：
+
+![](C:\Users\MeiHao\AppData\Local\Temp\dsh_docx\pandoc\media/media/image203.emf)
+
+使用过程分析如下：
+
+① 环形缓冲区有读位置、写位置：r、w，它们表示“下一个要读的位置”、“下一个要写的位置”，初始值都是0
+
+② 写数据时：把数据写入buffer\[w\]，然后调整w指向下一个位置（当w越界后要从0开始）
+
+③ 读数据时：从buffer\[r\]读出数据，然后调整r指向下一个位置（当r越界后要从0开始）
+
+④ 判断buffer为空：r等于w时表示空
+
+⑤ 判断buffer为满：“下一个写位置”等于当前读位置
+
+#### 改进的缓冲区
+
+在跨核系统使用环形缓冲区时，假设下图的buf\[0\]~buf\[3\]比较大，不仅仅是用来存放一个整数，而是用来存放一帧数据：
+
+![](/img/openvela/image204.png)
+
+那么就会涉及2次拷贝过程：
+
+① core0产生数据时（比如读取硬件得到数据），要拷贝进buf\[0\]
+
+② core1消费数据时，要从buf\[0\]拷贝出来
+
+可以如下图改造以实现“零拷贝”：
+
+① core0产生数据时，直接把存有数据的buffer地址（比如addr1、addr2）写入环形缓冲区里
+
+② core1消费数据时，从buf\[0\]、buf\[1\]得到地址，使用地址去访问数据。
+
+![](/img/openvela/image205.png)
+
+#### virtio的本质
+
+virtio的本质，也是使用环形缓冲区在两个核之间传输数据：
+
+① 两个核之间使用1个或多个Virtqueue来传输数据
+
+② 1个Virtqueue里面有2个环形缓冲区：avail ring、used ring
+
+③ 这2个环形缓冲区里存放有整数：表示“Descriptor Table”的哪个数组项
+
+④ “Descriptor Table”被用来描述缓冲区，结构体如下：
+
+/\*\*
+
+\* @brief VirtIO 环描述符。
+
+\*
+
+\* 描述符表引用驱动程序正在为设备使用的缓冲区。addr 是一个物理地址，
+
+\* 缓冲区可以通过 \ref next 字段进行链式连接。
+
+\* 每个描述符描述一个对设备只读（“device-readable”，即设备可读/驱动可写）
+
+\* 或对设备只写（“device-writable”，即设备可写/驱动可读）的缓冲区，
+
+\* 但一个描述符链中可以同时包含设备可读和设备可写的缓冲区。
+
+\*/
+
+```
+struct vring_desc {
+
+```
+/\*\* 地址（客户机物理地址 / guest-physical） \*/
+
+```
+uint64_t addr;
+
+```
+/\*\* 长度 \*/
+
+```
+uint32_t len;
+
+```
+/\*\* 与描述符相关的标志位 \*/
+
+```
+uint16_t flags;
+
+```
+/\*\* 我们也通过此字段链接未使用的描述符 \*/
+
+```
+uint16_t next;
+
+};
+
+```
+![](/img/openvela/image206.png)
+
+使用场景如下：
+
+① “VirtIO Driver”分配好buffer，填入“Descriptor Table”
+
+② “VirtIO Driver”会在这2种情况下写avail ring：  
+a. 想发数据给“VirtIO Device”：在buffer里填充好数据后，要把它在“Descriptor Table”中的索引写入avail ring。
+
+b\. 想把buffer提供给“VirtIO Device”以便它写入数据：“VirtIO Driver”无需写buffer，也可以把它在“Descriptor Table”中的索引写入avail ring。
+
+③ “VirtIO Device”读取avail ring获得buffer：可以读取里面的buffer获得数据，也可以把数据写入buffer，最后需要包buffer在“Descriptor Table”中的索引写入used ring。
+
+④ “VirtIO Driver”读取used ring：获得“VirtIO Device”返回的数据。
+
+更细致的操作过程如下（视频里讲解）：
+
+&lt;img src="C:\Users\MeiHao\AppData\Local\Temp\dsh_docx\pandoc\media/media/image207.jpeg" style="width:5.56111in;height:2.46042in" alt="流程图 (2)" /&gt;
+
+#### virtio的层次
+
+跟rpmsg层次类似，VirtIO也可以分为三层，下面结合“环形缓冲区的本质”来解读：
+
+① VirtIO 服务层：服务层通过调用 VirtIO 提供的统一接口，完成设备的初始化和数据交互，实现各类功能，比如VirtIO-RNG、VirtIO-blk等。
+
+简单地说，就是两端的服务层使用“环形缓冲区”交换数据，完成各类功能。
+
+② VirtIO 框架层：VirtIO 层为驱动提供统一的接口，支持 Driver 和 Device 的注册、卸载以及匹配机制。
+
+简单地说，框架层主要提供“环形缓冲区”的接口函数，提供各类注册函数给服务层、传输层使用。
+
+③ VirtIO 传输层：传输层提供对不同传输方式的支持，包括 MMIO、RemoteProc 和 PCI 等。
+
+简单地说，传输层主要实现“环形缓冲区”接口函数的底层代码。
+
+![](/img/openvela/image208.png)
+
+#### 理解VirtIO的关键点
+
+关键点在于：
+
+① 双方如何发现同一个共享内存，并且都能访问到
+
+② 双方如何约定：在这个共享内存上实现什么功能（比如VirtIO RNG等）
+
+③ 一方分配环形缓冲区（Vring），另一方为何能看到并且直接使用
+
+④ 如何创建virtqueue
+
+⑤ 如何使用VirtQueue来传输数据
+
+### openvela的总线设备驱动模型
+
+要理解VirtIO的代码，要先学习openvela里驱动程序的编写模式：总线设备驱动模型。
+
+#### 常规驱动的缺点
+
+以下图的LED电路为例：
+
+![](/img/openvela/image209.png)
+
+按照常规编写驱动程序的方法，要构造一个file_operations结构体，示例如下：
+
+```
+static const struct file_operations g_led_fops =
+
+{
+
+```
+led_open, /\* open \*/
+
+led_close, /\* close \*/
+
+led_read, /\* read \*/
+
+led_write, /\* write \*/
+
+NULL, /\* seek \*/
+
+NULL, /\* ioctl \*/
+
+NULL /\* poll \*/
+
+```
+};
+
+```
+在led_open函数里初始化引脚PIN1为输出功能，在led_write函数里根据传入的参数设置PIN1输出高电平或低电平。
+
+这种方法有2个缺点：
+
+① 要把引脚从PIN1改为PIN2时，你需要去理解驱动程序的操作细节，然后才能修改
+
+② 要支持PIN1、PIN2两个LED时，需要把PIN1驱动复制一份并改为PIN2
+
+#### 总线设备驱动模型
+
+要去操作LED时，需要确定2个因素：使用哪个引脚（资源），怎么操作引脚（操作方法）。可以把“资源”、“操作方法”区分开来，比如把“资源”写入led_device.c，把操作方法写入led_driver.c。这样的好处是：要修改引脚时，只需要查看修改led_device.c，无需查看复杂的led_driver.c。并且，如果程序设计得当，可以让led_driver.c支持多个“资源”（比如支持PIN1、PIN2、……）。
+
+这样的程序结构如下：
+
+![](/img/openvela/image210.png)
+
+使用步骤如下图所示：
+
+![](/img/openvela/image211.png)
+
+① 有一个全局结构体g_led_bus，称之为“总线”，它里面有2个链表：driver、deivces
+
+② led_device1.c里构造了一个led_deivce结构体，称之为“设备”，里面含有“ID”、引脚“PIN1”、使用方式“ACTIVE_LOW”。使用“led_register_device(&led1)”把这个“设备”注册进“g_led_bus.device”链表。
+
+③ 在led_register_device函数里，它还会把led1跟“g_led_bus.driver”中的每一个“驱动”进行比较，如果两者ID相同，就调用“驱动”的probe函数。
+
+④ t113_led_driver.c里构造了一个led_driver结构体，称之为“驱动”，里面含有“ID”、枚举函数“probe”。使用“led_register_device(&t113_led_drv)”把这个“驱动”注册进“g_led_bus.driver”链表。
+
+⑤ 在led_register_driver函数里，它还会把t113_led_drv跟“g_led_bus.device”中的每一个“设备”进行比较，如果两者ID相同，就调用“驱动”的probe函数。
+
+如此一来，无论是先注册“设备”还是先注册“驱动”，两者都会一一比较。“驱动”的probe函数里，可以去注册“file_operations”实现常规的驱动程序注册。
+
+注意：总线设备驱动模型，只是提供了一种“分离”的机制——把硬件资源、操作方法分离开来。至于probe函数里做什么，完全由你决定。
+
+### VirtIO传输层情景分析
+
+传输层的注册过程如下图所示：
+
+&lt;img src="C:\Users\MeiHao\AppData\Local\Temp\dsh_docx\pandoc\media/media/image212.png" style="width:5.75694in;height:5.77014in" alt="yuque_diagram (27)" /&gt;
+
+#### PCI设备的枚举（关键点①）
+
+两边都会看到同一个PCI设备，在枚举PCI设备的操作上是几乎一样的。
+
+最底层：
+
+![](/img/openvela/image213.png)
+
+板子启动代码使用PCI总线扫描到PCI设备后，会调用“pci_register_device(dev)”注册PCI设备。根据总线设备驱动模型，它会导致“nuttx/drivers/pci/pci_ivshmem.c”中的g_ivshmem_drv.probe函数（即ivshmem_probe）函数被调用。
+
+pci_ivshmem.c提供PCI设备的底层操作函数，比如记录PCI Bank地址、提供PCI中断函数等。ivshmem_probe函数里会调用“ivshmem_register_device”向上注册设备。
+
+往上一层：对于本实验的server和ap两个核，它们在这里有一点不同。
+
+server端调用关系如下：
+
+![](/img/openvela/image214.png)
+
+ap端调用关系如下：
+
+![](/img/openvela/image215.png)
+
+server和ap都记录了这个PCI设备共享内存的首地址（这就回答了关键点①）：
+
+![](/img/openvela/image216.png)
+
+#### RSC table的设置（关键点②）
+
+“RSC table”的意思是“资源表”，它是纯软件的概念：
+
+① 即Vhost端、VirtIO Device端（对应QEMU的server端）设置：
+
+在共享内存开头填写数据，表明自己支持什么“VirtIO服务”、这个“VirtIO服务”需要几个VirtQueue等信息。
+
+② 即VirtIO Driver端（对应QEMU的ap端）读取：
+
+在共享内存开头读取“RSC table”，就知道对方支持什么服务了。
+
+函数调用关系如下：
+
+\# 定义rsc table
+
+\# nuttx/drivers/rptun/rptun_ivshmem.c
+
+rptun_ivshmem_probe \&gt; rptun_initialize \&gt; rptun_dev_start \&gt;
+
+rptun_start_thread \&gt; rptun_do_start \&gt; RPTUN_GET_RESOURCE \&gt;
+
+rptun_ivshmem_get_resource
+
+Server端的配置项CONFIG_RPTUN_IVSHMEM_NAME为“0:ap:m”，表示它是master；AP端这个配置项为“0:droid:s”，表示它是slave。两端都会调用rptun_ivshmem_get_resource函数，根据各自角色的不同，master端等待RSC table被设置；slave端设置RSC table。代码如下：
+
+&lt;img src="C:\Users\MeiHao\AppData\Local\Temp\dsh_docx\pandoc\media/media/image217.png" style="width:5.1in;height:3.85in" alt="IMG_256" /&gt;
+
+slave端设置RSC table后，master端能立刻看到：因为RSWC table被放在共享内存开头，双方默认都使用同一个位置。
+
+#### virtio_device的创建与注册（关键点③）
+
+在rptun_ivshmem_probe函数中，会调用“rptun_create_device”函数创建virtio_device，然后调用“rptun_register_device”注册virtio_device。
+
+“rptun_create_device”函数根据先确定自己是什么角色（VIRTIO_DEV_DRIVER或VIRTIO_DEV_DEVICE），代码如下：
+
+![](/img/openvela/image218.png)
+
+使用真值表比较容易理解role的取值：
+
+&lt;table&gt;
+&lt;colgroup&gt;
+&lt;col style="width: 20%" /&gt;
+&lt;col style="width: 48%" /&gt;
+&lt;col style="width: 31%" /&gt;
+&lt;/colgroup&gt;
+&lt;tbody&gt;
+&lt;tr class="odd"&gt;
+&lt;td&gt;是不是master&lt;/td&gt;
+&lt;td&gt;&lt;p&gt;RSC table指定master&lt;/p&gt;
+&lt;p&gt;为VIRTIO_DEV_DRIVER？&lt;/p&gt;&lt;/td&gt;
+&lt;td&gt;role&lt;/td&gt;
+&lt;/tr&gt;
+&lt;tr class="even"&gt;
+&lt;td&gt;1&lt;/td&gt;
+&lt;td&gt;1&lt;/td&gt;
+&lt;td&gt;VIRTIO_DEV_DRIVER&lt;/td&gt;
+&lt;/tr&gt;
+&lt;tr class="odd"&gt;
+&lt;td&gt;1&lt;/td&gt;
+&lt;td&gt;0&lt;/td&gt;
+&lt;td&gt;VIRTIO_DEV_DEVICE&lt;/td&gt;
+&lt;/tr&gt;
+&lt;tr class="even"&gt;
+&lt;td&gt;0&lt;/td&gt;
+&lt;td&gt;1&lt;/td&gt;
+&lt;td&gt;VIRTIO_DEV_DEVICE&lt;/td&gt;
+&lt;/tr&gt;
+&lt;tr class="odd"&gt;
+&lt;td&gt;0&lt;/td&gt;
+&lt;td&gt;0&lt;/td&gt;
+&lt;td&gt;VIRTIO_DEV_DRIVER&lt;/td&gt;
+&lt;/tr&gt;
+&lt;/tbody&gt;
+&lt;/table&gt;
+
+简单地说，在RSC table里设置的“rsc-\&gt;reserved\[0\]”为VIRTIO_DEV_DRIVER或VIRTIO_DEV_DEVICE，它指定的是“master”的角色。
+
+“rptun_create_device”函数里，发现自己的角色是VIRTIO_DEV_DRIVER时，还会在RSC table中记录vring的物理地址（两端看到一样的地址值）：
+
+![](/img/openvela/image219.png)
+
+从上图可知，在RSC table中记录有vring的物理地址。
+
+在rptun_create_device函数中，会从RSC table中把vring的物理地址转换为虚拟地址，并记录进virtio_device里，代码如下：
+
+```
+// 上层逻辑如何从 rsc 获取信息
+
+```
+\# nuttx/drivers/rptun/rptun.c
+
+rptun_create_devices \&gt; rptun_create_device \&gt; remoteproc_create_virtio
+
+```
+num_vrings = vdev_rsc-\>num_of_vrings;
+
+for (i = 0; i \< num_vrings; i++) {
+
+vring_rsc = &vdev_rsc-\>vring\[i\];
+
+da = vring_rsc-\>da;
+
+va = remoteproc_mmap(rproc, NULL, &da, size, 0, &io);
+
+```
+ret = rproc_virtio_init_vring(vdev, i, notifyid,
+
+```
+va, io, num_descs, align);
+
+vring_info = &vdev-\>vrings_info\[index\];
+
+vring_info-\>info.vaddr = va;
+
+```
+“rptun_register_device”函数会根据自己的角色调用virtio_register_device或vhost_register_device，代码如下：
+
+![](/img/openvela/image220.png)
+
+### VirtIO的服务层情景分析
+
+#### 服务层的注册
+
+对于Vhost端、VirtIO Device端（对应QEMU的server端），注册过程如下图所示。
+
+![](/img/openvela/image221.png)
+
+vhost_rng_probe里将创建virtqueue，代码如下：
+
+![](/img/openvela/image222.png)
+
+对于VirtIO Driver端（对应QEMU的ap端），注册过程如下图所示。
+
+![](/img/openvela/image223.png)
+
+virtio_rng_probe里将创建virtqueue，代码如下：
+
+![](/img/openvela/image224.png)
+
+#### virtqueue的创建（关键点④）
+
+vhost_rng_probe或virtio_rng_probe会创建virtqueue，进而创建vring，代码如下：
+
+```
+// 构造vring
+
+```
+\# virtio-rng:
+
+vhost_rng_probe或virtio_rng_probe
+
+virtio_create_virtqueues
+
+vdev-\&gt;func-\&gt;create_virtqueues
+
+```
+// nuttx/openamp/open-amp/lib/remoteproc/remoteproc_virtio.c
+
+```
+rproc_virtio_create_virtqueues
+
+rproc_virtio_create_virtqueue
+
+/\* Get the vring information \*/
+
+```
+vring_info = &vdev-\>vrings_info\[idx\];
+
+vring_alloc = &vring_info-\>info;
+
+vq = virtqueue_allocate(vring_alloc-\>num_descs);
+
+if (VIRTIO_ROLE_IS_DRIVER(vdev))
+
+metal_io_block_set(vring_info-\>io, offset, 0, size);
+
+```
+ret = virtqueue_create(vdev, idx, name, vring_alloc, callback,
+
+```
+vdev-\>func-\>notify, vq);
+
+vq-\>callback = callback;
+
+vq_ring_init(vq, ring-\>vaddr, ring-\>align);
+
+vring_init(vr, size, ring_mem, alignment);
+
+static inline void
+
+```
+vring_init(struct vring \*vr, unsigned int num, uint8_t \*p, unsigned long align)
+
+```
+{
+
+vr-\>num = num;
+
+vr-\>desc = (struct vring_desc \*)p;
+
+vr-\>avail = (struct vring_avail \*)(p + num \* sizeof(struct vring_desc));
+
+```
+vr-\&gt;used = (struct vring_used \*)
+
+(((unsigned long)(void \*)&vr-\&gt;avail-\&gt;ring\[num\] + sizeof(uint16_t) +
+
+```
+align - 1) & ~(align - 1));
+
+}
+
+```
+两端有各自的virtqueue，它不在共享内存上。virtqueue里有vring，vring也不在共享内存上，但是vring引用的desc table、avail ring、used ring都在共享内存上。结构如下图所示：
+
+![](/img/openvela/image206.png)
+
+### VirtIO-RNG使用流程情景分析（关键点⑤）
+
+当在Server端执行“hexdump /dev/random”时，将导致如下图的virtio_rng_read函数被调用：
+
+![](/img/openvela/image225.png)
+
+两端交互流程如下图所示：
+
+&lt;img src="C:\Users\MeiHao\AppData\Local\Temp\dsh_docx\pandoc\media/media/image226.png" style="width:5.76319in;height:4.65625in" alt="yuque_diagram (1)" /&gt;
+

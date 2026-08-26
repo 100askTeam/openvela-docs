@@ -1,0 +1,143 @@
+---
+title: "ARM架构简明教程"
+---
+
+
+### 硬件架构与汇编
+
+#### ARM架构
+
+ARM芯片属于精简指令集计算机(RISC：Reduced Instruction Set Computing)，它所用的指令比较简单，有如下特点：
+
+① 对内存只有读、写指令
+
+② 对于数据的运算是在CPU内部实现
+
+③ 使用RISC指令的CPU复杂度小一点，易于设计
+
+![](/img/openvela/image56.png)
+
+对于上图所示的加法运算a = a + b，在RISC中要使用4条汇编指令：
+
+① 读内存a
+
+② 读内存b
+
+③ 计算a+b
+
+④ 把结果写入内存
+
+问题：在CPU内部，用什么来保存a、b、a+b ？
+
+CPU内部都有R0、R1、……、R15等寄存器；它们可以用来“暂存”数据。
+
+对于R13、R14、R15，还另有用途：
+
+- R13：别名SP(Stack Pointer)，栈指针
+
+- R14：别名LR(Link Register)，用来保存返回地址
+
+- R15：别名PC(Program Counter)，程序计数器，表示当前指令地址，写入新值即可跳转
+
+![](/img/openvela/image57.png)
+
+无论是cortex-M3/M4，还是cortex-A7，CPU内部都有R0、R1、……、R15寄存器；它们可以用来“暂存”数据。下图是cortex-M3/M4、cortex-A7处理器内部的寄存器：
+
+![](/img/openvela/image242.png)
+
+对于R13、R14、R15，还另有用途：
+
+R13：别名SP(Stack Pointer)，栈指针
+
+R14：别名LR(Link Register)，用来保存返回地址
+
+R15：别名PC(Program Counter)，程序计数器，表示当前指令地址，写入新值即可跳转。
+
+#### 汇编指令
+
+常用汇编指令如下：
+
+- 读内存：Load
+
+\# 示例
+
+LDR R0, \[R1, \#4\] ; 读地址"R1+4", 得到的4字节数据存入R0
+
+- 写内存：Stroe
+
+\# 示例
+
+STR R0, \[R1, \#4\] ; 把R0的4字节数据写入地址"R1+4"
+
+- 加减
+
+```
+ADD R0, R1, R2 ; R0=R1+R2
+
+ADD R0, R0, \#1 ; R0=R0+1
+
+SUB R0, R1, R2 ; R0=R1-R2
+
+SUB R0, R0, \#1 ; R0=R0-1
+
+```
+- 比较
+
+CMP R0, R1 ; 结果保存在PSR(程序状态寄存器)
+
+- 跳转
+
+B main ; Branch, 直接跳转
+
+BL main ; Branch and Link, 先把返回地址保存在LR寄存器里再跳转
+
+### C函数内部机制
+
+对于一个C函数，它的本质是各类汇编指令对内存的操作：
+
+- 在内存（栈）里保存寄存器、返回地址
+
+- 在内存（栈）里分配局部变量
+
+- 使用机器码读写内存、计算、跳转
+
+#### C函数的汇编代码分析
+
+看视频。逐个指令分析一个C函数的汇编码
+
+#### 参数调用规则
+
+在arm中有个ATPCS规则(ARM-THUMB procedure call standard（ARM-Thumb过程调用标准）。约定r0-r15寄存器的用途：
+
+- r0-r3：
+
+调用者和被调用者之间传参数
+
+- r4-r11
+
+在函数里面可能会使用这些寄存器，如果要使用的话，在函数的入口保存它们，在函数的出口恢复它们。
+
+- &lt;img src="C:\Users\MeiHao\AppData\Local\Temp\dsh_docx\pandoc\media/media/image243.png" title="fig:" style="width:4.73056in;height:3.24792in" /&gt;
+
+代码示例：
+
+```
+## int delay(unsigned int d) { while (d--); return 0; }
+
+```
+在汇编里调用delay：
+
+## ldr r0, =1000000 /\* 给delay函数传参数，保存在r0里 \*/ bl delay cmp r0, \#0 /\* 返回值保存在r0中 \*/
+
+#### 栈的作用
+
+栈里面会保存：必要的寄存器（比如LR寄存器）、局部变量。
+
+### 汇编代码里的\_\_stack_chk_guard
+
+\_\_stack_chk_guard是GCC编译器为了实现栈溢出保护（Stack Smashing Protection，SSP，也称为 ProPolice）而引入的一个关键机制，用于检测栈缓冲区溢出（如缓冲区溢出导致的栈破坏）。
+
+原理为：在栈帧中插入一个随机生成的 “保护值”（guard value），函数返回前检查该值是否被篡改。若被篡改，说明发生了栈溢出，程序会立即终止（避免攻击得逞）。
+
+当编译器启用栈保护（默认在 -O2 及以上优化级别，或显式通过 -fstack-protector 系列选项开启）时，会在函数的栈帧中（通常位于缓冲区和返回地址之间）插入 \_\_stack_chk_guard 的副本。
+

@@ -1,0 +1,550 @@
+---
+title: "RPMSG（远程处理器消息传递）"
+---
+
+
+### RPMSG的概念与体验
+
+#### 概念与作用
+
+RPMSG（Remote Processor Messaging）的核心价值是让异构芯片里的多个处理器 “顺畅聊天、协同干活”，对初学者来说，不用纠结底层细节，先搞懂它能落地解决哪些实际问题。现代芯片（手机、工业控制器、车载设备）里不只有主 CPU（如 ARM/x86），还有专门的协处理器（DSP/MCU/ISP/NPU）—— 这些协处理器擅长做特定任务（比如音频处理、传感器计算、AI 推理），但没法直接和主 CPU 沟通，RPMSG 就是它们的 “对话工具”
+
+#### 通信场景
+
+openvela 支持各种各样的跨核通讯，从操作系统上来看，覆盖了从 Linux 到 openvela，openvela 到 openvela 的两种通讯模式，从底层的物理传输方式上来看，覆盖了基于 SPI/UART 等物理传输的通讯方式和基于共享内存&中断的通讯方式。
+
+跨核通信可以分为：
+
+① 片内异构核心间跨核通信
+
+芯片内部存在多个异构核心，之间需要进行通讯，芯片间可以通过共享内存进行通信，这种场景下，芯片间一般会提供共享内存和中断机制。如下图所示：
+
+![](/img/openvela/image162.png)
+
+② 板级芯片间跨核通信
+
+同一个 PCB 板中，多个芯片之间需要进行通讯，芯片之间通过物理通讯总线（比如UART、SPI）相连。如下图所示：
+
+![](/img/openvela/image163.png)
+
+③ 跨核间接通信
+
+不存在直接物理连接通道的两个核心（Droid 和 Audio）需要进行跨核通讯，需要通过现有的跨核通道进行消息转发。如下图所示：
+
+![](/img/openvela/image164.png)
+
+④ 虚拟机之间跨核通信
+
+在同一个 Hypervisor 上运行的多个虚拟机之间需要进行通讯，Hypervisor 会提供共享内存和中断机制。如下图所示：
+
+![](/img/openvela/image165.png)
+
+不同的跨核通讯场景，对应不同的底层物理通讯通道，在此之上的代码是没有差别的。
+
+#### 体验
+
+对于openvela，RPMSG有多种使用场景：
+
+① Rpmsg Syslog：用于异构多核的跨核LOG输出，A核的打印信息通过B核的串口打印出来。
+
+② Rpmsg Uart：用于异构多核的跨核 Uart 数据传输，在 AMP 系统中，有些业务需要使用虚拟串口设备和另外一个核心进行通讯。
+
+③ Rpmsg Socket：用于异构多核的跨核 Socket 通讯，让不同核心的应用也可以通过 Socket 进行通讯。
+
+④ Rpmsg Fs 用于异构多核的跨核文件系统访问，App 可以无感的访问远端 CPU 中的文件、目录，就像访问本核的文件系统一样。
+
+⑤ Rpmsg Dev 用于异构多核的跨核字符设备访问，APP 可以无感的使用远端 CPU 中的字符设备，和使用本端的字符设备一样。
+
+本节使用Rpmsg Dev，在第1个openvela开发板上操作第2个openvela开发板的LED。
+
+硬件连接如下：
+
+![](/img/openvela/image166.png)
+
+在A、B板中分别烧写如下镜像文件：
+
+![](/img/openvela/image167.png)
+
+启动这2个板子后，如果不想看到太多的调试信息，可以在2个板子的串口上都执行如下命令：
+
+```
+mv /data/xiaozhi.sh /data/xiaozhi.sh.bak
+
+```
+reboot
+
+测试RPMSG的步骤如下：
+
+① 在A板可以看到如下文件：
+
+nsh\&gt; ls /dev/b_gpio0
+
+/dev/b_gpio0
+
+nsh\&gt;
+
+nsh\&gt; ls /dev/rpmsg
+
+/dev/rpmsg:
+
+100ask_b
+
+如果没有发现“/dev/rpmsg/100ask_b”文件的话，如下解决：
+
+```
+.  确认A、B板子的RS485接口接好了
+
+.  同时重启2个板子
+
+```
+② 在B板可以看到如下文件：
+
+nsh\&gt; ls /dev/rpmsg
+
+/dev/rpmsg:
+
+100ask_a
+
+如果没有发现“/dev/rpmsg/100ask_a”文件的话，如下解决：
+
+a\. 确认A、B板子的RS485接口接好了
+
+b\. 同时重启2个板子
+
+③ 在A板执行如下命令控制B板的LED1：
+
+nsh\&gt; led /dev/b_gpio0 on
+
+nsh\&gt; led /dev/b_gpio0 off
+
+如果没有发现这些命令卡住了的话，如下解决：
+
+a\. 确认A、B板子的RS485接口接好了
+
+b\. 同时重启2个板子
+
+### RPMSG实验的代码修改
+
+#### 修改UART2的引脚
+
+上图中A1、B1使用的是UART2，引脚为：PE2、PE3。修改“vendor/allwinnertech/chips/r528/r528_serial.c”，如下：
+
+![](/img/openvela/image168.png)
+
+#### 修改r528_boot.c使用Rpmsg Dev
+
+修改“vendor/allwinnertech/chips/r528/r528_boot.c”，如下：
+
+![](/img/openvela/image169.png)
+
+修改“vendor/allwinnertech/chips/r528/Make.defs”加入头文件路径：
+
+![](/img/openvela/image170.png)
+
+#### 修改rpmsgdev.c支持GPIO的ioctl
+
+修改“nuttx/drivers/misc/rpmsgdev.c”，如下：
+
+![](/img/openvela/image171.png)
+
+#### 修改LED测试程序
+
+修改“apps/examples/led/led.c”，如下：
+
+![](/img/openvela/image172.png)
+
+#### 给A板配置、编译镜像
+
+执行如下命令进行环境变量的设置、并选择工程：
+
+```
+cd ~/vela-opensource/vendor/allwinnertech/lichee/
+
+source vela_env.sh
+
+source envsetup.sh
+
+lunch_nuttx
+
+```
+You're building on Linux
+
+Lunch menu... pick a combo:
+
+1\. r528s3-evb4
+
+2\. r528s3-velaevb1
+
+Which would you like?: 2
+
+执行“m menuconfig”，加入如下配置项：
+
+CONFIG_R528_UART2=y
+
+CONFIG_RPMSG_LOCAL_CPUNAME=”100ask_a”
+
+CONFIG_RPMSG=y
+
+CONFIG_RPMSG_PORT=y
+
+CONFIG_RPMSG_PORT_UART=y
+
+CONFIG_DEV_RPMSG=y
+
+\#CONFIG_DEV_RPMSG_SERVER \# 这个不要配置
+
+然后执行如下命令清除、编译、打包：
+
+```
+m c
+
+m
+
+pack
+
+```
+把得到的映像文件烧入A板：
+
+/home/ubuntu/vela-opensource/vendor/allwinnertech/lichee/out/r528s3/velaevb1_nand/rtos_nuttx_r528s3-velaevb1_uart0_256Mnand.img
+
+#### 给B板配置、编译镜像
+
+执行如下命令进行环境变量的设置、并选择工程：
+
+```
+cd ~/vela-opensource/vendor/allwinnertech/lichee/
+
+source vela_env.sh
+
+source envsetup.sh
+
+lunch_nuttx
+
+```
+You're building on Linux
+
+Lunch menu... pick a combo:
+
+1\. r528s3-evb4
+
+2\. r528s3-velaevb1
+
+Which would you like?: 2
+
+执行“m menuconfig”，加入如下配置项：
+
+CONFIG_R528_UART2=y
+
+CONFIG_RPMSG_LOCAL_CPUNAME=”100ask_b”
+
+CONFIG_RPMSG=y
+
+CONFIG_RPMSG_PORT=y
+
+CONFIG_RPMSG_PORT_UART=y
+
+\# CONFIG_DEV_RPMSG \# 这个不要配置
+
+CONFIG_DEV_RPMSG_SERVER=y
+
+然后执行如下命令清除、编译、打包：
+
+```
+m c
+
+m
+
+pack
+
+```
+### RPMSG的层次
+
+RPMSG被分为4层：服务层、框架层、传输层、物理层，如下：
+
+![](/img/openvela/image173.png)
+
+怎么理解这些层次？使用这个案例来分析：
+
+![](/img/openvela/image166.png)
+
+假设A板调用“led /dev/b_gpio0 on”可以控制B板的LED1，A板调用“button /dev/b_fb”可以绘制B板的屏幕，那么必定有如下问题：
+
+![](/img/openvela/image174.png)
+
+两个驱动程序产生的数据包发给B板后，B板怎样才能分辨出它们，而不是混在一起？B板分辨出各个数据包后，怎么处理？方法就是每个数据包前面加入唯一的标识符，比如：
+
+![](/img/openvela/image175.png)
+
+数据包加上ID后发送，既表明了“是谁发送的”，也表明了“由谁来处理”，相当于创建了多条专用的、虚拟的通道，通道的两端被称为“endpoint”，如下图所示：
+
+![](/img/openvela/image176.png)
+
+于是，上面框图可以划分出5层：
+
+![](/img/openvela/image177.png)
+
+### RPMSG服务层注册情景分析
+
+#### 核心链表
+
+对于服务层、框架层、传输层，为了便于理解，我们先讲服务层，再讲传输层，最后讲框架层：从上、下两层开始阅读代码。
+
+注意：RPMSG之间的通信，一般可以分为Client、Server两端。Client 端发送完成后，阻塞等待 Server 端的回复，Server 端收到消息后调用对应的系统 API 执行相关操作，拿到结果后回复消息，Client 端收到回复后，将获取到的结果再返回给用户。
+
+阅读代码时，每个核的框架层“nuttx\drivers\rpmsg\rpmsg.c”有2个链表（Client、Server各有2个链表），它们是关键：
+
+```
+static METAL_DECLARE_LIST(g_rpmsg_cb);
+
+static METAL_DECLARE_LIST(g_rpmsg);
+
+```
+g_rpmsg里存放的是“rpmsg”，对应“传输能力”，每个物理传输通道都对应一个“rpmsg”。比如示例中A板和B板使用UART进行通信，那么两个板子的g_rpmsg里都会有一个“uart rpmsg”。g_rpmsg里的链表项由底下的“传输层”提供。
+
+g_rpmsg_cb里存放的是“服务层”提供的“rpmsg_cb”：对于Client里面存放的是当物理连接被创建、断开时的回调函数；对于Server里面存放的是Client发来创建endpoint的请求以便获得服务时的回调函数。
+
+![](/img/openvela/image178.png)
+
+以Rpmsg Dev为例，Clinet、Server两端执行的代码如下：
+
+![](/img/openvela/image179.png)
+
+核心在于往各自的g_rpmsg_cb里存放的处理函数，“rpmsg_cb”结构体如下：
+
+![](/img/openvela/image180.png)
+
+#### client端服务层注册
+
+client端“vendor/allwinnertech/chips/r528/r528_boot.c”调用了如下代码：
+
+```
+rpmsgdev_register("100ask_b", "/dev/gpio0", "/dev/b_gpio0", 0);
+
+```
+它的注册分为2部分，如下图所示：
+
+![](/img/openvela/image181.png)
+
+① 注册rpmsg callback：上图的“rpmsg_register_callback”向传输层的g_rpmsg_cb链表注册了一个“rpmsg_cb_s”对象，它表示“当物理连接被创建后，cb-\&gt;device_created被调用”，“当物理连接被断开后，cb-\&gt;device_destroy被调用”
+
+② 常规的驱动注册：这只是一个空架子，cb-\&gt;device_created被调用后才能跟Server通信。
+
+#### Server端服务层注册
+
+server端“vendor/allwinnertech/chips/r528/r528_boot.c”调用了如下代码：
+
+```
+rpmsgdev_server_init();
+
+```
+这个函数在“nuttx/drivers/misc/rpmsgdev_server.c”中实现，代码如下：
+
+![](/img/openvela/image182.png)
+
+它向传输层的g_rpmsg_cb链表注册了一个“rpmsg_cb_s”对象，它没有提供device_created和device_destroy，而是提供了ns_match、ns_bind。它表示“当物理连接被创建后并且client发来RPMSG_NS_CREATE请求，cb-\&gt;device_created被调用”，“当物理连接被断开后，cb-\&gt;device_destroy被调用”。
+
+#### Client和Server的关系
+
+在下图中，当底层的物理连接被创建后：
+
+① client端的rpmsgdev_device_created函数被调用：它调用rpmsg_create_ept函数来创建endpoint，实际上就是向server寻求服务
+
+② server端收到服务请求后，调用rpmsgdev_ns_match确认能否提供支持
+
+③ 如果能提供支持，server端调用rpmsgdev_ns_bind处理client端的“rpmsg_create_ept”请求，建立通信channel。
+
+![](/img/openvela/image183.png)
+
+### RPMSG传输层注册情景分析
+
+#### 函数执行过程分析
+
+我们把A板、B板的串口连接后，数据通道的物理连接就建立了。但是，A板、B板不知道啊，它们还需要打招呼，确认对方的存在。这个过程分为6步：
+
+① 假设A板的传输层先初始化：它通过串口发送连接请求（即发送一个字符“RPMSG_PORT_UART_CONNREQ”，0x7d）
+
+② 但是B板的传输层尚未注册，所以A板无法获得回应，连接未建立
+
+③ 当B板的传输层初始化时：它通过串口发送连接请求（即发送一个字符“RPMSG_PORT_UART_CONNREQ”，0x7d）
+
+④ A板回应“RPMSG_PORT_UART_CONNACK”即0x7c，连接就建立起来了
+
+⑤ client端（A板）调用之前服务层注册的cb-\&gt;device_created
+
+⑥ 打招呼成功后，A板、B板各自的g_rpmsg链表里才有各自的rpmsg device
+
+client端(A板）“vendor/allwinnertech/chips/r528/r528_boot.c”调用了如下代码：
+
+```
+struct rpmsg_port_config_s a_cfg = {"100ask_b", 4, 4, 200, 300};
+
+rpmsg_port_uart_initialize(&a_cfg, "/dev/uart2", "100ask_a");
+
+```
+sever端（B板）“vendor/allwinnertech/chips/r528/r528_boot.c”调用了如下代码：
+
+```
+struct rpmsg_port_config_s b_cfg = {"100ask_a", 4, 4, 200, 300};
+
+rpmsg_port_uart_initialize(&b_cfg, "/dev/uart2", "100ask_b");
+
+```
+两端注册传输层的结果如下图所示：
+
+![](/img/openvela/image184.png)
+
+两端调用“rpmsg_port_uart_initialize”的执行过程是一样的，功能如下：
+
+① 创建一个rpmsg_device结构体：里面分配buffer、设置了各类函数，特别是buffer相关的函数，代码如下。
+
+![](/img/openvela/image185.png)
+
+② 创建一个“NS”endpoint：Name Servie，名字服务。  
+![](/img/openvela/image186.png)
+
+③ 创建接收线程、发送线程：
+
+![](/img/openvela/image187.png)
+
+④ 发送线程里，发送一个字符“RPMSG_PORT_UART_CONNREQ”，0x7d
+
+![](/img/openvela/image188.png)
+
+⑤ 对端的接收线程收到“RPMSG_PORT_UART_CONNREQ”后：
+
+![](/img/openvela/image189.png)
+
+⑥ 本端的接收线程收到“RPMSG_PORT_UART_CONNACK”后：
+
+![](/img/openvela/image190.png)
+
+⑦ 当物理连接确认建立后，各端会把rpmsg注册进各自的g_rpmsg，所以g_rpmsg里每项对应一个物理连接，能传输数据，然后调用服务层在g_rpmsg_cb里注册的回调函数。代码如下：
+
+![](/img/openvela/image191.png)
+
+#### UART数据传输格式
+
+整个 Rpmsg 消息从原始数据到实际传输出去的流程见上图，从原始数据开始，每一层都会根据自己本层的需求，填充一个数据头，类似网络协议栈栈的数据包的组成。如下图所示：
+
+![](/img/openvela/image192.png)
+
+在基于UART的传输层，它除了发送数据包之外，还可以发送一些命令，如下所示：
+
+\#define RPMSG_PORT_UART_START 0x7f // 帧起始标记
+
+\#define RPMSG_PORT_UART_END 0x7e // 帧结束标记
+
+\#define RPMSG_PORT_UART_CONNREQ 0x7d // 连接请求
+
+\#define RPMSG_PORT_UART_CONNACK 0x7c // 连接确认
+
+\#define RPMSG_PORT_UART_ESCAPE 0x7b // 转义字符
+
+\#define RPMSG_PORT_UART_ESCAPE_MASK 0x20 // 转义掩码
+
+比如建立物理通道时，一端发送字符RPMSG_PORT_UART_CONNREQ（0x7d），另一端回复RPMSG_PORT_UART_CONNACK（0x7c）。
+
+当发送数据包时，流程如下：
+
+① 发送 RPMSG_PORT_UART_START(0x7f) 标记帧开始
+
+② 对数据进行转义处理：
+
+\- 如果数据字节在 RPMSG_PORT_UART_ESCAPE（0x7b）和RPMSG_PORT_UART_START（0x7f）范围内（特殊字符）
+
+\- 先发送 RPMSG_PORT_UART_ESCAPE (0x7b)
+
+\- 再发送 (原字节 XOR 0x20)
+
+\- 例如：0x7f → 0x7b 0x5f
+
+③ 发送RPMSG_PORT_UART_END(0x7e) 标记帧结束
+
+在传输层，没有endpoint的概念，它只负责把数据包完整地发个对方，并且让对方能识别出来。
+
+### RPMSG通道建立情景分析
+
+本节的核心：
+
+① 每个endpoint有自己的回调函数，用来处理发给自己的数据。
+
+② 每个rpmsg都有自己的NS endpoint
+
+物理通道建立后，服务层注册的回调函数cb-\&gt;device_created（A板提供了这个函数，B板没有提供这个函数）被调用。
+
+A板（client端）的“vendor/allwinnertech/chips/r528/r528_boot.c”调用了如下代码：
+
+```
+rpmsgdev_register("100ask_b", "/dev/gpio0", "/dev/b_gpio0", 0);
+
+```
+它注册的回调函数如下：
+
+![](/img/openvela/image193.png)
+
+所以，当物理通道建立后，client端注册的回调函数被调用：它创建了一个新的endpoint，名为“rpdev-/dev/gpio0”，并且向对端的“NS endpoint” 发送“RPMSG_NS_CREATE”的消息，向获得对端的服务、创建虚拟的通信通道。那么，对端的“NS endpoint”的回调函数rpmsg_port_ns_callback被调用，如下图所示：
+
+![](/img/openvela/image194.png)
+
+对端的“NS endpoint”的回调函数rpmsg_port_ns_callback作用是：在g_rpmsg_cb中寻找匹配的“服务”，调用它的绑定函数。调用过程如下：
+
+![](/img/openvela/image195.png)
+
+最后，调用B板（Server端）的“rpmsgdev_ns_match”函数判断是否匹配，让调用“rpmsgdev_ns_bind”来生成Server端的“rpdev-/dev/gpio0 endpoint”，并把地址返回给对方。
+
+如此，就在两端创建都分别创建了“rpdev-/dev/gpio0 endpoint”，如下：
+
+![](/img/openvela/image196.png)
+
+### 远程LED控制流程情景分析
+
+整个 Rpmsg 消息从原始数据到实际传输出去的流程见上图，从原始数据开始，每一层都会根据自己本层的需求，填充一个数据头，类似网络协议栈栈的数据包的组成。如下图所示：
+
+![](/img/openvela/image192.png)
+
+本节分析这些数据。
+
+在A板执行“led /dev/b_gpio0 on”时，涉及的系统调用如下：
+
+![](/img/openvela/image197.png)
+
+以“open”函数为例讲解跨核通信过程，调用“led /dev/b_gpio0 on”时，rpmsg的调试信息如下（忽略了更多，下面仅仅是open函数对应的信息）：
+
+nsh\&gt; led /dev/b_gpio0 on
+
+\[70/01/ 2 02:01:48\] \[CPU1\] \[12\] \[nsh\] Send Data (0x41f56090):
+
+\[70/01/ 2 02:01:48\] \[CPU1\] \[12\] \[nsh\] 0000 00 00 00 00 00 00 34 00 01 04 00 00 00 04 00 00 ......4.........
+
+\[70/01/ 2 02:01:48\] \[CPU1\] \[12\] \[nsh\] 0010 00 00 00 00 1c 00 00 00 01 00 00 00 fa ff ff ff ................
+
+\[70/01/ 2 02:01:48\] \[CPU1\] \[12\] \[nsh\] 0020 88 c8 fb 41 00 00 00 00 14 c9 fb 41 00 ca fb 41 ...A.......A...A
+
+\[70/01/ 2 02:01:48\] \[CPU1\] \[12\] \[nsh\] 0030 43 00 00 00 C...
+
+\[70/01/ 2 02:01:48\] \[CPU1\] \[12\] \[nsh\] TX Packed Data (0x41f577a4):
+
+\[70/01/ 2 02:01:48\] \[CPU1\] \[12\] \[nsh\] 0000 7f 00 00 00 00 00 00 34 00 01 04 00 00 00 04 00 .......4........
+
+\[70/01/ 2 02:01:48\] \[CPU1\] \[12\] \[nsh\] 0010 00 00 00 00 00 1c 00 00 00 01 00 00 00 fa ff ff ................
+
+\[70/01/ 2 02:01:48\] \[CPU1\] \[12\] \[nsh\] 0020 ff 88 c8 fb 41 00 00 00 00 14 c9 fb 41 00 ca fb ....A.......A...
+
+\[70/01/ 2 02:01:48\] \[CPU1\] \[12\] \[nsh\] 0030 41 43 00 00 00 7e AC...~
+
+\[70/01/ 2 02:01:48\] \[CPU0\] \[11\] \[nsh\] Received data: (0x41f56e7c):
+
+\[70/01/ 2 02:01:48\] \[CPU0\] \[11\] \[nsh\] 0000 7f 00 00 00 00 00 00 34 00 00 04 00 00 01 04 00 .......4........
+
+\[70/01/ 2 02:01:48\] \[CPU0\] \[11\] \[nsh\] 0010 00 00 00 00 00 1c 00 00 00 01 00 00 00 00 00 00 ................
+
+\[70/01/ 2 02:01:48\] \[CPU0\] \[11\] \[nsh\] 0020 00 88 c8 fb 41 00 00 00 00 a8 92 fb 41 00 00 00 ....A.......A...
+
+\[70/01/ 2 02:01:48\] \[CPU0\] \[11\] \[nsh\] 0030 00 43 00 00 00 7e .C...~
+
+“/dev/b_gpio0”对应的驱动程序为“nuttx/drivers/misc/rpmsgdev.c”，APP调用open函数时导致对应的“rpmsgdev_open”函数被调用，跟远端的交互过程如下：
+
+![](/img/openvela/image198.png)
+
+步骤较细，在视频里讲解。
+

@@ -1,0 +1,994 @@
+---
+title: "openvela高级调试技术"
+---
+
+
+### 栈回溯的原理
+
+#### 调试需求
+
+```
+**调试程序时，经常发生这类错误**：
+
+```
+① 读写某个地址，导致程序崩溃
+
+② 调用某个空函数，导致程序崩溃
+
+如果可以打印出”发生错误瞬间”的所有寄存器，我们调试时可以根据这些寄存器，知道发生错误的位置。
+
+但是，光知道发生错误的位置还不够！
+
+比如，根据打印信息知道在C函数里发生错误，但是你无法确定是在哪个调用链上出错：
+
+① A \&gt; B \&gt; C时出错？
+
+② D \&gt; C时出错？
+
+![](/img/openvela/image244.png)
+
+我们希望得到：出错时的函数调用关系
+
+怎么办？
+
+分析栈！
+
+#### 栈里含有调用关系
+
+C语言函数的返回地址，保存在栈里：
+
+![](/img/openvela/image245.png)
+
+栈内容示例：
+
+![](/img/openvela/image246.png)
+
+#### 使用示例手工栈回溯
+
+对于下面的函数调用“hello_main \&gt; A \&gt; B”，在函数B里访问地址“0x20000000”导致崩溃（这个地址没有对应的硬件）。
+
+源码如下：
+
+\_\_attribute\_\_((noinline)) void B(void)
+
+```
+{
+
+volatile int \*p = (volatile int \*)0x20000000;
+
+*p = 0xdeadbeef;
+
+}
+
+```
+\_\_attribute\_\_((noinline)) int A(int n, int m)
+
+```
+{
+
+volatile int ret;
+
+ret = n / m;
+
+B();
+
+return ret;
+
+}
+
+int main(int argc, char \*argv\[\])
+
+{
+
+volatile int n;
+
+volatile int m;
+
+if (argc != 3)
+
+{
+
+printf("Usage: %s \<num1\> \<num2\>\r\n", argv\[0\]);
+
+printf(" to calculate num1/num2\r\n");
+
+return -1;
+
+}
+
+n = strtoul(argv\[1\], NULL, 0);
+
+m = strtoul(argv\[2\], NULL, 0);
+
+volatile int ret = A(n, m);
+
+printf("%d / %d = %d\n", n, m, ret);
+
+return 0;
+
+}
+
+```
+在视频里，先分析汇编理解栈里存储的内容；再根据崩溃信息反推调用关系。
+
+也可以根据崩溃信息使用arm-none-eabi-addr2line命令来确定调用关系：
+
+![](/img/openvela/image247.png)
+
+根据上面的崩溃信息，知道当前崩溃地址为“41462626”，backtrace为“0x4146265a 0x41468e4a 0x4142bc9a”，然后执行下面命令把地址转换为函数、文件行号：
+
+\$ arm-none-eabi-addr2line -fe nuttx_not_strip -a 0x41462626 0x4146265a 0x41468e4a 0x4142bc9a
+
+0x41462626
+
+B
+
+:?
+
+0x4146265a
+
+A
+
+/home/ubuntu/vela-opensource/nuttx/arch/arm/src/../../../../apps/examples/hello/hello_main.c:42
+
+0x41468e4a
+
+hello_main
+
+/home/ubuntu/vela-opensource/nuttx/arch/arm/src/../../../../apps/examples/hello/hello_main.c:61
+
+0x4142bc9a
+
+nxtask_startup
+
+/home/ubuntu/vela-opensource/nuttx/arch/arm/src/../../../libs/libc/sched/task_startup.c:72
+
+### openvela栈回溯的源码分析
+
+参考资料：&lt;https://mi.feishu.cn/wiki/DDrPwsA3Ki10cmkdUYBcxMw6nbd&gt;
+
+#### 程序崩溃时的异常处理
+
+当程序发生异常时，异常处理函数被调用，它会打印出崩溃瞬间“所有寄存器的值”、“栈内容”，并且尝试分析调用关系打印出“backtrace信息”：
+
+![](/img/openvela/image248.png)
+
+代码流程如下：
+
+```
+// nuttx/arch/arm/src/armv7-a/arm_vectortab.S
+
+```
+ldr pc, .Ldataaborthandler
+
+```
+// nuttx/arch/arm/src/armv7-a/arm_vectors.S
+
+```
+arm_vectordata
+
+bl arm_dataabort
+
+```
+// nuttx/arch/arm/src/armv7-a/arm_dataabort.c
+
+```
+arm_dataabort
+
+```
+PANIC_WITH_REGS("panic", regs);
+
+// nuttx/include/assert.h
+
+// nuttx/sched/misc/assert.c
+
+```
+\_assert
+
+```
+dump_assert_info(rtcb, filename, linenum, msg, regs);
+
+// nuttx/sched/misc/assert.c
+
+dump_running_task(rtcb, regs);
+
+// 打印寄存器
+
+up_dump_register(regs);
+
+// 打印栈
+
+dump_stacks(rtcb, up_getusrsp(regs));
+
+// 打印backtrace
+
+// nuttx/libs/libc/sched/sched_dumpstack.c
+
+sched_dumpstack(rtcb-\>pid);
+
+// nuttx/sched/sched/sched_backtrace.c
+
+```
+sched_backtrace
+
+up_backtrace
+
+“up_backtrace”函数被用来找出函数调用关系，就是“backtrace”，它有多种实现方式：
+
+![](/img/openvela/image249.png)
+
+上述3个文件同一时间只能选择一个，对应的配置项为：
+
+CONFIG_UNWINDER_FRAME_POINTER arm_backtrace_fp.c
+
+CONFIG_UNWINDER_STACK_POINTER arm_backtrace_sp.c
+
+CONFIG_UNWINDER_ARM arm_backtrace_unwind.c
+
+这3个文件就对应3种“unwind stack”技术。
+
+#### unwind stack技术
+
+“wind”的意思是“缠绕”（不取“风”的意思），比如这个函数调用“hello_main \&gt; A \&gt; B”会导致栈里存有它们的返回地址，这些“返回地址”一层一层存放在栈里——缠绕在栈里。
+
+“unwind”就是“反缠绕”：从栈里反向把调用关系找出来。所以，“unwind”就是对栈的数据进行回溯（backtrace），得到调用关系。
+
+在传统arm平台上unwind stack技术基本上有四种方式
+
+- 基于DWARF CFI(\_Unwind_Backtrace)
+
+- 基于arm eabi：对应openvela的“arm_backtrace_unwind.c”
+
+- 基于frame pointer：对应openvela的“arm_backtrace_fp.c”
+
+- 基于stack pointer：对应openvela的“arm_backtrace_sp.c”
+
+前两种方式需要在编译阶段生成特殊的section（比如eh_frame section、text section）所以会增大整个code/data的size(overload + 5%-8%)，由于代码尺寸增加，在一般资源受限的嵌入式设备上就会遇到取舍问题，在cortex-m设备上8%的flash开销是非常宝贵的，所以大部分做cortex-m设备上都会考虑方案3，4。
+
+#### 基于frame pointer的unwind stack技术与缺陷
+
+源码：nuttx/arch/arm/src/common/arm_backtrace_fp.c
+
+依赖 ARM 架构中的帧指针寄存器（FP，通常是 r7 或 r11，取决于指令集和编译配置）。
+
+函数调用时，编译器会在栈上创建一个 “栈帧”（stack frame），FP 寄存器指向当前栈帧的固定位置（通常是栈帧底部），并在栈帧中保存上一层函数的 FP 值（形成 “FP 链”）和返回地址。
+
+回溯时，通过 FP 寄存器找到当前栈帧，从中提取上一层 FP 和返回地址，再顺着 FP 链逐层向上追溯，直到栈顶。
+
+如下图所示：
+
+![](/img/openvela/image250.png)
+
+在frame pointer的方案上，如果使用了thumb2，我们会遇到另一个GCC编译器的问题，这导致使用GCC编译器时无法使用这个方案：视频里讲解。
+
+在GCC编译器生成代码中，fp(thumb2 r7)的保存值是压栈后的地址，由于压栈寄存器的个数不同，所以backtrace根本无法正确定位LR，而在clang编译器上的行为反倒不同，fp(r7)会直接加回栈顶指向LR，所以如果使用clang是可以正常完成栈回朔的，而arm的clang是需要license，在传统的低成本芯片中，没有人会花大价格来购买arm的toolchain，再加上fp的加入会导致应用程序的执行性能变慢，所以clang的方案也无法成型。
+
+#### 基于stack pointer的unwind stack技术
+
+源码：nuttx/arch/arm/src/common/arm_backtrace_sp.c
+
+对于ARM架构，调用函数时一般是使用BL或BLX指令，这会使得LR寄存器里保存有“BL或BLX”的下一条指令的地址。也就是使用“LR”找到前面的指令，它必定是BL或BLX指令：
+
+![](/img/openvela/image251.png)
+
+那么就可遍历里的数据，挑出“疑似、高概率LR”：
+
+![](/img/openvela/image252.png)
+
+为什么说是“疑似、高概率LR”？在传统编程过程中，我们会在函数中申请很多栈上变量，如过变量的值刚好是某个“LR”，那么它就完全满足本方案的判定条件而被错误地认为是一个回溯点。
+
+所以，我们使用“addr2line”处理这些值时，还要人工判断一下。
+
+### 读懂Crash log和Heap log
+
+#### 程序崩溃时的打印信息
+
+![](/img/openvela/image253.png)
+
+#### “ps -heap”信息
+
+把“source\8-3-3_读懂Crash log和Heap log\hello”加入工程。
+
+运行程序：
+
+memdump on
+
+hello 123 &
+
+memdump \&lt;pid\&gt; on
+
+等待一会执行：
+
+memdump \&lt;pid\&gt;
+
+![](/img/openvela/image254.png)
+
+可以使用“arm-none-eabi-addr2line”查看各个内存块的调用关系：
+
+![](/img/openvela/image255.png)
+
+### dumpstack命令的使用与内部机制
+
+可以使用dumpstack来查看任意进程的“backtrace”，某些程序卡死时，使用这个命令可以快速定位它卡在哪里。
+
+#### 配置和使用：让系统崩溃
+
+如下配置：
+
+CONFIG_SCHED_BACKTRACE=y
+
+CONFIG_UNWINDER_STACK_POINTER=y
+
+CONFIG_SYSTEM_DUMPSTACK=y
+
+用法：
+
+dumpstack \# 自己的backtrace
+
+dumpstack \&lt;pid\&gt; \# 查看某个进程的backtrace
+
+dumpstack \&lt;spid\&gt; \&lt;epid\&gt; \# 查看从spid到epid的进程的backtrace
+
+示例：
+
+![](/img/openvela/image256.png)
+
+#### 内部机制
+
+dumpstack程序的代码调用过程如下，内部机制就是前面分析过的“up_backtrace”函数：
+
+```
+// apps/system/dumpstack/dumpstack.c
+
+```
+main
+
+```
+// nuttx/libs/libc/sched/sched_dumpstack.c
+
+```
+sched_dumpstack
+
+```
+// nuttx/sched/sched/sched_backtrace.c
+
+size = sched_backtrace(tid, address, DUMP_DEPTH, skip);
+
+// nuttx/arch/arm/src/common/arm_backtrace_sp.c
+
+```
+up_backtrace
+
+#### 在代码里使用backtrace功能
+
+源码：“source\8-3-4_dumpstack命令的使用与内部机制\hello\\
+
+可以使用如下函数直接打印当前进程的backtrace信息：
+
+\#include \&lt;execinfo.h\&gt;
+
+\#define dump_stack() sched_dumpstack(\_SCHED_GETTID())
+
+\#include\&lt;execinfo.h\&gt;
+
+/\* 存储当前程序状态至\_\_array数组，array最大数量为\_\_size
+
+返回值为实际存储的元素个数
+
+\*/
+
+```
+extern int backtrace (void \*\*\_\_array, int \_\_size) \_\_nonnull ((1));
+
+```
+### GDB体验
+
+我们使用各种方法打印backtrace时，它的本质是使用如下机制之一在栈里找到“调用关系”，它们各有缺点：
+
+- 基于arm eabi：对应openvela的“arm_backtrace_unwind.c”，占用Flash过大
+
+- 基于frame pointer：对应openvela的“arm_backtrace_fp.c”，GCC编译器不支持
+
+- 基于stack pointer：对应openvela的“arm_backtrace_sp.c”，不太精确
+
+想得到精确的调用关系，可以使用人工分析——效率太低，最好的办法是使用gdb工具。
+
+GDB是GNU开发的一个Unix/Linux下强大的程序调试工具。GDB主要帮你完成下面五个方面的功能：
+
+- 启动你的程序，可以按照你的自定义的要求随心所欲的运行程序；
+
+- 可让被调试的程序在你所指定的调置的断点处停住；
+
+- 当程序被停住时，可以检查此时程序中所发生的事；
+
+- 动态的改变你程序的执行环境；
+
+- 离线分析功能。
+
+GDB的使用流程主要有：（gcc）编译程序、启动gdb、运行程序、设置断点、单步执行、查看变量等，下面就从一个程序从编译到启动gdb进行调试到断点设置，单步执行到最后退出GDB调试整体流程进行介绍。
+
+#### 编译程序
+
+我们用一个简单的C语言程序来演示一下，其代码内容如下：
+
+/\*\*\*\*\*\*\*\*\*\*\*\*\*\*\*\*测试程序\*\*\*\*\*\*\*\*\*\*\*\*/
+
+\#include \&lt;stdio.h\&gt;
+
+```
+//实现a+b
+
+int add(int a, int b)
+
+{
+
+return a + b;
+
+}
+
+//实现a-b
+
+int sub(int a, int b)
+
+{
+
+return a - b;
+
+}
+
+int main()
+
+{
+
+printf(" 2 + 3 = %d\n", add(2, 3));
+
+printf(" 2 - 3 = %d\n", sub(2, 3));
+
+return 1;
+
+}
+
+```
+接下来，使用命令将其编译，-g表示可以调试，命令如下：
+
+book@100ask:~\$ gcc test.c -g -o test
+
+#### 启动GDB
+
+编译好程序之后，就可以使用gdb命令即可进行调试了，输入命令如下：
+
+book@100ask:~\$ gdb test
+
+此时就进入了gdb调试模式，系统会阻塞等待用户的指令，如下图所示：
+
+![](/img/openvela/image257.png)
+
+#### 查看源码
+
+list(简写 l)： 查看源程序代码，默认显示10行，按回车键可以继续看余下的，如下图所示：
+
+![](/img/openvela/image258.png)
+
+此时，按回车键后即显出11~18行代码，如下图所示：
+
+![](/img/openvela/image259.png)
+
+#### 运行程序
+
+run(简写 r) ：运行程序直到遇到结束或者遇到断点等待下一个命令，如下图所示：
+
+![](/img/openvela/image260.png)
+
+可以看出如上图所示的运行结果正是我们程序的打印结果。
+
+#### 设置断点
+
+可以通过在函数名和行号等上设置断点。程序到达断点就会自动暂停运行。此时可以查看该时刻的变量值，显示栈帧、重新设置断点或重新运行等。断点命令 break 可以简写为 b，命令为 break \&lt;断点\&gt;。   
+  断点可以通过函数名、当前文件内的行号来设置，也可以先指定文件名再指定行号，还可以指定与暂停位置的偏移量，或者用地址来设置。格式如下表：
+
+|                         |                                                  |
+|-------------------------|--------------------------------------------------|
+| 格式                    | 说明                                             |
+| break \&lt;函数名\&gt;        | 对当前正在执行的文件中的指定函数设置断点         |
+| break \&lt;行号\&gt;          | 对当前正在执行的文件中的特定行设置断点           |
+| break \&lt;文件名:行号\&gt;   | 对指定文件的指定行设置断点，最常用的设置断点方式 |
+| break \&lt;文件名:函数名\&gt; | 对指定文件的指定函数设置断点                     |
+| break \&lt;+/-偏移量\&gt;     | 当前指令行+/-偏移量出设置断点                    |
+| break \&lt;\*地址\&gt;        | 指定地址处设置断点                               |
+
+与断点相关的常用命令如下表示所示：
+
+|                      |                                               |
+|----------------------|-----------------------------------------------|
+| 格式                 | 说明                                          |
+| info breakpoints     | 显示断点信息                                  |
+| delete \[断点编号\]  | 删除指定断点，或者删除所有断点（可以简写为d） |
+| disable \[断点编号\] | 禁止断点                                      |
+| enable \[断点编号\]  | 使能断点                                      |
+| Num                  | 断点编号                                      |
+| Disp                 | 断点执行一次之后是否有效 kep：有效 dis：无效  |
+| Enb                  | 当前断点是否有效 y：有效 n：无效              |
+| Address              | 内存地址                                      |
+| What                 | 位置                                          |
+
+使用info命令查看断点信息时，输出的信息如下：
+
+|         |                                              |
+|---------|----------------------------------------------|
+| 格式    | 说明                                         |
+| Num     | 断点编号                                     |
+| Disp    | 断点执行一次之后是否有效 kep：有效 dis：无效 |
+| Enb     | 当前断点是否有效 y：有效 n：无效             |
+| Address | 内存地址                                     |
+| What    | 位置                                         |
+
+通过上述命令，在前小节的基础进行实验，实验效果如下图：
+
+![](/img/openvela/image261.png)
+
+可以看出，当我们使用\&lt;b “行号”\&gt;命令时，可以精确的在目标源码行打上相应的断点，且通过\&lt;info breakpoints\&gt;能精确的看到断点的相关信息；此时，输入运行指令，即run(简称 r)即可使程序在运行到断点处，等待下一个执行命令。
+
+![](/img/openvela/image262.png)
+
+#### 单步执行
+
+单步执行的意思时根据源代码一行一行地执行。如第4小节所示，当程序已经运行之后，如果想继续执行程序，则需输入命令：continue，让程序继续执行下去。除了conutinue命令之后，还有类似指令，如next、step，它们的区别如下表示：
+
+|                  |                                                        |
+|------------------|--------------------------------------------------------|
+| 格式             | 说明                                                   |
+| continue(简写 c) | 继续执行程序，直到下一个断点或者结束                   |
+| next(简写 n)     | 单步执行程序，但是遇到函数时会直接跳过函数，不进入函数 |
+| step(简写 s)     | 单步执行程序，但是遇到函数会进入函数                   |
+
+此时，在第4小节的基础上，测试continue、next、step指令，效果如下图所示：
+
+![](/img/openvela/image263.png)
+
+#### 查看变量
+
+使用GDB调试程序的好处，不仅仅是让程序按我们想法进行单步运行、停止，更重要的是在此过程中，要观察程序内各种条件或者变量的值的情况，以进行BUG排查；查看变更的主要命令有：print、whatis。这里以print（简写为 p）进行演示：
+
+![](/img/openvela/image264.png)
+
+从上图可以看出，当我们使用\&lt;print 变量名\&gt;时可以直接打印出该变量当前的数值，甚至可以使用\&lt;print 表达式\&gt;打印出表达式的结果。
+
+#### 显示栈帧
+
+backtrace 命令可以在遇到断点或异常而暂停执行时显示栈帧，该命令简写为 bt。此外，backtrace 的别名还有 where 和 info stack。显示栈帧之后，就可以看出程序在何处停止，以及程序的调用路径。
+
+在第6小节的基础上，使用\&lt;backtrace \&gt;指令，可以看到此时“add”函数的栈，效果如下图所示：
+
+![](/img/openvela/image265.png)
+
+关于\&lt;backtrace \&gt;指令，还有其他用处，如下表示：
+
+|               |                                      |
+|---------------|--------------------------------------|
+| 格式          | 说明                                 |
+| bt            | 显示所有栈帧                         |
+| bt \&lt;N\&gt;      | 只显示开头 N 个栈帧                  |
+| bt \&lt;-N\&gt;     | 只显示最后 N 个栈帧                  |
+| bt full       | 不仅显示 backtrace，还要显示局部变量 |
+| bt full \&lt;N\&gt; |                                      |
+
+#### 显示寄存器
+
+显示寄存器指令主要是通过命令\&lt;info registers \&gt;(简写为 info reg)，进行操作，寄存器尤其在嵌入式领域用处很多，在寄存器名之前添加 \$，显示寄存器的内容，例如 p \$eax。 例如当我们要查看PC指针所指的地址时，可以通过命令\&lt;info registers \$pc\&gt;或\&lt;info registers pc\&gt;实现，效果如下图所示：
+
+![](/img/openvela/image266.png)
+
+#### 退出GDB
+
+使用\&lt;quit\&gt;命令退出gdb，效果如下图所示：
+
+![](/img/openvela/image267.png)
+
+#### 使用Coredump信息进行调试
+
+程序崩溃时，内核可以把程序崩溃瞬间的“快照”记录下来，这就是Coredump文件。以后可以使用它来调试。
+
+在Ubuntu下执行如下命令：
+
+\# 此命令会将 core 文件大小限制设为无限制
+
+\# 允许生成 core dump 文件
+
+ulimit -c unlimited
+
+\# 系统默认的 core dump 文件生成路径由
+
+\# /proc/sys/kernel/core_pattern 控制
+
+\# 若要让 core 文件生成在程序运行的当前目录
+
+\# ./ 表示当前目录；
+
+\# %e 代表程序文件名；
+
+\# %p 代表程序进程 ID。
+
+\# 这样设置后，core dump 文件会
+
+\# 以 core.程序名.进程ID 的形式生成在当前目录。
+
+echo "./core.%e.%p" \| sudo tee /proc/sys/kernel/core_pattern
+
+当程序崩溃后会在当前目录下生成coredump文件，然后可以如此调试：
+
+gdb ./test core.test.1234
+
+在GDB界面可以输入各类GDB命令查看变量、查看栈回溯信息。
+
+### 结合gdb工具进行栈回溯
+
+参考资料：[&lt;u&gt;https://mi.feishu.cn/wiki/XkaFwsRWXiVSszkhUjMcE917nYd&lt;/u&gt;](https://mi.feishu.cn/wiki/XkaFwsRWXiVSszkhUjMcE917nYd)
+
+#### 人工分析栈和使用GDB分析的类比
+
+我们使用各种方法打印backtrace时，它的本质是使用如下机制之一在栈里找到“调用关系”，它们各有缺点：
+
+- 基于arm eabi：对应openvela的“arm_backtrace_unwind.c”，占用Flash过大
+
+- 基于frame pointer：对应openvela的“arm_backtrace_fp.c”，GCC编译器不支持
+
+- 基于stack pointer：对应openvela的“arm_backtrace_sp.c”，不太精确
+
+想得到精确的调用关系，可以使用人工分析——效率太低，最好的办法是使用gdb工具。
+
+在PC上我们可以直接使用GDB；但在跨平台、远程调试或嵌入式场景中，仅靠 GDB 无法满足需求 —— 此时GDBserver作为 “辅助者” 的角色便至关重要。二者并非独立工具，而是 “主从协作” 的关系，共同实现复杂环境下的程序调试。使用GDB+GDBServer 进行调试时，各个角色如下：
+
+- GDB ：GDB 是调试流程的控制核心
+
+- GDBserver：轻量级的调试代理程序，它接收GDB的命令来操作单板或程序
+
+![](/img/openvela/image268.png)
+
+比如人类输入“p g_a”命令想读取全局变量g_a的值时，GDB程序会解析被调试的程序得到g_a的地址addrA，然后向GDBServer发出“读内存addrA”的指令，GDBServer从单板或程序上读到addrA的数据，返回给GDB；GDB再显示给人类观看。
+
+在实际调试过程中，“GDBServer”可以是一个软件：用来控制一个程序；也可以是“硬件+软件”，比如运行st-util模拟GDBServer，通过st-link去控制开发板。
+
+人工分析、使用GDB分析的类比如下：
+
+![](/img/openvela/image269.png)
+
+方法1：人工分析时，需要根据反汇编文件的指令，去解析栈内容挑出LR。
+
+方法2：GDB替代人工进行分析，也需要给它提供ELF文件（无需转成反汇编）、Coredump文件（来自Log，但是需要满足一定的格式）。在嵌入式开发里经常使用串口打印信息，openvela把这些信息使用压缩格式可视地打印出来，并且提供的coredump.py程序把这些信息转换为Coredump文件。比如执行“p g_a”命令时，GDB从ELF文件里解析出g_a变量的地址，然后去Coredump文件里读到这个地址的数值。
+
+方法3：openvela提供了gdbserver.py程序，它可以模拟一个GDBServer。使用GDB程序去调试ELF文件时，各类读、写操作就是发给gdbserver.py的。我们需要把ELF文件、Log信息提供给gdbserver.py，它才知道寄存器值是多少、栈内容是什么。比如执行“p g_a”命令时，GDB从ELF文件里解析出g_a变量的地址addrA，然后向gdbserver.py发出“读内存addrA”的指令，gdbserver.py根据log信息返回数据给GDB。
+
+#### 使用GDB和gdbserver.py进行栈回溯
+
+调试流程如下：
+
+![](/img/openvela/image270.png)
+
+注意：“gdbserver.py”位于“nuttx/tools/gdbserver.py”
+
+首先，安装软件（gdbserver.py依赖于lief）：
+
+```
+pip install lief --break-system-packages
+
+sudo apt install gdb-multiarch
+
+```
+然后，把Crash log加上关键字，并存为文件crash.log：
+
+- 对于寄存器，前面加“up_dump_register: ”
+
+- 对于栈，前面加“stack_dump: ”
+
+- 同一个进程的log信息都要有前缀，如果某一行没有前缀，就表示下面的信息是另一个进程的
+
+![](/img/openvela/image271.png)
+
+最后，执行下面命令启动gdbserver.py、gdb：
+
+```
+cd nuttx
+
+```
+\# 启动gdbserver.py, 要制定ELF可执行程序、crash.log
+
+tools/gdbserver.py -a arm-a -e nuttx_not_strip -l crash.log
+
+\# 启动gdb-multiarch或arm-xxx-gdb
+
+gdb-multiarch nuttx_not_strip -ex "target remote localhost:1234"
+
+注意：对于“arm-a”架构，log的寄存器是“CPSR”；对于“arm”架构，log的寄存器是“xPSR”。
+
+#### Coredump的使用与内部机制
+
+参考资料：  
+nuttx/Documentation/guides/coredump.rst  
+&lt;https://mi.feishu.cn/wiki/EjzZw2BHZiyYRbkYebgcEUoCnLe&gt;
+
+程序崩溃时，异常处理函数会打印“Crash log”；还可以使用“dumpstack”命令查看任意任务的“backtrace”。
+
+coredump功能与此类似：程序崩溃时异常处理函数会打印coredump信息（可以打印到串口，也可以存到Flash等），也可以使用“coredump”命令查看任意任务的coredump信息。
+
+所谓coredump信息，是符合GDB程序格式要求的数据：里面的核心也是程序“快照”——程序崩溃瞬间的寄存器值、栈的内容，甚至可以含有其他内存的值。
+
+使用coredump功能有2个好处：
+
+- 把coredump信息提供给GDB：可以使用GDB分析崩溃的程序，得到精确的调用关系
+
+- 使用coredump命令得到的信息，比dumstack命令所得的信息更全：dumpstack命令只会打印backtrace信息，不会打印栈内容。
+
+使用coredump的调试流程如下：
+
+![](/img/openvela/image272.png)
+
+```
+.  配置和使用
+
+```
+要使用coredump功能，配置项如下：
+
+/\* 启用核心转储（Coredump）功能 \*/
+
+CONFIG_COREDUMP=y
+
+/\* 启用板级核心转储功能，当发生异常（exceptions）和断言失败（assertions）时生效
+
+\* 就是发生异常时把coredump打印出来
+
+\*/
+
+CONFIG_BOARD_COREDUMP_SYSLOG=y
+
+/\* 在用户命令中启用核心转储功能: 就是支持coredump命令 \*/
+
+CONFIG_SYSTEM_COREDUMP=y
+
+/\* 默认启用（y），开启核心转储压缩功能，以减小coredump信息的大小 \*/
+
+CONFIG_BOARD_COREDUMP_COMPRESSION=y
+
+/\* 可选: base64编码(不是压缩) \*/
+
+CONFIG_BOARD_COREDUMP_BASE64STREAM=y
+
+程序崩溃时会自动打印coredump信息，也可以执行coredump命令，用法如下：
+
+coredump /\* 捕获所有线程状态 \*/
+
+coredump -1 /\* 捕获所有线程状态 \*/
+
+coredump -p \&lt;pid\&gt; /\* 捕获指定pid线程状态 \*/
+
+```
+.  内部机制
+
+```
+coredump信息的触发有2个途径，如下图所示：
+
+- 程序发生了异常
+
+- 手工执行APP coredump
+
+![](/img/openvela/image273.png)
+
+函数调用过程如下：
+
+```
+// 程序发生异常
+
+// nuttx/arch/arm/src/armv7-a/arm_vectortab.S
+
+```
+ldr pc, .Ldataaborthandler
+
+```
+// nuttx/arch/arm/src/armv7-a/arm_vectors.S
+
+```
+arm_vectordata
+
+bl arm_dataabort
+
+```
+// nuttx/arch/arm/src/armv7-a/arm_dataabort.c
+
+```
+arm_dataabort
+
+```
+PANIC_WITH_REGS("panic", regs);
+
+// nuttx/include/assert.h
+
+// nuttx/sched/misc/assert.c
+
+```
+\_assert
+
+```
+// nuttx/sched/misc/assert.c
+
+// 打印当前崩溃的进程的Crash log
+
+dump_assert_info(rtcb, filename, linenum, msg, regs);
+
+// nuttx/sched/misc/assert.c
+
+// 打印其他进程的信息
+
+```
+dump_fatal_info
+
+```
+// 打印其他CPU上正在运行的任务的信息
+
+```
+dump_running_task
+
+```
+// 打印其他任务的信息
+
+dump_tasks();
+
+// 打印coredump信息
+
+```
+\# ifdef CONFIG_BOARD_COREDUMP_FULL
+
+```
+coredump_dump(INVALID_PROCESS_ID);
+
+```
+\# else
+
+```
+coredump_dump(rtcb-\>pid);
+
+```
+\# endif
+
+```
+// nuttx/sched/misc/coredump.c
+
+```
+coredump_dump
+
+coredump_dump_syslog
+
+coredump
+
+coredump_dump_dev
+
+```
+// 执行app coredump
+
+// apps/system/coredump/coredump.c
+
+```
+main
+
+```
+// apps/system/coredump/coredump.c
+
+coredump_now(pid, name);
+
+```
+/\* Initialize hex output stream \*/
+
+```
+lib_stdoutstream(outstream, file);
+
+```
+/\* Initialize LZF compression stream \*/
+
+```
+lib_lzfoutstream(lstream, stream);
+
+// nuttx/sched/misc/coredump.c
+
+coredump(NULL, stream, pid);
+
+```
+....
+
+```
+elf_emit_note(&cinfo);
+
+```
+elf_emit_tcb_note
+
+```
+regs = (FAR uintptr_t \*)tcb-\>xcp.regs;
+
+```
+status.pr_regs\[i\] = ...
+
+elf_emit
+
+lib_stream_puts
+
+/\* Dump stack \*/
+
+```
+elf_emit_stack(&cinfo);
+
+```
+elf_emit_tcb_stack
+
+```
+buf = sp;
+
+elf_emit(cinfo, (FAR void \*)buf, len);
+
+```
+lib_stream_puts
+
+#### 使用GDB和Coredump文件进行栈回溯
+
+核心是：把串口打印出来的coredump信息，使用“nuttx/tools/coredump.py”把它转换为coredump格式的文件，用法如下（elf.dump里存放有串口信息）：
+
+```
+./nuttx/tools/coredump.py --base64 elf.dump \# 会生成elf.core
+
+```
+首先，安装软件（coredump.py依赖于lief）：
+
+```
+pip install python-lzf --break-system-packages
+
+```
+然后，把串口信息保存为elf.dump文件，比如：
+
+![](/img/openvela/image275.png)
+
+或：
+
+![](/img/openvela/image276.png)
+
+coredump.py解析这些数据时：
+
+- 是逐行处理：所以复制信息时，不要复制多余的行
+
+- 处理一行的数据时，处理的是行里最后一个空格后面的数据：所以复制数据时无需截取行里的数据（整行复制即可）。
+
+最后，执行下面命令生成coredump文件、使用gdb调试：
+
+```
+cd nuttx
+
+```
+\# 使用 elf.dump 生成 elf.core
+
+```
+./tools/coredump.py --base64 elf.dump
+
+```
+\# 启动gdb-multiarch或arm-xxx-gdb
+
+gdb-multiarch nuttx_not_strip elf.core
+
+可以使用“info thread”查看有哪些线程，使用“thread \&lt;id\&gt;”切换到某个线程。
+
+也可以使用“coredump -p \&lt;pid\&gt;”命令查看某个任务的coredump信息，注意：这样打印出来的信息不是base64编码，使用coredump.py命令来处理时不需要指定“--base64”，如下操作：
+
+现在串口上执行：
+
+![](/img/openvela/image277.png)
+
+然后在Ubuntu上执行：
+
+```
+cd nuttx
+
+```
+\# 使用 led.dump 生成 led.core
+
+```
+./tools/coredump.py led.dump
+
+```
+\# 启动gdb-multiarch或arm-xxx-gdb
+
+gdb-multiarch nuttx_not_strip led.core
+

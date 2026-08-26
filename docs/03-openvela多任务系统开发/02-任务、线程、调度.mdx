@@ -1,0 +1,231 @@
+---
+title: "任务、线程、调度"
+---
+
+
+### 任务、线程的形象化理解
+
+Openvela里任务（Task）跟Linux中的进程（Process）概念类似，它是“资源”的管理者。线程（thread）是调度的最小单位。
+
+以“家庭”作为类比，任务就是一个房子，线程就是里面的人（张三、李四）。屋子里有各种资源：锅碗瓢盘。你不能说“这些锅碗瓢盘是张三的”，它们是大家的，所以当说起这些资源时，我们说：锅碗瓢盘属于房子的、张三和李四都可以使用。换成程序语言就是：资源属于某个任务的，任务里的各个线程共享这些资源。任务里有哪些资源呢？比如全局变量、打开的文件，这些都是“资源”。
+
+房子里的张三、李四会做事情，我们吩咐张三做饭、李四拖地。在openvela里，做事情的是“线程”：openvela调度的对象是“线程”，让各个线程运行。
+
+家庭场景如下：
+
+&lt;img src="C:\Users\MeiHao\AppData\Local\Temp\dsh_docx\pandoc\media/media/image36.png" style="width:4.09861in;height:3.07431in" alt="家庭场景描绘" /&gt;
+
+程序场景如下：
+
+![](/img/openvela/image37.png)
+
+从上图可以看出来，标号为0的文件，在任务1里对应“/etc/xxx.cfg”，在任务2里对应“/data/1.txt”。从这个图可以更形象地理解到：“任务是资源的管理者”、“线程是调度的基本单元”。
+
+### openvela中的任务、线程
+
+参考文档：&lt;https://doc.openvela.com/document?id=21&gt;
+
+#### 框图
+
+openvela将任务/线程划分为三类（关系见示意图）：Task、Pthread、Kthread，如下图所示。
+
+![](/img/openvela/image38.png)
+
+每个应用程序就是一个“任务（Task）”，它里面可以有多个线程（Pthread）。在操作系统内部，可以有多个“内核线程（Kthread）”。
+
+#### 任务创建函数
+
+用户任务 (Task)在 openvela中类似于 Linux 中的进程，具有以下特点：
+
+● 在用户空间运行。
+
+● 不同 Task 之间地址空间相互隔离。
+
+● 一个 Task 可以创建多个 Pthread。
+
+Task 及其创建的所有 Pthread 共同组成一个任务组，用于模拟 POSIX 进程。任务组成员共享以下资源：
+
+● 环境变量
+
+● 文件描述符
+
+● 文件流（FILE streams）
+
+● 套接字
+
+● pthread 键
+
+● 打开的消息队列
+
+在openvela中，有三个函数可以被用来创建进程：
+
+- task_create：
+
+RTOS原生的、最基础的任务创建函数。它主要负责向内核申请一个新的任务控制块（TCB），分配栈空间，设置任务的初始状态（如优先级、入口函数等），并将其放入就绪队列等待调度。它通常不涉及加载新的可执行程序映像，任务代码通常是编译时已链接到系统镜像中的函数。
+
+- posix_spawn：
+
+标准的POSIX API，参数里要运行的进程是“文件”
+
+- task_spawn：
+
+非POSIX标准函数，它是针对posix_spawn的本地化改造，参数里要运行的进程是“函数”。
+
+使用 task_create() 函数创建用户任务（在openvela里推荐使用本函数）：
+
+```
+int task_create(FAR const char \*name, int priority, int stack_size,
+
+main_t entry, FAR char \* const argv\[\]);
+
+```
+task_create参数说明：
+
+|            |                |
+|------------|----------------|
+| 参数       | 说明           |
+| name       | 任务名称       |
+| priority   | 进程优先级     |
+| stack_size | 栈大小         |
+| entry      | 入口函数       |
+| argv       | 命令行参数数组 |
+
+posix_spawn和task_spawn的参数差别如下：
+
+![](/img/openvela/image39.png)
+
+使用 posix_spawn() 函数创建一个新进程以便运行一个可执行文件，path参数是可执行文件的路径：
+
+```
+int posix_spawn(FAR pid_t \*pid, FAR const char \*path,
+
+```
+FAR const posix_spawn_file_actions_t \*file_actions,
+
+FAR const posix_spawnattr_t \*attr,
+
+```
+FAR char \* const argv\[\], FAR char \* const envp\[\]);
+
+```
+posix_spawn参数说明：
+
+|              |                    |
+|--------------|--------------------|
+| 参数         | 说明               |
+| pid          | 存储新创建任务的ID |
+| path         | 可执行文件路径     |
+| file_actions | 文件操作动作       |
+| attr         | 任务属性           |
+| argv         | 命令行参数数组     |
+| envp         | 环境变量数组       |
+
+使用 task_spawn() 函数创建一个新任务，传入的entry是入口函数：
+
+```
+int task_spawn(FAR const char \*name, main_t entry,
+
+```
+FAR const posix_spawn_file_actions_t \*file_actions,
+
+FAR const posix_spawnattr_t \*attr,
+
+```
+FAR char \* const argv\[\], FAR char \* const envp\[\]);
+
+```
+task_spawn参数说明：
+
+|              |                |
+|--------------|----------------|
+| 参数         | 说明           |
+| name         | 任务名称       |
+| entry        | 入口函数       |
+| file_actions | 文件操作动作   |
+| attr         | 任务属性       |
+| argv         | 命令行参数数组 |
+| envp         | 环境变量数组   |
+
+#### 用户线程创建函数
+
+用户线程 (Pthread) 遵循 POSIX 线程接口标准，具有以下特点：
+
+● 在用户空间运行。
+
+● 适合处理不涉及直接硬件交互的高层任务。
+
+● 提供标准化的线程编程接口。
+
+使用 pthread_create() 函数创建用户线程：
+
+```
+int pthread_create(FAR pthread_t \*thread, FAR const pthread_attr_t \*attr,
+
+pthread_startroutine_t startroutine, pthread_addr_t arg);
+
+```
+参数说明：
+
+|              |                      |
+|--------------|----------------------|
+| 参数         | 说明                 |
+| thread       | 存储新创建线程       |
+| attr         | 线程属性             |
+| startroutine | 线程执行的函数       |
+| arg          | 传递给线程函数的参数 |
+
+#### 内核线程创建函数
+
+内核线程 (Kthread)在内核空间运行，具有以下特点：
+
+● 所有 Kthread 共享同一内存空间。
+
+● 主要用于管理硬件资源和执行系统级任务。
+
+● 不直接与用户应用程序交互。
+
+使用 kthread_create() 函数创建内核线程：
+
+```
+int kthread_create(FAR const char \*name, int priority, int stack_size,
+
+main_t entry, FAR char \* const argv\[\]);
+
+```
+参数说明：
+
+|            |                          |
+|------------|--------------------------|
+| 参数       | 说明                     |
+| name       | 线程名称                 |
+| priority   | 线程优先级               |
+| stack_size | 栈大小（字节）           |
+| entry      | 入口函数                 |
+| argv       | 传递给入口函数的参数数组 |
+
+### 调度机制
+
+openvela以线程为调度单位，采用以下调度策略：
+
+① 优先级调度
+
+对于不同优先级的线程，openvela严格执行优先级调度，高优先级线程优先获得CPU资源。
+
+② 同优先级线程调度
+
+对于相同优先级的线程，openvela支持两种调度算法：
+
+● 先进先出 (FIFO)
+
+相同优先级的线程按创建顺序执行。当前线程必须主动放弃 CPU 或阻塞才会切换到下一个线程。这种策略保证了正在运行的线程不会被同级线程打断，但是也可能导致后其他线程响应延迟较大。
+
+系统默认使用此算法。
+
+● 时间片轮转 (Round Robin)
+
+相同优先级的线程轮流获得 CPU 时间。每个线程获得固定时长的执行时间（时间片）。时间片耗尽后自动切换到下一个同优先级线程。
+
+通过 CONFIG_RR_INTERVAL 配置时间片长度（毫秒）。
+
+仅当 CONFIG_RR_INTERVAL \&gt; 0 时，才会启用这种调度方法。
+

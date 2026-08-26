@@ -1,0 +1,1467 @@
+---
+title: "SPI驱动开发"
+---
+
+
+参考资料：
+
+[&lt;u&gt;https://mi.feishu.cn/wiki/OwgawrsVbiagCCkRo6EcpCu0nMg?fromScene=spaceOverview&lt;/u&gt;](https://mi.feishu.cn/wiki/OwgawrsVbiagCCkRo6EcpCu0nMg?fromScene=spaceOverview)
+
+### SPI驱动子系统框架
+
+从硬件的角度看，主控芯片通过SPI控制器去访问SPI设备：
+
+- SPI控制器负责SPI传输，它并不了解传输的数据含义：它只提供传输能力
+
+- 我们需要阅读SPI设备手册，才能知道所收发的数据的含义
+
+&lt;img src="C:\Users\MeiHao\AppData\Local\Temp\dsh_docx\pandoc\media/media/image83.png" style="width:4.64417in;height:3.32549in" alt="图示, 示意图 AI 生成的内容可能不正确。" /&gt;
+
+从应用程序角度看：
+
+- SPI控制器驱动程序提供了传输能力
+
+- APP可以直接通过SPI控制器驱动程序来读写SPI设备，这时编写APP的人需要阅读芯片手册
+
+- APP可以通过SPI设备驱动程序来读写SPI设备，编写设备驱动程序的人需要阅读芯片手册，他编写的驱动程序可以让APP开发人员更轻松地使用SPI设备
+
+![](/img/openvela/image84.png)
+
+在上图中，APP可以通过SPI控制器驱动访问SPI设备1、SPI设备n；也可以通过SPI设备n的驱动程序来访问设备n。
+
+从驱动程序的角度看，SPI控制器驱动程序分为上半部、下半部，上半部把接口固定下来并实现通用的代码；下半部是硬件相关的代码。SPI设备驱动程序也可以分为上半部、下半部。下图的SPI设备以spi lcd为例。
+
+![](/img/openvela/image85.png)
+
+### SPI控制器驱动上半部
+
+#### 下半部核心结构体
+
+分析：nuttx/drivers/spi/spi_driver.c
+
+我们从上往下分析更容易：从APP角度看问题可以不执着于底层硬件的操作细节。但是对于SPI控制器驱动的下半部，需要先有个大概认识，这有助于看懂上半部的代码。
+
+从SPI硬件的连线图可知，一个SPI控制器上面可以连接多个SPI设备。那么在进行SPI传输时就必须明确这几点：
+
+- 访问哪个设备？每个SPI设备都有自己独一的片选引脚，在访问这个SPI设备前，要先“选中”它
+
+- 传输频率等参数设置
+
+- SPI传输时，必定是发送多少个字节就能接收到多少个字节
+
+上述信息使用这2个结构体来描述：
+
+- spi_sequence_s：被用来描述SPI“传输序列”，里面有SPI设备编号、频率、SPI模式等信息，含有一个“spi_trans_s”指针
+
+- spi_trans_s：它表示一个“SPI传输”，里面含有“txbuffer”、“rxbuffer”、数据长度
+
+/\* 此结构体描述由 spi_transfer() 处理的单个SPI事务 \*/
+
+```
+struct spi_trans_s
+
+{
+
+```
+/\* 此事务独有的SPI属性 \*/
+
+```
+bool deselect; /\* 传输完成后取消选中（从设备） \*/
+
+```
+\#ifdef CONFIG_SPI_CMDDATA
+
+```
+bool cmd; /\* true=命令传输；false=数据传输 \*/
+
+```
+\#endif
+
+\#ifdef CONFIG_SPI_HWFEATURES
+
+spi_hwfeatures_t hwfeat; /\* 此传输中要启用的硬件特性 \*/
+
+\#endif
+
+useconds_t delay; /\* 传输后的微秒级延迟 \*/
+
+/\* 以下描述单次数据传输的信息 \*/
+
+```
+size_t nwords; /\* 传输的字数量 \*/
+
+```
+FAR const void \*txbuffer; /\* 发送（TX）传输的源缓冲区 \*/
+
+FAR void \*rxbuffer; /\* 接收（RX）传输的目标缓冲区 \*/
+
+```
+};
+
+```
+/\* 此结构体描述由 spi_transfer 处理的一系列SPI事务
+
+\*
+
+\* 使用示例：
+
+```
+* struct spi_trans_s mytrans\[5\];
+
+* struct spi_sequence_s myseq;
+
+```
+\* ...
+
+```
+* myseq.ntrans = 5;
+
+* myseq.trans = mytrans;
+
+```
+\* ...
+
+```
+* int ret = spi_transfer(spi, myseq);
+
+```
+\* ...
+
+\*/
+
+```
+struct spi_sequence_s
+
+{
+
+```
+/\* 整个传输过程中保持不变的属性 \*/
+
+uint32_t dev; /\* 参见枚举 spi_devtype_e（设备类型） \*/
+
+uint8_t mode; /\* 参见枚举 spi_mode_e（SPI模式） \*/
+
+uint8_t nbits; /\* 数据位数 \*/
+
+uint8_t ntrans; /\* 事务数量 \*/
+
+uint32_t frequency; /\* SPI通信频率（赫兹） \*/
+
+\#ifdef CONFIG_SPI_DELAY_CONTROL
+
+uint32_t a; /\* setdelay() 函数的参数 \*/
+
+```
+uint32_t b;
+
+uint32_t c;
+
+uint32_t i;
+
+```
+\#endif
+
+/\* 指向要执行的传输事务列表的指针 \*/
+
+```
+FAR struct spi_trans_s \*trans;
+
+};
+
+```
+上面2个结构体可以用来表示要传输的“消息”，谁实现这些消息的传输呢？使用“spi_dev_s”结构体来表示“SPI控制器的下半部”，也就是硬件操作的代码：
+
+```
+struct spi_dev_s
+
+{
+
+const struct spi_ops_s \*ops;
+
+};
+
+```
+里面的“struct spi_ops_s”是核心，它有2类函数指针：
+
+- 参数设置：setfrequency/setmode/setbits等
+
+- 传输相关：select、exchange或sndblock/recvblock
+
+- 其他函数
+
+```
+struct spi_ops_s
+
+{
+
+int (\*lock)(struct spi_dev_s \*dev, bool lock);
+
+void (\*select)(struct spi_dev_s \*dev, uint32_t devid,
+
+bool selected);
+
+```
+uint32_t (\*setfrequency)(struct spi_dev_s \*dev,
+
+```
+uint32_t frequency);
+
+```
+\#ifdef CONFIG_SPI_CS_DELAY_CONTROL
+
+```
+int (\*setdelay)(struct spi_dev_s \*dev, uint32_t a,
+
+uint32_t b, uint32_t c);
+
+```
+\#endif
+
+```
+void (\*setmode)(struct spi_dev_s \*dev, enum spi_mode_e mode);
+
+void (\*setbits)(struct spi_dev_s \*dev, int nbits);
+
+```
+\#ifdef CONFIG_SPI_HWFEATURES
+
+```
+int (\*hwfeatures)(struct spi_dev_s \*dev,
+
+spi_hwfeatures_t features);
+
+```
+\#endif
+
+```
+uint8_t (\*status)(struct spi_dev_s \*dev, uint32_t devid);
+
+```
+\#ifdef CONFIG_SPI_CMDDATA
+
+```
+int (\*cmddata)(struct spi_dev_s \*dev, uint32_t devid,
+
+bool cmd);
+
+```
+\#endif
+
+```
+uint32_t (\*send)(struct spi_dev_s \*dev, uint32_t wd);
+
+```
+\#ifdef CONFIG_SPI_EXCHANGE
+
+```
+void (\*exchange)(struct spi_dev_s \*dev,
+
+const void \*txbuffer, void \*rxbuffer,
+
+size_t nwords);
+
+```
+\#else
+
+```
+void (\*sndblock)(struct spi_dev_s \*dev,
+
+const void \*buffer, size_t nwords);
+
+void (\*recvblock)(struct spi_dev_s \*dev, void \*buffer,
+
+size_t nwords);
+
+```
+\#endif
+
+\#ifdef CONFIG_SPI_TRIGGER
+
+```
+int (\*trigger)(struct spi_dev_s \*dev);
+
+```
+\#endif
+
+```
+int (\*registercallback)(struct spi_dev_s \*dev,
+
+spi_mediachange_t callback, void \*arg);
+
+};
+
+```
+所以，只要得到“spi_dev_s”结构体，就有了SPI传输能力；就可以用它里面的“ops-\&gt;exchange”指针来传输“spi_sequence_s”，而“spi_sequence_s”里含有一个或多个“spi_trans_s”。
+
+#### 上半部源码分析
+
+每个SPI控制器注册的设备节点为“/dev/spi0”、“/dev/spi1”等。
+
+源码为“nuttx/drivers/spi/spi_driver.c”，向下提供“spi_register函数；向上提供“static const struct file_operations g_spidrvr_fops”标准接口。
+
+关键代码如下：
+
+```
+int spi_register(FAR struct spi_dev_s \*spi, int bus)
+
+{
+
+FAR struct spi_driver_s \*priv;
+
+```
+/\* 省略 \*/
+
+```
+priv = kmm_zalloc(sizeof(struct spi_driver_s));
+
+if (priv)
+
+{
+
+priv-\>spi = spi;
+
+```
+/\* 省略 \*/
+
+```
+ret = register_driver(devname, &g_spidrvr_fops, 0666, priv);
+
+```
+/\* 省略 \*/
+
+g_spidrvr_fops结构体中，只有ioctl有意义，其他函数都是空函数，代码如下：
+
+```
+static const struct file_operations g_spidrvr_fops =
+
+{
+
+```
+\#ifndef CONFIG_DISABLE_PSEUDOFS_OPERATIONS
+
+spidrvr_open, /\* open \*/
+
+spidrvr_close, /\* close \*/
+
+\#else
+
+NULL, /\* open \*/
+
+NULL, /\* close \*/
+
+\#endif
+
+spidrvr_read, /\* read \*/
+
+spidrvr_write, /\* write \*/
+
+NULL, /\* seek \*/
+
+spidrvr_ioctl, /\* ioctl \*/
+
+NULL, /\* mmap \*/
+
+NULL, /\* truncate \*/
+
+NULL, /\* poll \*/
+
+NULL, /\* readv \*/
+
+NULL /\* writev \*/
+
+\#ifndef CONFIG_DISABLE_PSEUDOFS_OPERATIONS
+
+, spidrvr_unlink /\* unlink \*/
+
+\#endif
+
+```
+};
+
+```
+核心是spidrvr_ioctl，APP调用它来进行SPI数据传输：
+
+```
+static int spidrvr_ioctl(FAR struct file \*filep, int cmd, unsigned long arg)
+
+{
+
+switch (cmd)
+
+{
+
+case SPIIOC_TRANSFER:
+
+{
+
+seq = (FAR struct spi_sequence_s \*)((uintptr_t)arg);
+
+ret = spi_transfer(priv-\>spi, seq);
+
+}
+
+```
+其中的spi_transfer函数将调用SPI控制器驱动程序的下半部进行SPI设置、SPI传输。
+
+#### APP接口与工具
+
+openvel有SPI工具：apps/system/spi/spi_main.c，可以分析它掌握APP接口。
+
+从上小节是可以知道，北向接口（APP使用的接口）为“ioctl”。核心是ioctl，使用示例可以参考“apps/system/spi/spi_exch.c”：
+
+```
+seq.dev = SPIDEV_ID(spitool-\>devtype, spitool-\>csn);
+
+seq.mode = spitool-\>mode;
+
+seq.nbits = spitool-\>width;
+
+seq.frequency = spitool-\>freq;
+
+seq.ntrans = 1;
+
+seq.trans = &trans;
+
+```
+\#ifdef CONFIG_SPI_DELAY_CONTROL
+
+```
+seq.a = 0;
+
+seq.b = 0;
+
+seq.i = 0;
+
+seq.c = 0;
+
+```
+\#endif
+
+```
+trans.deselect = true;
+
+```
+\#ifdef CONFIG_SPI_CMDDATA
+
+```
+trans.cmd = spitool-\>command;
+
+```
+\#endif
+
+```
+trans.delay = spitool-\>udelay;
+
+trans.nwords = spitool-\>count;
+
+trans.txbuffer = txdata;
+
+trans.rxbuffer = rxdata;
+
+```
+\#ifdef CONFIG_SPI_HWFEATURES
+
+```
+trans.hwfeat = 0;
+
+```
+\#endif
+
+```
+ret = spidev_transfer(fd, &seq);
+
+// 调用
+
+ioctl(fd, SPIIOC_TRANSFER, (unsigned long)((uintptr_t)seq));
+
+```
+上述代码的核心是“ioctl(fd, SPIIOC_TRANSFER, (unsigned long)((uintptr_t)seq));”，所以使用步骤为：
+
+① 构造“struct spi_sequence_s”结构体，在里面填充“哪个SPI设备”、SPI参数，它还有一个“struct spi_trans_s”数组
+
+② 构造一个或多个“struct spi_trans_s”结构体，每个结构体表示一个SPI传输
+
+③ 调用ioctl
+
+ioctl所用结构体如下：
+
+/\* 此结构体描述由 spi_transfer() 处理的单个SPI事务 \*/
+
+```
+struct spi_trans_s
+
+{
+
+```
+/\* 此事务独有的SPI属性 \*/
+
+```
+bool deselect; /\* 传输完成后取消选中（从设备） \*/
+
+```
+\#ifdef CONFIG_SPI_CMDDATA
+
+```
+bool cmd; /\* true=命令传输；false=数据传输 \*/
+
+```
+\#endif
+
+\#ifdef CONFIG_SPI_HWFEATURES
+
+spi_hwfeatures_t hwfeat; /\* 此传输中要启用的硬件特性 \*/
+
+\#endif
+
+useconds_t delay; /\* 传输后的微秒级延迟 \*/
+
+/\* 以下描述单次数据传输的信息 \*/
+
+```
+size_t nwords; /\* 传输的字数量 \*/
+
+```
+FAR const void \*txbuffer; /\* 发送（TX）传输的源缓冲区 \*/
+
+FAR void \*rxbuffer; /\* 接收（RX）传输的目标缓冲区 \*/
+
+```
+};
+
+```
+/\* 此结构体描述由 spi_transfer 处理的一系列SPI事务
+
+\*
+
+\* 使用示例：
+
+```
+* struct spi_trans_s mytrans\[5\];
+
+* struct spi_sequence_s myseq;
+
+```
+\* ...
+
+```
+* myseq.ntrans = 5;
+
+* myseq.trans = mytrans;
+
+```
+\* ...
+
+```
+* int ret = spi_transfer(spi, myseq);
+
+```
+\* ...
+
+\*/
+
+```
+struct spi_sequence_s
+
+{
+
+```
+/\* 整个传输过程中保持不变的属性 \*/
+
+uint32_t dev; /\* 参见枚举 spi_devtype_e（设备类型） \*/
+
+uint8_t mode; /\* 参见枚举 spi_mode_e（SPI模式） \*/
+
+uint8_t nbits; /\* 数据位数 \*/
+
+uint8_t ntrans; /\* 事务数量 \*/
+
+uint32_t frequency; /\* SPI通信频率（赫兹） \*/
+
+\#ifdef CONFIG_SPI_DELAY_CONTROL
+
+uint32_t a; /\* setdelay() 函数的参数 \*/
+
+```
+uint32_t b;
+
+uint32_t c;
+
+uint32_t i;
+
+```
+\#endif
+
+/\* 指向要执行的传输事务列表的指针 \*/
+
+```
+FAR struct spi_trans_s \*trans;
+
+};
+
+```
+既然APP可以操作“/dev/spi0”这样的节点发起SPI传输，那自然可以制作一些调试SPI的工具。openvela里有这样的工具：SPI Tools，源码为“apps/system/spi/spi_main.c”
+
+### SPI控制器驱动下半部
+
+过于复杂，使用视频来讲解。
+
+分析：vendor/allwinnertech/chips/r528/drv/spi/drv_spi.c
+
+#### 下半部源码分析
+
+以R528为例，配置项为：
+
+CONFIG_SPI
+
+CONFIG_SPI_DRIVER
+
+单板相关的代码实现SPI控制器驱动程序下半部，可以从这里开始阅读代码：
+
+```
+// apps/vendor/allwinnertech/chips/r528/r528_boot.c
+
+```
+\#ifdef CONFIG_SPI_DRIVER
+
+```
+struct spi_dev_s \*sunxi_spibus_initialize(int port);
+
+struct spi_dev_s \*spidev = sunxi_spibus_initialize(1);
+
+```
+\#ifdef CONFIG_SPI_LCD_FB
+
+```
+int spi_lcd_fb_register(int display, struct spi_dev_s \*spi_dev);
+
+spi_lcd_fb_register(0, spidev);
+
+```
+\#endif
+
+\#endif
+
+函数调用过程为：
+
+```
+// r528_boot.c
+
+sunxi_spibus_initialize(1);
+
+priv = &sunxi_spi1_priv;
+
+spi_dev = (struct spi_dev_s \*)priv;
+
+sunxi_spi_init(spi_dev);
+
+hal_spi_init(priv-\>spim.port, &priv-\>spim.cfg);
+
+para = &g_sunxi_spi_params\[port\];
+
+```
+spi_register(spi_dev, port)
+
+可见，下半部的核心在“sunxi_spi1_priv”结构体里，它在“vendor/allwinnertech/chips/r528/drv/spi/drv_spi.c”中如下定义：
+
+```
+static struct sunxi_spi_priv_s sunxi_spi1_priv =
+
+{
+
+```
+.spi_dev =
+
+```
+{
+
+```
+.ops = &sunxi_spi_ops
+
+```
+},
+
+```
+.spim =
+
+```
+{
+
+```
+.port = 1,
+
+.cfg =
+
+```
+{
+
+```
+.flash = 0,
+
+```
+},
+
+},
+
+```
+.refs = 0,
+
+```
+};
+
+```
+在“g_sunxi_spi_params”中有硬件相关的设置：
+
+![](/img/openvela/image86.png)
+
+#### 设备驱动使用的接口
+
+既然SPI控制器提供了SPI传输能力，那么APP可以使用这些传输能力，SPI设备驱动程序也可以使用。只要获得SPI控制器驱动程序下半部提供的“spi_dev_s”结构体，就可以使用下面的宏进行SPI参数设置、传输。下面代码的“d”就是“spi_dev_s”结构体指针。
+
+```
+// nuttx/include/nuttx/spi/spi.h
+
+```
+\#define SPI_LOCK(d,l) (d)-\&gt;ops-\&gt;lock(d,l)
+
+\#define SPI_SETMODE(d,m) \\
+
+```
+do { if ((d)-\>ops-\>setmode) (d)-\>ops-\>setmode(d,m); } while (0)
+
+```
+\#define SPI_SETBITS(d,b) \\
+
+```
+do { if ((d)-\>ops-\>setbits) (d)-\>ops-\>setbits(d,b); } while (0)
+
+```
+\# define SPI_HWFEATURES(d,f) \\
+
+(((d)-\&gt;ops-\&gt;hwfeatures) ? (d)-\&gt;ops-\&gt;hwfeatures(d,f) : ((f) == 0 ? OK : -ENOSYS))
+
+\#define SPI_SETFREQUENCY(d,f) ((d)-\&gt;ops-\&gt;setfrequency(d,f))
+
+\#define SPI_SELECT(d,id,s) ((d)-\&gt;ops-\&gt;select(d,id,s))
+
+\#ifdef CONFIG_SPI_EXCHANGE
+
+\# define SPI_SNDBLOCK(d,b,l) ((d)-\&gt;ops-\&gt;exchange(d,b,0,l))
+
+\#else
+
+\# define SPI_SNDBLOCK(d,b,l) ((d)-\&gt;ops-\&gt;sndblock(d,b,l))
+
+\#endif
+
+#### 代码适配
+
+根据原理图可知板子使用SPI1接口，上面连接SPI LCD：
+
+![](/img/openvela/image87.png)
+
+所用引脚如下：
+
+|          |      |      |          |      |      |      |      |
+|----------|------|------|----------|------|------|------|------|
+| 功能     | 复位 | 背光 | RS（DC） | MOSI | MISO | SCK  | CS   |
+| 使用引脚 | PD15 | PD16 | PD14     | PD12 | PD13 | PD11 | PD10 |
+
+对于SPI控制器下半部代码，无需修改。
+
+### Framebuffer的基本概念
+
+APP参考代码：apps/examples/fb/fb_main.c
+
+驱动参考代码：nuttx/drivers/video/goldfish_fb.c
+
+#### 软件工程师眼里的LCD
+
+LCD就是由多行、多列的像素组成的点阵，如下：
+
+![](/img/openvela/image88.png)
+
+只要能控制每个像素的颜色，就可以在LCD上绘制文字、图片；不断改变文字、图片就能显示动态效果。
+
+最简单的办法就是：有一块内存被用来保存每一个像素的颜色，这个内存就Framebuffer。Frame是帧的意思，buffer是缓冲的意思，这意味着Framebuffer就是一块内存，里面保存着一帧图像。Framebuffer中保存着一帧图像的每一个像素颜色值，假设LCD的分辨率是320x480，每一个像素的颜色用32位来表示，那么Framebuffer的大小就是：320x480x16/8=307200字节。如下图所示：
+
+![](/img/openvela/image89.png)
+
+Framebuffer有可能在LCD里面，也可能在LCD之外，下图所示的LCD上含有Framebuffer，只要主控通过SPI把数据写入Framebuffer即可显示：
+
+![](/img/openvela/image90.png)
+
+下图所示的LCD上没有Framebuffer，Framebuffer在外接的内存上。需要一个“LCD控制器”周而复始地读取Framebuffer的数据再发给LCD：
+
+![](/img/openvela/image91.png)
+
+对于第1种“含有Framebuffer”的LCD，软件开发人员需要“构造数据、然后通过SPI发给LCD”。对于第2种“没有Framebuffer”的LCD，软件开发人员只需要“把数据写入Framebuffer”即可。
+
+为了解决这2种操作方法的差异，在第1种LCD上再次引入一个Framebuffer，如下图所示：
+
+![](/img/openvela/image92.png)
+
+在APP人员的眼里，他只需要把像素数据写入“APP看到的Framebuffer”，驱动程序会周而复始地把这些数据通过SPI发给LCD，存入LCD自己的Framebuffer。
+
+#### Framebuffer基本参数
+
+使用Framebuffer来描述一帧像素，关键参数有：分辨率、像素颜色格式。
+
+所谓像素颜色格式，就是怎么表示每个像素的颜色？LCD像素的颜色是用RGB三原色(红、绿、蓝)来表示的，在不同的颜色格式中，用不同的位来分别表示R、G、B，如下图所示：
+
+![](/img/openvela/image93.png)
+
+RGB888的意思是红绿蓝都是使用8bit数据来表示，一般只设置其中的低24位，高8位表示透明度，一般的LCD都不支持。一个像素占据32bit数据，称为32BPP。
+
+对于24BPP，硬件上为了方便处理，在Framebuffer中也是用32位来表示，效果跟32BPP是一样的。
+
+对于16BPP，常用的是RGB565；很少的场合会用到RGB555，
+
+本实验的TFT LCD每个像素使用16位数据来表示它的颜色：
+
+![](/img/openvela/image94.png)
+
+LCD的分辨率是320\*480，那么需要320\*480\*16bit/8=307200字节的Framebuffer来保存所有像素的颜色。在Framebuffer里，依次保存着各个像素的颜色，如下图所示：
+
+![](/img/openvela/image95.png)
+
+#### SPI LCD操作方法
+
+注意：本实验的LCD通过SPI接口把Framebuffer的数据发送给LCD时，它传输的第1个字节是“高字节数据”，第2个字节是“低字节数据”。为了提高SPI传输效率，在写Framebuffer里，把每个像素的2个字节颜色数据对调一下，如下图所示：
+
+![](/img/openvela/image96.png)
+
+怎么把这些颜色的数据，发给LCD？有两种方法：先在Framebuffer里绘制好每个像素，然后一次性地把整个Framebuffer的数据全部通过SPI接口发给LCD。这种方法有缺点：即使只修改几个像素的颜色，也要发送整个Framebuffer的数据。
+
+第2种方法是：先设定一个区域，然后只发送这个区域的数据。比如只想修改如下图所示区域的6个像素：
+
+![](/img/openvela/image97.png)
+
+那么可以通过SPI接口发出设置命令，告诉LCD要修改的区域起始坐标为（3, 1），宽度为2，高度为3。然后再发送这6个像素总共12字节的颜色数据即可。
+
+怎么设置指定位置的像素？假设需要设置LCD中坐标(x,y)处像素的颜色，首要要找到这个像素对应的内存，然后根据它的BPP值设置颜色。假设fb_base是Framebuffer的起始地址，如下图示：
+
+![](/img/openvela/image98.png)
+
+可以用以下公式算出(x,y)坐标处像素对应的Framebuffer地址（bpp表示每个像素使用多少bit来表示它的颜色）：
+
+(x，y)像素起始地址=fb_base+(xres\*bpp/8)\*y + x\*bpp/8
+
+### openvela的Framebuffer驱动模型
+
+APP参考代码：apps/examples/fb/fb_main.c
+
+驱动参考代码：nuttx/drivers/video/goldfish_fb.c
+
+#### 现代LCD控制器的Plane概念
+
+（1）Plane的概念
+
+在 LCD 显示系统中，Plane（平面） 是一个与显示缓冲区和图像合成相关的核心概念，尤其在嵌入式系统（如 NuttX 等）的 Framebuffer 驱动中频繁出现。它本质上是独立的图像数据缓冲区，用于存储一部分图像信息，最终通过硬件合成（通常由 LCD 控制器完成）显示在屏幕上。
+
+现代 LCD 控制器通常支持多个 Plane（如 Plane0、Plane1、Plane2 等），每个 Plane 可独立存储不同的图像数据（如背景层、前景层、UI 控件层等）。控制器会按照预设的叠加规则（如透明度、优先级）将多个 Plane 的图像实时合成，最终输出到 LCD 面板。
+
+例如：
+
+- Plane0：存储静态背景图像（如桌面壁纸）
+
+- Plane1：存储动态 UI 元素（如按钮、文本）
+
+- Plane2：存储视频流数据（如摄像头画面）
+
+多Plane可以降低系统开销：若没有多 Plane 支持，更新局部图像（如移动一个按钮）需重绘整个屏幕，导致大量显存读写和 CPU 占用。而多 Plane 机制下，只需更新对应 Plane 的局部数据，控制器会自动处理合成，显著提升效率。
+
+部分高级 Plane 支持硬件特性，如：
+
+- 像素格式转换（如 YUV 到 RGB）
+
+- 缩放、旋转
+
+- 透明度混合（Alpha blending）
+
+- 色彩校正
+
+（2）Plane 与 LCD 控制器、面板的关系
+
+LCD 控制器：是 Plane 的 “管理者”，负责：
+
+- 为每个 Plane 分配独立的显存区域
+
+- 配置 Plane 的参数（分辨率、像素格式、起始地址等）
+
+- 按照规则合成多个 Plane 的图像
+
+- 将合成结果发送到 LCD 面板
+
+- LCD 面板：是最终的 “显示载体”，不直接感知 Plane 的存在，只接收控制器输出的合成后的数据。
+
+- Framebuffer 驱动：通过结构体（如 NuttX 中的struct fb_planeinfo_s）向上层暴露 Plane 的信息（如缓冲区地址、支持的像素格式），供应用层或图形库使用。
+
+（3）单 Plane 与多 Plane 的典型场景
+
+单 Plane：简单嵌入式设备（如小型 LCD1602、单色屏），只需一个缓冲区存储完整图像，适用于静态或低刷新率显示。
+
+多 Plane：复杂场景（如智能终端、车载系统）：
+
+车载显示：仪表盘（Plane0）+ 导航地图（Plane1）+ 警告图标（Plane2，高优先级）
+
+智能家居：背景 UI（Plane0）+ 实时传感器数据（Plane1）+ 弹窗提示（Plane2）
+
+#### Plane里的多buffer
+
+对于一个Plane，可以给分配刚好保存一帧图像数据的Framebuffer。单 Framebuffer 的核心痛点是 “读写冲突”：当 CPU/GPU 正在向 Framebuffer 写入新图像数据（如刷新 UI、绘制动画）时，LCD 控制器可能同时从同一 Framebuffer 读取数据并输出到屏幕，导致屏幕上出现 “半新半旧” 的撕裂画面（尤其高刷新率场景）。
+
+解决办法是给Plane分配可以保存多帧图像数据的Framebuffer。这样做的好处是：LCD控制器在读取buffer A的数据来显示时，APP可以在buffer B上构造下一副图像，当APP构造好后再让LCD控制器使用buffer B的数据。这使用LCD控制器使用的是“完整的数据”。
+
+#### 驱动模型与核心结构体
+
+只有一个Plane，Plane里只有一个Framebuffer的模型如下：
+
+![](/img/openvela/image99.png)
+
+只有一个Plane，Plane里有两个Framebuffer的模型如下：
+
+![](/img/openvela/image100.png)
+
+有两个Plane，第1个Plane里有两个Framebuffer，第2个Plane里有1个Framebuffer，它的模型如下：
+
+![](/img/openvela/image101.png)
+
+可以看到，核心结构体有如下几个。
+
+fb_videoinfo_s结构体：用来描述“video controller”，含有LCD分辨率等参数，指明了这个控制器支持多少个Plane。
+
+/\* This structure describes the overall video controller \*/
+
+```
+struct fb_videoinfo_s
+
+{
+
+uint8_t fmt; /\* see FB_FMT\_\* \*/
+
+fb_coord_t xres; /\* Horizontal resolution in pixel columns \*/
+
+fb_coord_t yres; /\* Vertical resolution in pixel rows \*/
+
+uint8_t nplanes; /\* Number of color planes supported \*/
+
+```
+\#ifdef CONFIG_FB_OVERLAY
+
+```
+uint8_t noverlays; /\* Number of overlays supported \*/
+
+```
+\#endif
+
+\#ifdef CONFIG_FB_MODULEINFO
+
+```
+uint8_t moduleinfo\[128\]; /\* Module information filled by vendor \*/
+
+```
+\#endif
+
+```
+};
+
+```
+fb_planeinfo_s结构体：用来描述一个“color plane”，含有分配的显存信息（显存可能支持多个Framebuffer）。
+
+/\* This structure describes one color plane. Some YUV formats may support
+
+\* up to 4 planes
+
+\*/
+
+```
+struct fb_planeinfo_s
+
+{
+
+FAR void \*fbmem; /\* Start of frame buffer memory \*/
+
+size_t fblen; /\* Length of frame buffer memory in bytes \*/
+
+fb_coord_t stride; /\* Length of a line in bytes \*/
+
+uint8_t display; /\* Display number \*/
+
+uint8_t bpp; /\* Bits per pixel \*/
+
+uint32_t xres_virtual; /\* Virtual Horizontal resolution in pixel columns \*/
+
+uint32_t yres_virtual; /\* Virtual Vertical resolution in pixel rows \*/
+
+uint32_t xoffset; /\* Offset from virtual to visible resolution \*/
+
+uint32_t yoffset; /\* Offset from virtual to visible resolution \*/
+
+};
+
+```
+fb_chardev_s结构体：用来描述一个“Framebuffer device”，可以认为是一个综合结构体：使用里面的“vtable”可以读到fb_videoinfo_s、fb_planeinfo_s，里面的paninfo_count就是这个Plane里含有多少个Framebuffer。
+
+/\* This structure defines one framebuffer device. Note that which is
+
+\* everything in this structure is constant data set up and initialization
+
+\* time. Therefore, no there is requirement for serialized access to this
+
+\* structure.
+
+\*/
+
+```
+struct fb_chardev_s
+
+{
+
+FAR struct fb_vtable_s \*vtable; /\* Framebuffer interface \*/
+
+uint8_t plane; /\* Video plan number \*/
+
+clock_t vsyncoffset; /\* VSync offset ticks \*/
+
+FAR struct fb_priv_s \*head;
+
+FAR struct fb_paninfo_s \*paninfo; /\* Pan info array \*/
+
+size_t paninfo_count; /\* Pan info count \*/
+
+};
+
+```
+硬件相关的操作函数都封装在fb_vtable_s结构体里，如下：
+
+/\* The framebuffer "object" is accessed through within the OS via
+
+\* the following vtable:
+
+\*/
+
+```
+struct fb_vtable_s
+
+{
+
+```
+/\* Get information about the video controller configuration and the
+
+\* configuration of each color plane.
+
+\*/
+
+```
+int (\*getvideoinfo)(FAR struct fb_vtable_s \*vtable,
+
+FAR struct fb_videoinfo_s \*vinfo);
+
+int (\*getplaneinfo)(FAR struct fb_vtable_s \*vtable, int planeno,
+
+FAR struct fb_planeinfo_s \*pinfo);
+
+```
+/\* open/close window. \*/
+
+```
+int (\*open)(FAR struct fb_vtable_s \*vtable);
+
+int (\*close)(FAR struct fb_vtable_s \*vtable);
+
+```
+\#ifdef CONFIG_FB_CMAP
+
+/\* The following are provided only if the video hardware supports RGB
+
+\* color mapping
+
+\*/
+
+```
+int (\*getcmap)(FAR struct fb_vtable_s \*vtable,
+
+FAR struct fb_cmap_s \*cmap);
+
+int (\*putcmap)(FAR struct fb_vtable_s \*vtable,
+
+FAR const struct fb_cmap_s \*cmap);
+
+```
+\#endif
+
+\#ifdef CONFIG_FB_HWCURSOR
+
+/\* The following are provided only if the video hardware supports a
+
+\* hardware cursor.
+
+\*/
+
+```
+int (\*getcursor)(FAR struct fb_vtable_s \*vtable,
+
+FAR struct fb_cursorattrib_s \*attrib);
+
+int (\*setcursor)(FAR struct fb_vtable_s \*vtable,
+
+FAR struct fb_setcursor_s \*settings);
+
+```
+\#endif
+
+\#ifdef CONFIG_FB_UPDATE
+
+/\* The following are provided only if the video hardware need extera
+
+\* notification to update display content.
+
+\*/
+
+```
+int (\*updatearea)(FAR struct fb_vtable_s \*vtable,
+
+FAR const struct fb_area_s \*area);
+
+```
+\#endif
+
+\#ifdef CONFIG_FB_SYNC
+
+/\* The following are provided only if the video hardware signals
+
+\* vertical sync.
+
+\*/
+
+```
+int (\*waitforvsync)(FAR struct fb_vtable_s \*vtable);
+
+```
+\#endif
+
+\#ifdef CONFIG_FB_OVERLAY
+
+/\* Get information about the video controller configuration and the
+
+\* configuration of each overlay.
+
+\*/
+
+```
+int (\*getoverlayinfo)(FAR struct fb_vtable_s \*vtable, int overlayno,
+
+FAR struct fb_overlayinfo_s \*oinfo);
+
+```
+/\* The following are provided only if the video hardware supports
+
+\* transparency
+
+\*/
+
+```
+int (\*settransp)(FAR struct fb_vtable_s \*vtable,
+
+FAR const struct fb_overlayinfo_s \*oinfo);
+
+```
+/\* The following are provided only if the video hardware supports
+
+\* chromakey
+
+\*/
+
+```
+int (\*setchromakey)(FAR struct fb_vtable_s \*vtable,
+
+FAR const struct fb_overlayinfo_s \*oinfo);
+
+```
+/\* The following are provided only if the video hardware supports
+
+\* filling the overlay with a color.
+
+\*/
+
+```
+int (\*setcolor)(FAR struct fb_vtable_s \*vtable,
+
+FAR const struct fb_overlayinfo_s \*oinfo);
+
+```
+/\* The following allows to switch the overlay on or off \*/
+
+```
+int (\*setblank)(FAR struct fb_vtable_s \*vtable,
+
+FAR const struct fb_overlayinfo_s \*oinfo);
+
+```
+/\* The following allows to set the active area for subsequently overlay
+
+\* operations.
+
+\*/
+
+```
+int (\*setarea)(FAR struct fb_vtable_s \*vtable,
+
+FAR const struct fb_overlayinfo_s \*oinfo);
+
+```
+/\* The following allows to set the display area for subsequently overlay
+
+\* operations.
+
+\*/
+
+```
+int (\*setdestarea)(FAR struct fb_vtable_s \*vtable,
+
+FAR const struct fb_overlayinfo_s \*oinfo);
+
+```
+\# ifdef CONFIG_FB_OVERLAY_BLIT
+
+/\* The following are provided only if the video hardware supports
+
+\* blit operation between overlays.
+
+\*/
+
+```
+int (\*blit)(FAR struct fb_vtable_s \*vtable,
+
+FAR const struct fb_overlayblit_s \*blit);
+
+```
+/\* The following are provided only if the video hardware supports
+
+\* blend operation between overlays.
+
+\*/
+
+```
+int (\*blend)(FAR struct fb_vtable_s \*vtable,
+
+FAR const struct fb_overlayblend_s \*blend);
+
+```
+\# endif
+
+/\* The following allows to pan display for multiple buffers.
+
+\*/
+
+```
+int (\*panoverlay)(FAR struct fb_vtable_s \*vtable,
+
+FAR const struct fb_overlayinfo_s \*oinfo);
+
+```
+\#endif
+
+/\* Pan display for multiple buffers. \*/
+
+```
+int (\*pandisplay)(FAR struct fb_vtable_s \*vtable,
+
+FAR struct fb_planeinfo_s \*pinfo);
+
+```
+/\* Specific Controls \*\*\*\*\*\*\*\*\*\*\*\*\*\*\*\*\*\*\*\*\*\*\*\*\*\*\*\*\*\*\*\*\*\*\*\*\*\*\*\*\*\*\*\*\*\*\*\*\*\*\*\*\*\*/
+
+/\* Set the frequency of the framebuffer update panel (0: disable refresh) \*/
+
+```
+int (\*setframerate)(FAR struct fb_vtable_s \*vtable, int rate);
+
+```
+/\* Get the frequency of the framebuffer update panel (0: disable refresh) \*/
+
+```
+int (\*getframerate)(FAR struct fb_vtable_s \*vtable);
+
+```
+/\* Get the panel power status (0: full off). \*/
+
+```
+int (\*getpower)(FAR struct fb_vtable_s \*vtable);
+
+```
+/\* Enable/disable panel power (0: full off). \*/
+
+```
+int (\*setpower)(FAR struct fb_vtable_s \*vtable, int power);
+
+```
+/\* Passthrough the unknown ioctl commands. \*/
+
+```
+int (\*ioctl)(FAR struct fb_vtable_s \*vtable, int cmd, unsigned long arg);
+
+```
+/\* Pointer to framebuffer device private data. \*/
+
+```
+FAR void \*priv;
+
+};
+
+```
+#### API函数
+
+参考“apps/examples/fb/fb_main.c”，使用基于Framebuffer的LCD时，需要使用这些接口函数：
+
+- 打开文件：open(fbdev, O_RDWR);
+
+- 获得videoinfo：偏向于硬件参数，比如分辨率、像素格式、有几个plane，使用ioct FBIOGET_VIDEOINFO来获得
+
+- 获得planeinfo：偏向于软件参数，比如Framebuffer地址、大小，双buffer等，使用ioctl FBIOGET_PLANEINFO
+
+- 获得Framebuffer地址：调用mmap
+
+- 对于多个Framebuffer，在某个Framebuffer里绘制好数据后，调用ioctl FBIOPAN_DISPLAY把这个Framebuffer显示出来
+
+- 更新某个区域：这是可选的操作，使用ioctl FBIO_UPDATE
+
+mmap函数稍微复杂，内存映射文件技术通过将文件直接映射到进程虚拟地址空间，实现零拷贝的高效I/O，并支持多进程通过MAP_SHARED标志共享内存。
+
+函数原型如下：
+
+\#include \&lt;sys/mman.h\&gt;
+
+```
+void \*mmap(
+
+void \*start, // 映射区起始地址（通常设为NULL，由系统自动分配）\[\[3\]\]\[\[7\]\]
+
+size_t length, // 映射区域的长度（以字节为单位）\[\[3\]\]\[\[9\]\]
+
+int prot, // 内存保护标志（如PROT_READ、PROT_WRITE）
+
+int flags, // 映射标志（如MAP_SHARED、MAP_PRIVATE）\[\[5\]\]\[\[6\]\]
+
+int fd, // 文件描述符（匿名映射时设为-1）
+
+```
+off_t offset // 文件偏移量（需为页大小的倍数）
+
+```
+);
+
+```
+- 参数 ：
+
+  - addr：建议的映射起始地址（通常设为 NULL，由内核自动分配）。
+
+  - length：映射区域的长度。
+
+  - prot：内存保护标志（如 PROT_READ、PROT_WRITE）。
+
+  - flags：映射选项（如 MAP_SHARED、MAP_PRIVATE）。
+
+  - fd：文件描述符（需通过 open 打开）。
+
+  - offset：文件映射的起始偏移量（需为页大小的整数倍）。
+
+&lt;!-- --&gt;
+
+- 返回值 ：
+
+  - 成功返回映射区的起始地址，失败返回 MAP_FAILED（(void \*)-1）。
+
+### SPI LCD驱动开发实例
+
+我们开发的驱动：“nuttx/drivers/video/spi_lcd_fb.c”。
+
+主要参考：“nuttx/drivers/video/goldfish_fb.c”
+
+#### SPI设备驱动程序开发方法
+
+在开发SPI设备驱动时需要知道：
+
+- 它连接在哪个SPI控制器下面：要得到对应的“spi_dev_s”结构体，它提供了传输能力；还需要知道使用哪个片选引脚
+
+- 还要阅读芯片手册：知道它的操作方法
+
+- 最后，找到合适的“驱动程序上半部”并实现“下半部”：如果没有上半部，可以自己写一个单独的驱动程序
+
+开发SPI LCD驱动程序时，有了“spi_dev_s”结构体，就有了数据传输能力，剩下操作就是：
+
+- 根据硬件信息构造一个fb_videoinfo_s结构体：里面存放硬件参数
+
+- 构造一个fb_planeinfo_s结构体：里面描述Framebuffer信息
+
+- 构造一个fb_vtable_s结构体：里面含有LCD的操作函数，涉及SPI传输时使用“spi_dev_s”结构体
+
+- 调用“fb_register_device”函数注册驱动
+
+#### 编写驱动程序
+
+在视频里现场编写。
+
+所用引脚如下：
+
+|          |      |      |          |      |      |      |      |
+|----------|------|------|----------|------|------|------|------|
+| 功能     | 复位 | 背光 | RS（DC） | MOSI | MISO | SCK  | CS   |
+| 使用引脚 | PD15 | PD16 | PD14     | PD12 | PD13 | PD11 | PD10 |
+
+涉及的文件：
+
+\|-- apps
+
+\| \`-- examples
+
+\| \`-- fb
+
+\| \`-- fb_main.c // APP: 把一个像素的高低字节调换顺序
+
+\|-- nuttx
+
+\| \`-- drivers
+
+\| \`-- video
+
+\| \|-- Kconfig
+
+\| \|-- Make.defs
+
+\| \`-- spi_lcd_fb.c // 我们的驱动
+
+\`-- vendor
+
+\`-- allwinnertech
+
+\`-- chips
+
+\`-- r528
+
+\`-- drv
+
+\|-- r528_boot.c // 注册驱动
+
+\`-- spi
+
+\`-- drv_spi.c // 提供gpio操作
+
+#### 上机测试
+
+配置项：
+
+CONFIG_SPI=y
+
+CONFIG_SPI_DRIVER=y
+
+CONFIG_DRIVERS_SPI=y
+
+CONFIG_SPI_LCD_FB=y
+
+CONFIG_EXAMPLES_FB=y
+
+执行命令即可看到屏幕上画出了多个矩形：
+
+nsh\&gt; fb
+

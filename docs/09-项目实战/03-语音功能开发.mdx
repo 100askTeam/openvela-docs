@@ -1,0 +1,163 @@
+---
+title: "语音功能开发"
+---
+
+
+### 音频开发基础概念
+
+#### 硬件参数
+
+录制和播放声音的本质是将耳朵听到的声音进行采样、保存和恢复。在采集声音时，采集频率越高、采样精度（每个数据用多少bit来表示）越高，播放时的效果就越逼真。
+
+![](/img/openvela/image280.png)
+
+在图中，如果采集声音时t1至t6的间隔越短，那么恢复的波形就越逼真。记录v1至v6时，使用的比特数越多，得到的数值精度越高，右侧恢复的波形也会更加逼真。
+
+如果能将左耳和右耳听到的声音分别采样并记录下来，在播放时通过两个喇叭或耳机播放出来，就能听到立体声效果。在原始音频数据里，左右声道的数据交叉存放，比如“v1,v2,...”是左声道采样的数据，“v1’v2’,...”是右声道采样的数据，在原始文件中存放如下：
+
+v1v1’v2v2’,...
+
+![](/img/openvela/image281.png)
+
+这就涉及了声音采集和播放的三个关键参数：采样频率、采样精度和声道数。
+
+#### 软件参数
+
+编写软件时，也涉及采样频率、采样精度和声道数。其中采样精度使用format来表示，有如下这些格式，这些格式不仅表示了采样精度，还表示了数据的保存格式（大字节序、小字节序）：
+
+……
+
+SND_PCM_FORMAT_S16_LE
+
+SND_PCM_FORMAT_S16_BE
+
+SND_PCM_FORMAT_S24_LE
+
+SND_PCM_FORMAT_S24_BE
+
+……
+
+还有其他概念，如下。
+
+① 帧（frame）：一帧表示一个采样点，对于单声道一帧有一个数据，对于双声道一帧有两个数据。
+
+② period：每次读写声音数据的最小单位是多少，它的单位是帧。如果period设置得很小，那么录制或播放一段声音时需要频繁发起read/write操作，效率很低。如果period设置得很大，如果采集的声音要转发出去，那么对方就会感觉声音很卡顿；如果播放的声音来自网络，程序就要收集很多的数据才能播放，也会感觉到卡顿。
+
+③ buffer_size：音频缓冲区大小，单位也是帧，对录音和播放很关键。假设APP读取数据后进行处理，处理的时间多长了，这可能会导致数据丢失。这时可以把buffer设置得比较大，在恶劣情况下可以缓存更多数据。
+
+在阅读openvela里aplay、arecord的代码时，会看到如下函数，它就是用来设置这5个参数的：
+
+```
+int set_param(snd_pcm_t \*handle, snd_pcm_format_t format,
+
+unsigned int rate, unsigned int channels,
+
+```
+snd_pcm_uframes_t period_size,
+
+```
+snd_pcm_uframes_t buffer_size);
+
+```
+### aplay和arecord代码解读
+
+分析：
+
+vendor/allwinnertech/chips/r528/drivers/rtos-hal/hal/test/sound/aplay.c
+
+vendor/allwinnertech/chips/r528/drivers/rtos-hal/hal/test/sound/arecord.c
+
+![](/img/openvela/image282.png)
+
+### 添加opus编解码功能
+
+参考代码：external/opus/opus/src/opus_demo.c
+
+修改：
+
+vendor/allwinnertech/chips/r528/drivers/rtos-hal/hal/test/sound/aplay.c
+
+vendor/allwinnertech/chips/r528/drivers/rtos-hal/hal/test/sound/arecord.c
+
+修改arecord程序，把采集到的声音数据使用opus编码后保存为文件“/tmp/sound001.opus、/tmp/sound002.opus、……”。
+
+修改aplay程序，读取文件“/tmp/sound001.opus、/tmp/sound002.opus、……”，使用opus解码得到PCM数据并播放出来。
+
+以后把写文件、读文件的函数改为其他函数，就可以对接控制中心了。
+
+#### opus库的使用
+
+使用opus编码、解码的函数流程如下：
+
+![](/img/openvela/image283.png)
+
+创建编码器只需要指定PCM数据的采样率、声道数，就可以使用“opus_encode”函数把PCM数据压缩为opus码流。
+
+创建解码器时只需要指定PCM数据的采样率、声道数，就可以使用“opus_decode”函数把opus码流解码为PCM数据。
+
+在创建编码器时需要指定源声音的参数，在创建解码器时需要指定目的声音的参数：
+
+![](/img/openvela/image284.png)
+
+#### 示例程序
+
+先添加配置项：
+
+CONFIG_LIB_OPUS
+
+并且添加这个宏：
+
+![](/img/openvela/image285.png)
+
+修改：
+
+vendor/allwinnertech/chips/r528/drivers/rtos-hal/hal/test/sound/aplay.c
+
+vendor/allwinnertech/chips/r528/drivers/rtos-hal/hal/test/sound/arecord.c
+
+添加“-o”选项，即arecord读取麦克风数据后，使用opus进行编码，存为文件“/tmp/sound001.opus、……”。aplay读取文件“/tmp/sound001.opus、……”，使用opus进行解压再播放。使用命令如下：
+
+\# 录音
+
+amixer set 19 255
+
+amixer set 20 255
+
+amixer set 21 255
+
+arecord -D hw:snddmic -r 48000 -f 16 -d 10 -c 2 -o
+
+\# 播放
+
+amixer set 6 180
+
+amixer set 7 180
+
+amixer set 15 7
+
+aplay -D hw:audiocodec -r 48000 -f 16 -c 2 -o
+
+#### arecord源码修改
+
+arecord.c添加的核心代码如下。
+
+第1步：支持“-o”参数。
+
+![](/img/openvela/image286.png)
+
+第2步：采集、编码、存储。
+
+![](/img/openvela/image287.png)
+
+#### aplay源码修改
+
+aplay.c添加的核心代码如下。
+
+第1步：支持“-o”参数。
+
+![](/img/openvela/image288.png)
+
+第2步：读取opus文件、解码、播放。
+
+![](/img/openvela/image289.png)
+

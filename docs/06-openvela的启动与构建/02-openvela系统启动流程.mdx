@@ -1,0 +1,684 @@
+---
+title: "openvela系统启动流程"
+---
+
+
+### 启动流程概述
+
+参考文档：[&lt;u&gt;https://doc.openvela.com/document?id=614&version=dev&language=cn&lt;/u&gt;](https://doc.openvela.com/document?id=614&version=dev&language=cn)
+
+从openvela启动的第1条指令开始，会完成这些事情：
+
+- CPU0的底层初始化：nuttx/arch/arm/src/armv7-a/arm_head.S  
+  设置MMU、Cache、建立页表，调用“arm_boot”初始化C程序运行环境，调用nuttx的入口函数“nx_start”
+
+- openvela操作系统的入口：nx_start
+
+“nx_start”函数的调用关系非常繁杂，主要流程如下（为了方便学员复制，下面先以文字形式展示）：
+
+\_\_start
+
+```
+// apps/vendor/allwinnertech/chips/r528/r528_boot.c
+
+```
+bl arm_boot
+
+arm_lowputc('A'); // 第1个字符的输出
+
+b nx_start
+
+nx_start
+
+tasklist_initialize
+
+```
+idle_task_initialize();
+
+```
+drivers_early_initialize
+
+nxsem_initialize
+
+```
+up_allocate_heap(&heap_start, &heap_size);
+
+kumm_initialize(heap_start, heap_size);
+
+```
+idle_group_initialize
+
+task_initialize
+
+instrument_initialize
+
+fs_initialize
+
+irq_initialize
+
+```
+g_irqvector\[i\].handler = irq_unexpected_isr;
+
+// vendor/allwinnertech/chips/r528/r528_irq.c
+
+```
+up_irqinitialize
+
+arm_gic0_initialize
+
+arm_gic_initialize
+
+```
+// \_vector_start 在 nuttx/arch/arm/src/armv7-a/arm_vectortab.S
+
+cp15_wrvbar((uint32_t)\_vector_start);
+
+irq_enable();
+
+```
+clock_initialize
+
+nxsig_initialize
+
+nxmq_initialize
+
+net_initialize
+
+binfmt_initialize
+
+up_initialize
+
+arm_serialinit // vendor/allwinnertech/chips/r528/r528_serial.c
+
+up_earlyserialinit
+
+r528_uart1config // 配置串口引脚
+
+```
+uart_register("/dev/console", &CONSOLE_DEV); // CONSOLE_DEV = g_uart1port
+
+uart_register("/dev/uart1", &g_uart1port);
+
+```
+drivers_initialize // 一些不涉及具体硬件的驱动,比如/dev/null, /dev/zero
+
+board_early_initialize // 执行板级早期硬件初始化
+
+r528_early_initialize
+
+nx_smp_start
+
+nx_bringup
+
+nx_create_initthread
+
+nxthread_create("AppBringUp", nx_start_task, ...)
+
+nx_start_task
+
+nx_start_application
+
+```
+nx_romfsetc();
+
+// romfs_img 来自 apps/vendor/allwinnertech/boards/
+
+// r528/r528s3-velaevb1/src/etctmp.c
+
+// etctmp.c是通过nuttx/boards/Board.mk生成的romfs映像文件
+
+// Board.mk里的文件来自apps/vendor/allwinnertech/boards/
+
+// r528/r528s3-evb4/src/Makefile
+
+// 注册设备: /dev/ram0
+
+```
+romdisk_register(...,romfs_img, ...)
+
+```
+nx_mount(..."/dev/ram0", "/etc", "romfs"...);
+
+// apps/vendor/allwinnertech/boards/r528/r528s3-velaevb1/src/r528_boot.c
+
+```
+board_late_initialize // 执行板级主要驱动的初始化
+
+r528_late_initialize(); // 注册单板大部分驱动程序
+
+r528_bringup(); // 挂载一些文件系统
+
+```
+ret = mount(NULL, "/proc", "procfs", 0, NULL);
+
+```
+task_spawn("nsh_main")
+
+nsh_main
+
+nsh_initialize
+
+```
+boardctl(BOARDIOC_INIT, 0);
+
+// apps/vendor/allwinnertech/boards/r528/r528s3-evb4/src/r528_appinit.c
+
+// 初始化应用层
+
+```
+board_app_initialize // 空函数
+
+```
+// /etc/init.d/rc.sysinit
+
+nsh_sysinitscript(&pstate-\>cn_vtbl);
+
+nsh_script_redirect("sysinit", "/etc/init.d/rc.sysinit");
+
+// 没有配置CONFIG_BOARDCTL_FINALINIT
+
+// 这个函数没有被调用, 放在这里只是为了跟前面的board_app_initialize进行对比
+
+// 在sysinit之后初始化应用层
+
+boardctl(BOARDIOC_FINALINIT, 0);
+
+```
+board_app_finalinitialize
+
+```
+nsh_initscript(&pstate-\>cn_vtbl);
+
+nsh_script_redirect("init", "/etc/init.d/rcS");
+
+```
+nsh_consolemain
+
+```
+// 循环等待用户输入、解析、执行
+
+```
+sched_unlock(); // 执行到这里后,前面创建的AppBringUp进程才能执行
+
+```
+for (; ; )
+
+{
+
+up_idle();
+
+}
+
+```
+下面使用图形方式把要留意的部分用红框标出来：
+
+![](/img/openvela/image122.png)
+
+一些主要函数，列表如下：
+
+![](/img/openvela/image123.png)
+
+### 启动流程代码走读
+
+视频讲解，重点讲解board_XX_init等单板相关的函数，这些涉及移植工作。
+
+参考文档：docs/zh-cn/chip_porting/porting_guide.md
+
+#### arm_lowputc
+
+arm_lowputc：单板相关的最低层打印函数。
+
+在内核里使用syslog来打印信息时，最终会调用到它。在“docs/en/device_dev_guide/kernel/logging/syslog.md”中有如下说明：
+
+```
+// Application/Kernel Log Call
+
+```
+syslog() / \_info()
+
+\|
+
+v-- Formatting & Dispatch
+
+nx_vsyslog()
+
+\|
+
+v-- C Library Standard Formatting
+
+lib_vsprintf()
+
+\|
+
+v-- Write to Syslog Output Stream
+
+stream_putc() --\&gt; syslogstream_putc()
+
+\|
+
+v-- Iterate All Registered Channels & Differentiate Context
+
+syslog_putc()
+
+\|
+
+v-- Call Channel Driver's Output Function
+
+g_syslog_channel\[i\]-\&gt;sc_ops-\&gt;sc_putc() // Task context
+
+g_syslog_channel\[i\]-\&gt;sc_ops-\&gt;sc_force() // Interrupt context
+
+要使用syslog，头文件和函数原型如下：
+
+\#include \&lt;syslog.h\&gt;
+
+```
+void syslog(int priority, const char \*format, ...);
+
+// \`priority\`: The priority of the log, such as \`LOG_INFO\`, \`LOG_ERR\`, etc.
+
+// \`format\`: A format string compatible with \`printf\` syntax.
+
+```
+#### 控制台初始化（console）
+
+为了使应用可以通过标准输入/输出（“stdin/out/err”）访问物理串口，必须注册串口驱动。
+
+每个架构提供“\&lt;arch\&gt;\_serialinit”接口，由厂商实现。
+
+它内部调用“uart_register”注册控制台和其他串口设备节点。
+
+arm_serialinit \&gt; up_earlyserialinit：用来初始化控制台。
+
+#### board_late_initialize
+
+单板的驱动注册，可以放在这个函数里。
+
+### openvela中断体系
+
+#### ARMv7中断体系与处理流程
+
+GIC：通用中断控制器（“Generic Interrupt Controller”）。GIC 是 ARM 公司开发的一个中断硬件 IP，主要用于管理外设中断，是联系外设中断和 CPU 的桥梁，也是各 CPU 之间中断互联的通道。它可以做到使能或禁止中断、把中断分组、在多核系统中将中断分配到不同处理器上、设置电平触发还是边沿触发方式等。
+
+假设按键引脚被配置为中断功能，按键被按下或松开时，GPIO模块检测到信号发生变化后向GIC发出中断，GIC再向CPU发出中断。
+
+![](/img/openvela/image124.png)
+
+CPU每执行完一条指令都会检查有无中断/异常产生，发现有中断/异常产生后，就会暂停当前的程序去处理中断/异常。
+
+对于ARMv7架构，有如下异常向量表：
+
+![](/img/openvela/image125.png)
+
+A7的向量表中，放置的是各类异常的“跳转指令”。
+
+比如发生“Reset”异常时，CPU就会从向量表里找到第0项，执行“ldr pc, .Lresethandler”指令。
+
+比如发生任何的中断时，CPU就会从向量表里找到第6项，执行“ldr pc, .Lirqhandler”指令去处理中断。
+
+- 跳转之前，硬件只会保存CPSR寄存器
+
+- 跳转之后，软件要保存现场
+
+- 处理中断的函数执行完毕，返回之前，软件恢复现场、恢复CPSR寄存器
+
+怎么处理中断呢？
+
+在CPU的角度，它可以从GIC里读取到“发生了n号”中断，但是它无法知道中断起源是“GPIO的m号引脚”。所以，我们需要给“n号GIC中断”提供处理函数A。函数A要去读取GPIO控制器，分辨出是“m号引脚触发了中断”，然后调用它的处理函数B。
+
+在上述场景里，我们需要提供两个中断处理函数：n号GIC中断处理函数A，m号GPIO引脚的中断处理函数B。
+
+假设I2C0模块直接向GIC控制器发出“k号”中断，GIC的k号中断来源只有I2C0模块，那么可以给“k号GIC中断”只提供一个处理函数C。
+
+#### openvela中断处理流程
+
+总体框图如下（后面详细讲解）：
+
+![](/img/openvela/image126.png)
+
+#### 异常向量表
+
+设置向量表的流程如下：
+
+nx_start
+
+tasklist_initialize
+
+```
+idle_task_initialize();
+
+```
+drivers_early_initialize
+
+nxsem_initialize
+
+```
+up_allocate_heap(&heap_start, &heap_size);
+
+kumm_initialize(heap_start, heap_size);
+
+```
+idle_group_initialize
+
+task_initialize
+
+instrument_initialize
+
+fs_initialize
+
+irq_initialize
+
+```
+g_irqvector\[i\].handler = irq_unexpected_isr;
+
+// vendor/allwinnertech/chips/r528/r528_irq.c
+
+```
+up_irqinitialize
+
+arm_gic0_initialize
+
+arm_gic_initialize
+
+```
+// \_vector_start 在 nuttx/arch/arm/src/armv7-a/arm_vectortab.S
+
+cp15_wrvbar((uint32_t)\_vector_start);
+
+irq_enable();
+
+```
+向量表在“nuttx/arch/arm/src/armv7-a/arm_vectortab.S”中：
+
+![](/img/openvela/image127.png)
+
+#### 从上到下的中断处理过程
+
+代码流程如下：
+
+```
+// nuttx/arch/arm/src/armv7-a/arm_vectors.S
+
+```
+arm_vectorirq
+
+bl arm_decodeirq /\* Call the handler \*/
+
+```
+// nuttx/arch/arm/src/armv7-a/arm_gicv2.c
+
+```
+arm_decodeirq
+
+```
+// nuttx/arch/arm/src/armv7-a/arm_gicv2.c
+
+irq = (regval & GIC_ICCIAR_INTID_MASK) \>\> GIC_ICCIAR_INTID_SHIFT;
+
+arm_doirq(irq, regs);
+
+// nuttx/sched/irq/irq_dispatch.c
+
+irq_dispatch(irq, regs);
+
+unsigned int ndx = irq;
+
+vector = g_irqvector\[ndx\].handler;
+
+arg = g_irqvector\[ndx\].arg;
+
+CALL_VECTOR(ndx, vector, irq, context, arg);
+
+vector(ndx, context, arg);
+
+```
+#### 从下到上的中断注册过程
+
+第1步：GIC中断处理函数的注册，代码如下：
+
+```
+// nuttx/sched/irq/irq_attach.c
+
+```
+r528_early_initialize
+
+r528_gpio_init
+
+hal_gpio_init
+
+```
+ret = hal_request_irq(gpio_desc-\>irq\[i\], gpio_irq_handle, irqname, (void \*)&gpio_desc-\>irq\[i\]);
+
+hal_enable_irq(gpio_desc-\>irq\[i\]);
+
+```
+第2步，GPIO引脚的注册过程：
+
+```
+// 设备驱动程序使用GPIO中断
+
+```
+hal_gpio_to_irq(gpio_pin_t pin, uint32_t \*irq)
+
+hal_gpio_irq_request(uint32_t irq, hal_irq_handler_t hdle, unsigned long flags, void \*data)
+
+```
+gpio_desc-\>irq_desc\[irq - GPIO_IRQ_START\].handle_irq = hdle;
+
+gpio_desc-\>irq_desc\[irq - GPIO_IRQ_START\].flags = flags;
+
+gpio_desc-\>irq_desc\[irq - GPIO_IRQ_START\].data = data;
+
+```
+gpio_irq_set_type
+
+```
+hal_gpio_pinmux_set_function(gpio_desc-\>irq_desc\[irq - GPIO_IRQ_START\].pin, GPIO_MUXSEL_EINT);
+
+```
+### 文件系统的挂载
+
+在开发板上执行mount命令可以看到已经挂载的文件系统：
+
+nsh\&gt; mount
+
+/data type yaffs // 来自flash
+
+/etc type romfs // /dev/ram0
+
+/proc type procfs // 虚拟文件系统
+
+/resource type romfs // 来自flash
+
+/tmp type tmpfs // 虚拟文件系统
+
+#### /etc的挂载
+
+源码流程如下：
+
+nx_start
+
+nx_bringup
+
+nx_create_initthread
+
+nxthread_create("AppBringUp", nx_start_task, ...)
+
+nx_start_task
+
+nx_start_application
+
+```
+nx_romfsetc();
+
+// romfs_img 来自 apps/vendor/allwinnertech/boards/r528/
+
+// r528s3-velaevb1/src/etctmp.c
+
+// etctmp.c是通过nuttx/boards/Board.mk生成的romfs映像文件
+
+// Board.mk里的文件来自apps/vendor/allwinnertech/boards/
+
+// r528/r528s3-evb4/src/Makefile
+
+// 注册设备: /dev/ram0
+
+```
+romdisk_register(...,romfs_img, ...)
+
+```
+nx_mount(..."/dev/ram0", "/etc", "romfs"...);
+
+```
+#### /proc的挂载
+
+源码流程如下：
+
+nx_start
+
+nx_bringup
+
+nx_create_initthread
+
+nxthread_create("AppBringUp", nx_start_task, ...)
+
+nx_start_task
+
+nx_start_application
+
+```
+nx_romfsetc();
+
+```
+board_late_initialize // 执行板级主要驱动的初始化
+
+r528_late_initialize(); // 注册单板大部分驱动程序
+
+r528_bringup(); // 挂载一些文件系统
+
+```
+ret = mount(NULL, "/proc", "procfs", 0, NULL);
+
+```
+#### /tmp的挂载
+
+源码流程如下：
+
+nx_start
+
+nx_bringup
+
+nx_create_initthread
+
+nxthread_create("AppBringUp", nx_start_task, ...)
+
+nx_start_task
+
+nx_start_application
+
+task_spawn("nsh_main")
+
+nsh_main
+
+nsh_initialize
+
+```
+// /etc/init.d/rc.sysinit
+
+nsh_sysinitscript(&pstate-\>cn_vtbl);
+
+nsh_script_redirect("sysinit", "/etc/init.d/rc.sysinit");
+
+```
+单板“/etc/init.d/rc.sysinit”文件的内容，来自如下源码：
+
+![](/img/openvela/image128.png)
+
+#### Flash分区的挂载
+
+源码流程如下：
+
+nx_start
+
+nx_bringup
+
+nx_create_initthread
+
+nxthread_create("AppBringUp", nx_start_task, ...)
+
+nx_start_task
+
+nx_start_application
+
+task_spawn("nsh_main")
+
+nsh_main
+
+nsh_initialize
+
+```
+// /etc/init.d/rc.sysinit
+
+nsh_sysinitscript(&pstate-\>cn_vtbl);
+
+nsh_script_redirect("sysinit", "/etc/init.d/rc.sysinit");
+
+nsh_initscript(&pstate-\>cn_vtbl);
+
+nsh_script_redirect("init", "/etc/init.d/rcS");
+
+```
+单板“/etc/init.d/rcS”文件的内容，来自如下源码：
+
+![](/img/openvela/image129.png)
+
+### Init程序的启动
+
+源码流程如下：
+
+nx_start
+
+nx_bringup
+
+nx_create_initthread
+
+nxthread_create("AppBringUp", nx_start_task, ...)
+
+nx_start_task
+
+nx_start_application
+
+task_spawn("nsh_main")
+
+nsh_main
+
+nsh_initialize
+
+```
+// /etc/init.d/rc.sysinit
+
+nsh_sysinitscript(&pstate-\>cn_vtbl);
+
+nsh_script_redirect("sysinit", "/etc/init.d/rc.sysinit");
+
+nsh_initscript(&pstate-\>cn_vtbl);
+
+nsh_script_redirect("init", "/etc/init.d/rcS");
+
+```
+如果想让某个程序自动运行，以hello程序为例，可以修改：
+
+~/vela-opensource/vendor/allwinnertech/boards/r528/r528s3-velaevb1/src/etc/init.d/rcS
+
+在文件最后加入：
+
+hello &
+
+视频里细讲“/etc/init.d/rcS”里的“hello”如何被启动。
+
+无论是脚本里命令的执行，还是在控制终端输入命令，执行流程都是这样：
+
+- 根据“命令”找到内嵌的命令或内嵌的APP
+
+- 执行它
+
