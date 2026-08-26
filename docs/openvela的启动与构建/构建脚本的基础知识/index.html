@@ -1,0 +1,555 @@
+<!doctype html><html lang=zh-Hans dir=ltr class="docs-wrapper plugin-docs plugin-id-default docs-version-current docs-doc-page docs-doc-id-openvela的启动与构建/构建脚本的基础知识" data-has-hydrated=false><head><meta charset=UTF-8><meta name=generator content="Docusaurus v3.10.2"><title data-rh=true>构建脚本的基础知识 | 东山Π</title><meta data-rh=true name=viewport content="width=device-width, initial-scale=1.0"/><meta data-rh=true name=twitter:card content=summary_large_image /><meta data-rh=true property=og:image content=https://openvela.100ask.org/img/docusaurus-social-card.jpg /><meta data-rh=true name=twitter:image content=https://openvela.100ask.org/img/docusaurus-social-card.jpg /><meta data-rh=true property=og:url content=https://openvela.100ask.org/docs/openvela的启动与构建/构建脚本的基础知识 /><meta data-rh=true property=og:locale content=zh_Hans /><meta data-rh=true name=docusaurus_locale content=zh-Hans /><meta data-rh=true name=docsearch:language content=zh-Hans /><meta data-rh=true name=docusaurus_version content=current /><meta data-rh=true name=docusaurus_tag content=docs-default-current /><meta data-rh=true name=docsearch:version content=current /><meta data-rh=true name=docsearch:docusaurus_tag content=docs-default-current /><meta data-rh=true property=og:title content="构建脚本的基础知识 | 东山Π"/><meta data-rh=true name=description content=GCC编译过程 /><meta data-rh=true property=og:description content=GCC编译过程 /><link data-rh=true rel=icon href=/img/favicon.ico /><link data-rh=true rel=canonical href=https://openvela.100ask.org/docs/openvela的启动与构建/构建脚本的基础知识 /><link data-rh=true rel=alternate href=https://openvela.100ask.org/docs/openvela的启动与构建/构建脚本的基础知识 hreflang=zh-Hans /><link data-rh=true rel=alternate href=https://openvela.100ask.org/docs/openvela的启动与构建/构建脚本的基础知识 hreflang=x-default /><script data-rh=true type=application/ld+json>{"@context":"https://schema.org","@type":"BreadcrumbList","itemListElement":[{"@type":"ListItem","item":"https://openvela.100ask.org/docs/category/openvela的启动与构建","name":"openvela的启动与构建","position":1},{"@type":"ListItem","item":"https://openvela.100ask.org/docs/openvela的启动与构建/构建脚本的基础知识","name":"构建脚本的基础知识","position":2}]}</script><link rel=stylesheet href=/assets/css/styles.f22bb743.css /><script src=/assets/js/runtime~main.4ebc8941.js defer></script><script src=/assets/js/main.8ab7730a.js defer></script></head><body><svg style="display: none;"><defs>
+<symbol id=theme-svg-external-link viewBox="0 0 24 24"><path fill=currentColor d="M21 13v10h-21v-19h12v2h-10v15h17v-8h2zm3-12h-10.988l4.035 4-6.977 7.07 2.828 2.828 6.977-7.07 4.125 4.172v-11z"/></symbol>
+</defs></svg>
+<script>!function(){var t=function(){try{return new URLSearchParams(window.location.search).get("docusaurus-theme")}catch(t){}}()||function(){try{return window.localStorage.getItem("theme-48e")}catch(t){}}();document.documentElement.setAttribute("data-theme",t||(window.matchMedia("(prefers-color-scheme: dark)").matches?"dark":"light")),document.documentElement.setAttribute("data-theme-choice",t||"system")}(),function(){try{for(var[t,e]of new URLSearchParams(window.location.search).entries())if(t.startsWith("docusaurus-data-")){var a=t.replace("docusaurus-data-","data-");document.documentElement.setAttribute(a,e)}}catch(t){}}()</script><div id=__docusaurus><link rel=preload as=image href=/img/logo.svg /><div role=region aria-label=跳到主要内容><a class=skipToContent_fXgn href=#__docusaurus_skipToContent_fallback>跳到主要内容</a></div><nav aria-label=主导航 class="theme-layout-navbar navbar navbar--fixed-top"><div class=navbar__inner><div class="theme-layout-navbar-left navbar__items"><button aria-label=切换导航栏 aria-expanded=false class="navbar__toggle clean-btn" type=button><svg width=30 height=30 viewBox="0 0 30 30" aria-hidden=true><path stroke=currentColor stroke-linecap=round stroke-miterlimit=10 stroke-width=2 d="M4 7h22M4 15h22M4 23h22"/></svg></button><a class=navbar__brand href=/><div class=navbar__logo><img src=/img/logo.svg alt=东山PI class="themedComponent_mlkZ themedComponent--light_NVdE"/><img src=/img/logo.svg alt=东山PI class="themedComponent_mlkZ themedComponent--dark_xIcU"/></div><b class="navbar__title text--truncate">东山Π</b></a><a class="navbar__item navbar__link" href=/docs/openvela开发环境搭建与体验/课程介绍与资料下载>文档</a></div><div class="theme-layout-navbar-right navbar__items navbar__items--right"><a href=https://github.com/100askTeam/openvela-docs target=_blank rel="noopener noreferrer" class="navbar__item navbar__link">GitHub<svg width=13.5 height=13.5 aria-label="(opens in new tab)" class=iconExternalLink_nPIU><use href=#theme-svg-external-link /></svg></a><div class="toggle_vylO colorModeToggle_DEke"><button class="clean-btn toggleButton_gllP toggleButtonDisabled_aARS" type=button disabled title="system mode" aria-label="切换浅色/暗黑模式（当前为system mode）"><svg viewBox="0 0 24 24" width=24 height=24 aria-hidden=true class="toggleIcon_g3eP lightToggleIcon_pyhR"><path fill=currentColor d="M12,9c1.65,0,3,1.35,3,3s-1.35,3-3,3s-3-1.35-3-3S10.35,9,12,9 M12,7c-2.76,0-5,2.24-5,5s2.24,5,5,5s5-2.24,5-5 S14.76,7,12,7L12,7z M2,13l2,0c0.55,0,1-0.45,1-1s-0.45-1-1-1l-2,0c-0.55,0-1,0.45-1,1S1.45,13,2,13z M20,13l2,0c0.55,0,1-0.45,1-1 s-0.45-1-1-1l-2,0c-0.55,0-1,0.45-1,1S19.45,13,20,13z M11,2v2c0,0.55,0.45,1,1,1s1-0.45,1-1V2c0-0.55-0.45-1-1-1S11,1.45,11,2z M11,20v2c0,0.55,0.45,1,1,1s1-0.45,1-1v-2c0-0.55-0.45-1-1-1C11.45,19,11,19.45,11,20z M5.99,4.58c-0.39-0.39-1.03-0.39-1.41,0 c-0.39,0.39-0.39,1.03,0,1.41l1.06,1.06c0.39,0.39,1.03,0.39,1.41,0s0.39-1.03,0-1.41L5.99,4.58z M18.36,16.95 c-0.39-0.39-1.03-0.39-1.41,0c-0.39,0.39-0.39,1.03,0,1.41l1.06,1.06c0.39,0.39,1.03,0.39,1.41,0c0.39-0.39,0.39-1.03,0-1.41 L18.36,16.95z M19.42,5.99c0.39-0.39,0.39-1.03,0-1.41c-0.39-0.39-1.03-0.39-1.41,0l-1.06,1.06c-0.39,0.39-0.39,1.03,0,1.41 s1.03,0.39,1.41,0L19.42,5.99z M7.05,18.36c0.39-0.39,0.39-1.03,0-1.41c-0.39-0.39-1.03-0.39-1.41,0l-1.06,1.06 c-0.39,0.39-0.39,1.03,0,1.41s1.03,0.39,1.41,0L7.05,18.36z"/></svg><svg viewBox="0 0 24 24" width=24 height=24 aria-hidden=true class="toggleIcon_g3eP darkToggleIcon_wfgR"><path fill=currentColor d="M9.37,5.51C9.19,6.15,9.1,6.82,9.1,7.5c0,4.08,3.32,7.4,7.4,7.4c0.68,0,1.35-0.09,1.99-0.27C17.45,17.19,14.93,19,12,19 c-3.86,0-7-3.14-7-7C5,9.07,6.81,6.55,9.37,5.51z M12,3c-4.97,0-9,4.03-9,9s4.03,9,9,9s9-4.03,9-9c0-0.46-0.04-0.92-0.1-1.36 c-0.98,1.37-2.58,2.26-4.4,2.26c-2.98,0-5.4-2.42-5.4-5.4c0-1.81,0.89-3.42,2.26-4.4C12.92,3.04,12.46,3,12,3L12,3z"/></svg><svg viewBox="0 0 24 24" width=24 height=24 aria-hidden=true class="toggleIcon_g3eP systemToggleIcon_QzmC"><path fill=currentColor d="m12 21c4.971 0 9-4.029 9-9s-4.029-9-9-9-9 4.029-9 9 4.029 9 9 9zm4.95-13.95c1.313 1.313 2.05 3.093 2.05 4.95s-0.738 3.637-2.05 4.95c-1.313 1.313-3.093 2.05-4.95 2.05v-14c1.857 0 3.637 0.737 4.95 2.05z"/></svg></button></div><div class=navbarSearchContainer_Bca1><div class="navbar__search searchBarContainer_NW3z" dir=ltr><input placeholder=搜索 aria-label=Search class="navbar__search-input searchInput_YFbd" value="" /><div class="loadingRing_RJI3 searchBarLoadingRing_YnHq"><div></div><div></div><div></div><div></div></div></div></div></div></div><div role=presentation class=navbar-sidebar__backdrop></div></nav><div id=__docusaurus_skipToContent_fallback class="theme-layout-main main-wrapper mainWrapper_z2l0"><div class=docsWrapper_hBAB><button aria-label=回到顶部 class="clean-btn theme-back-to-top-button backToTopButton_sjWU" type=button></button><div class=docRoot_UBD9><aside class="theme-doc-sidebar-container docSidebarContainer_YfHR"><div class=sidebarViewport_aRkj><div class=sidebar_njMd><nav aria-label=文档侧边栏 class="menu thin-scrollbar menu_SIkG"><ul class="theme-doc-sidebar-menu menu__list"><li class="theme-doc-sidebar-item-category theme-doc-sidebar-item-category-level-1 menu__list-item"><div class=menu__list-item-collapsible><a class="categoryLink_byQd menu__link menu__link--sublist" href=/docs/category/openvela开发环境搭建与体验><span class=categoryLinkLabel_W154>openvela开发环境搭建与体验</span></a><button aria-label="折叠侧边栏分类 'openvela开发环境搭建与体验'" aria-expanded=true type=button class="clean-btn menu__caret"></button></div><ul class=menu__list><li class="theme-doc-sidebar-item-link theme-doc-sidebar-item-link-level-2 menu__list-item"><a class=menu__link tabindex=0 href=/docs/openvela开发环境搭建与体验/课程介绍与资料下载><span class=linkLabel_WmDU>课程介绍与资料下载</span></a><li class="theme-doc-sidebar-item-link theme-doc-sidebar-item-link-level-2 menu__list-item"><a class=menu__link tabindex=0 href=/docs/openvela开发环境搭建与体验/搭建开发环境><span class=linkLabel_WmDU>搭建开发环境</span></a><li class="theme-doc-sidebar-item-link theme-doc-sidebar-item-link-level-2 menu__list-item"><a class=menu__link tabindex=0 href=/docs/openvela开发环境搭建与体验/体验openvela><span class=linkLabel_WmDU>体验openvela</span></a><li class="theme-doc-sidebar-item-link theme-doc-sidebar-item-link-level-2 menu__list-item"><a class=menu__link tabindex=0 href=/docs/openvela开发环境搭建与体验/vscode的设置与使用><span class=linkLabel_WmDU>vscode的设置与使用</span></a></ul><li class="theme-doc-sidebar-item-category theme-doc-sidebar-item-category-level-1 menu__list-item"><div class=menu__list-item-collapsible><a class="categoryLink_byQd menu__link menu__link--sublist" href=/docs/category/openvela系统介绍><span class=categoryLinkLabel_W154>openvela系统介绍</span></a><button aria-label="折叠侧边栏分类 'openvela系统介绍'" aria-expanded=true type=button class="clean-btn menu__caret"></button></div><ul class=menu__list><li class="theme-doc-sidebar-item-link theme-doc-sidebar-item-link-level-2 menu__list-item"><a class=menu__link tabindex=0 href=/docs/openvela系统介绍/裸机程序设计模式与缺陷><span class=linkLabel_WmDU>裸机程序设计模式与缺陷</span></a><li class="theme-doc-sidebar-item-link theme-doc-sidebar-item-link-level-2 menu__list-item"><a class=menu__link tabindex=0 href=/docs/openvela系统介绍/使用RTOS的优势与挑战><span class=linkLabel_WmDU>使用RTOS的优势与挑战</span></a><li class="theme-doc-sidebar-item-link theme-doc-sidebar-item-link-level-2 menu__list-item"><a class=menu__link tabindex=0 href=/docs/openvela系统介绍/为何选择openvela><span class=linkLabel_WmDU>为何选择openvela</span></a></ul><li class="theme-doc-sidebar-item-category theme-doc-sidebar-item-category-level-1 menu__list-item"><div class=menu__list-item-collapsible><a class="categoryLink_byQd menu__link menu__link--sublist" href=/docs/category/openvela多任务系统开发><span class=categoryLinkLabel_W154>openvela多任务系统开发</span></a><button aria-label="折叠侧边栏分类 'openvela多任务系统开发'" aria-expanded=true type=button class="clean-btn menu__caret"></button></div><ul class=menu__list><li class="theme-doc-sidebar-item-link theme-doc-sidebar-item-link-level-2 menu__list-item"><a class=menu__link tabindex=0 href=/docs/openvela多任务系统开发/任务、线程、调度><span class=linkLabel_WmDU>任务、线程、调度</span></a><li class="theme-doc-sidebar-item-link theme-doc-sidebar-item-link-level-2 menu__list-item"><a class=menu__link tabindex=0 href=/docs/openvela多任务系统开发/任务与线程上机实验><span class=linkLabel_WmDU>任务与线程上机实验</span></a><li class="theme-doc-sidebar-item-link theme-doc-sidebar-item-link-level-2 menu__list-item"><a class=menu__link tabindex=0 href=/docs/openvela多任务系统开发/openvela多任务系统开发示例><span class=linkLabel_WmDU>openvela多任务系统开发示例</span></a><li class="theme-doc-sidebar-item-link theme-doc-sidebar-item-link-level-2 menu__list-item"><a class=menu__link tabindex=0 href=/docs/openvela多任务系统开发/线程通信、同步、互斥><span class=linkLabel_WmDU>线程通信、同步、互斥</span></a><li class="theme-doc-sidebar-item-link theme-doc-sidebar-item-link-level-2 menu__list-item"><a class=menu__link tabindex=0 href=/docs/openvela多任务系统开发/进程、线程、调度的内部机制><span class=linkLabel_WmDU>进程、线程、调度的内部机制</span></a><li class="theme-doc-sidebar-item-link theme-doc-sidebar-item-link-level-2 menu__list-item"><a class=menu__link tabindex=0 href=/docs/openvela多任务系统开发/通信互斥同步的内部机制><span class=linkLabel_WmDU>通信/互斥/同步的内部机制</span></a></ul><li class="theme-doc-sidebar-item-category theme-doc-sidebar-item-category-level-1 menu__list-item"><div class=menu__list-item-collapsible><a class="categoryLink_byQd menu__link menu__link--sublist" href=/docs/category/openvela驱动程序开发><span class=categoryLinkLabel_W154>openvela驱动程序开发</span></a><button aria-label="折叠侧边栏分类 'openvela驱动程序开发'" aria-expanded=true type=button class="clean-btn menu__caret"></button></div><ul class=menu__list><li class="theme-doc-sidebar-item-link theme-doc-sidebar-item-link-level-2 menu__list-item"><a class=menu__link tabindex=0 href=/docs/openvela驱动程序开发/基本驱动模型><span class=linkLabel_WmDU>基本驱动模型</span></a><li class="theme-doc-sidebar-item-link theme-doc-sidebar-item-link-level-2 menu__list-item"><a class=menu__link tabindex=0 href=/docs/openvela驱动程序开发/I2C驱动开发><span class=linkLabel_WmDU>I2C驱动开发</span></a><li class="theme-doc-sidebar-item-link theme-doc-sidebar-item-link-level-2 menu__list-item"><a class=menu__link tabindex=0 href=/docs/openvela驱动程序开发/SPI驱动开发><span class=linkLabel_WmDU>SPI驱动开发</span></a></ul><li class="theme-doc-sidebar-item-category theme-doc-sidebar-item-category-level-1 menu__list-item"><div class=menu__list-item-collapsible><a class="categoryLink_byQd menu__link menu__link--sublist" href=/docs/category/openvela文件系统><span class=categoryLinkLabel_W154>openvela文件系统</span></a><button aria-label="折叠侧边栏分类 'openvela文件系统'" aria-expanded=true type=button class="clean-btn menu__caret"></button></div><ul class=menu__list><li class="theme-doc-sidebar-item-link theme-doc-sidebar-item-link-level-2 menu__list-item"><a class=menu__link tabindex=0 href=/docs/openvela文件系统/VFS（虚拟文件系统）的使用><span class=linkLabel_WmDU>VFS（虚拟文件系统）的使用</span></a><li class="theme-doc-sidebar-item-link theme-doc-sidebar-item-link-level-2 menu__list-item"><a class=menu__link tabindex=0 href=/docs/openvela文件系统/文件系统内部实现><span class=linkLabel_WmDU>文件系统内部实现</span></a><li class="theme-doc-sidebar-item-link theme-doc-sidebar-item-link-level-2 menu__list-item"><a class=menu__link tabindex=0 href=/docs/openvela文件系统/常见虚拟文件系统><span class=linkLabel_WmDU>常见虚拟文件系统</span></a><li class="theme-doc-sidebar-item-link theme-doc-sidebar-item-link-level-2 menu__list-item"><a class=menu__link tabindex=0 href=/docs/openvela文件系统/真实文件系统><span class=linkLabel_WmDU>真实文件系统</span></a></ul><li class="theme-doc-sidebar-item-category theme-doc-sidebar-item-category-level-1 menu__list-item"><div class=menu__list-item-collapsible><a class="categoryLink_byQd menu__link menu__link--sublist menu__link--active" href=/docs/category/openvela的启动与构建><span class=categoryLinkLabel_W154>openvela的启动与构建</span></a><button aria-label="折叠侧边栏分类 'openvela的启动与构建'" aria-expanded=true type=button class="clean-btn menu__caret"></button></div><ul class=menu__list><li class="theme-doc-sidebar-item-link theme-doc-sidebar-item-link-level-2 menu__list-item"><a class=menu__link tabindex=0 href=/docs/openvela的启动与构建/openvela系统启动流程><span class=linkLabel_WmDU>openvela系统启动流程</span></a><li class="theme-doc-sidebar-item-link theme-doc-sidebar-item-link-level-2 menu__list-item"><a class="menu__link menu__link--active" aria-current=page tabindex=0 href=/docs/openvela的启动与构建/构建脚本的基础知识><span class=linkLabel_WmDU>构建脚本的基础知识</span></a><li class="theme-doc-sidebar-item-link theme-doc-sidebar-item-link-level-2 menu__list-item"><a class=menu__link tabindex=0 href=/docs/openvela的启动与构建/openvela系统构建脚本解析><span class=linkLabel_WmDU>openvela系统构建脚本解析</span></a></ul><li class="theme-doc-sidebar-item-category theme-doc-sidebar-item-category-level-1 menu__list-item"><div class=menu__list-item-collapsible><a class="categoryLink_byQd menu__link menu__link--sublist" href=/docs/category/跨核通信><span class=categoryLinkLabel_W154>跨核通信</span></a><button aria-label="折叠侧边栏分类 '跨核通信'" aria-expanded=true type=button class="clean-btn menu__caret"></button></div><ul class=menu__list><li class="theme-doc-sidebar-item-link theme-doc-sidebar-item-link-level-2 menu__list-item"><a class=menu__link tabindex=0 href=/docs/跨核通信/跨核通信的方法><span class=linkLabel_WmDU>跨核通信的方法</span></a><li class="theme-doc-sidebar-item-link theme-doc-sidebar-item-link-level-2 menu__list-item"><a class=menu__link tabindex=0 href=/docs/跨核通信/RPMSG（远程处理器消息传递）><span class=linkLabel_WmDU>RPMSG（远程处理器消息传递）</span></a><li class="theme-doc-sidebar-item-link theme-doc-sidebar-item-link-level-2 menu__list-item"><a class=menu__link tabindex=0 href=/docs/跨核通信/基于VirtIO的跨核通信><span class=linkLabel_WmDU>基于VirtIO的跨核通信</span></a></ul><li class="theme-doc-sidebar-item-category theme-doc-sidebar-item-category-level-1 menu__list-item"><div class=menu__list-item-collapsible><a class="categoryLink_byQd menu__link menu__link--sublist" href=/docs/category/openvela调试技术><span class=categoryLinkLabel_W154>openvela调试技术</span></a><button aria-label="折叠侧边栏分类 'openvela调试技术'" aria-expanded=true type=button class="clean-btn menu__caret"></button></div><ul class=menu__list><li class="theme-doc-sidebar-item-link theme-doc-sidebar-item-link-level-2 menu__list-item"><a class=menu__link tabindex=0 href=/docs/openvela调试技术/nsh中的工具><span class=linkLabel_WmDU>nsh中的工具</span></a><li class="theme-doc-sidebar-item-link theme-doc-sidebar-item-link-level-2 menu__list-item"><a class=menu__link tabindex=0 href=/docs/openvela调试技术/ARM架构简明教程><span class=linkLabel_WmDU>ARM架构简明教程</span></a><li class="theme-doc-sidebar-item-link theme-doc-sidebar-item-link-level-2 menu__list-item"><a class=menu__link tabindex=0 href=/docs/openvela调试技术/openvela高级调试技术><span class=linkLabel_WmDU>openvela高级调试技术</span></a></ul><li class="theme-doc-sidebar-item-category theme-doc-sidebar-item-category-level-1 menu__list-item"><div class=menu__list-item-collapsible><a class="categoryLink_byQd menu__link menu__link--sublist" href=/docs/category/项目实战><span class=categoryLinkLabel_W154>项目实战</span></a><button aria-label="折叠侧边栏分类 '项目实战'" aria-expanded=true type=button class="clean-btn menu__caret"></button></div><ul class=menu__list><li class="theme-doc-sidebar-item-link theme-doc-sidebar-item-link-level-2 menu__list-item"><a class=menu__link tabindex=0 href=/docs/项目实战/AI聊天机器人程序框架><span class=linkLabel_WmDU>AI聊天机器人程序框架</span></a><li class="theme-doc-sidebar-item-link theme-doc-sidebar-item-link-level-2 menu__list-item"><a class=menu__link tabindex=0 href=/docs/项目实战/语音功能开发><span class=linkLabel_WmDU>语音功能开发</span></a><li class="theme-doc-sidebar-item-link theme-doc-sidebar-item-link-level-2 menu__list-item"><a class=menu__link tabindex=0 href=/docs/项目实战/控制中心功能开发><span class=linkLabel_WmDU>控制中心功能开发</span></a><li class="theme-doc-sidebar-item-link theme-doc-sidebar-item-link-level-2 menu__list-item"><a class=menu__link tabindex=0 href=/docs/项目实战/GUI开发><span class=linkLabel_WmDU>GUI开发</span></a><li class="theme-doc-sidebar-item-link theme-doc-sidebar-item-link-level-2 menu__list-item"><a class=menu__link tabindex=0 href=/docs/项目实战/系统集成><span class=linkLabel_WmDU>系统集成</span></a></ul></ul></nav><button type=button title=收起侧边栏 aria-label=收起侧边栏 class="button button--secondary button--outline collapseSidebarButton_PEFL"><svg width=20 height=20 aria-hidden=true class=collapseSidebarButtonIcon_kv0_><g fill=#7a7a7a><path d="M9.992 10.023c0 .2-.062.399-.172.547l-4.996 7.492a.982.982 0 01-.828.454H1c-.55 0-1-.453-1-1 0-.2.059-.403.168-.551l4.629-6.942L.168 3.078A.939.939 0 010 2.528c0-.548.45-.997 1-.997h2.996c.352 0 .649.18.828.45L9.82 9.472c.11.148.172.347.172.55zm0 0"/><path d="M19.98 10.023c0 .2-.058.399-.168.547l-4.996 7.492a.987.987 0 01-.828.454h-3c-.547 0-.996-.453-.996-1 0-.2.059-.403.168-.551l4.625-6.942-4.625-6.945a.939.939 0 01-.168-.55 1 1 0 01.996-.997h3c.348 0 .649.18.828.45l4.996 7.492c.11.148.168.347.168.55zm0 0"/></g></svg></button></div></div></aside><main class=docMainContainer_TBSr><div class="container padding-top--md padding-bottom--lg"><div class=row><div class="col docItemCol_VOVn"><div class=docItemContainer_Djhp><article><nav class="theme-doc-breadcrumbs breadcrumbsContainer_Z_bl" aria-label=页面路径><ul class=breadcrumbs><li class=breadcrumbs__item><a aria-label=主页面 class=breadcrumbs__link href=/><svg viewBox="0 0 24 24" class=breadcrumbHomeIcon_YNFT><path d="M10 19v-5h4v5c0 .55.45 1 1 1h3c.55 0 1-.45 1-1v-7h1.7c.46 0 .68-.57.33-.87L12.67 3.6c-.38-.34-.96-.34-1.34 0l-8.36 7.53c-.34.3-.13.87.33.87H5v7c0 .55.45 1 1 1h3c.55 0 1-.45 1-1z" fill=currentColor /></svg></a><li class=breadcrumbs__item><a class=breadcrumbs__link href=/docs/category/openvela的启动与构建><span>openvela的启动与构建</span></a><li class="breadcrumbs__item breadcrumbs__item--active"><span class=breadcrumbs__link>构建脚本的基础知识</span></ul></nav><div class="tocCollapsible_ETCw theme-doc-toc-mobile tocMobile_ITEo"><button type=button class="clean-btn tocCollapsibleButton_TO0P">本页总览</button></div><div class="theme-doc-markdown markdown"><header><h1>构建脚本的基础知识</h1></header><h3 class="anchor anchorTargetStickyNavbar_Vzrq" id=gcc编译过程>GCC编译过程<a href=#gcc编译过程 class=hash-link aria-label=GCC编译过程的直接链接 title=GCC编译过程的直接链接 translate=no>​</a></h3>
+<p>以下内容为了便于操作以GCC为例，对于交叉编译工具链也是一样的。</p>
+<p>一个C/C++文件要经过预处理(preprocessing)、编译(compilation)、汇编(assembly)和链接(linking)等4步才能变成可执行文件。</p>
+<p><img decoding=async loading=lazy src=/assets/images/image130-a792cbd1bbd5c8731f1d69cb1ae4b54a.png width=1478 height=206 class=img_ev3q /></p>
+<p>通过不同的gcc选项可以控制这些过程：</p>
+<p><img decoding=async loading=lazy src=/assets/images/image131-b2679b28524ec176ee0bdc376e2f5568.png width=1346 height=722 class=img_ev3q /></p>
+<p>在日常交流中通常使用“编译”统称这4个步骤，如果不是特指这4个步骤中的某一个，本教程也依惯例使用“编译”这个统称。</p>
+<p>gcc使用示例：</p>
+<p>gcc hello.c // 输出一个名为a.out的可执行程序，然后可以执行./a.out</p>
+<p>gcc -o hello hello.c // 输出名为hello的可执行程序，然后可以执行./hello</p>
+<p>gcc -o hello hello.c -static // 静态链接</p>
+<p>gcc -c -o hello.o hello.c // 先编译(不链接)</p>
+<p>gcc -o hello hello.o // 再链接</p>
+<p>执行“gcc -o hello hello.c -v”时，可以查看到这些步骤：</p>
+<p>cc1 main.c -o /tmp/ccXCx1YG.s</p>
+<p>as -o /tmp/ccZfdaDo.o /tmp/ccXCx1YG.s</p>
+<p>cc1 sub.c -o /tmp/ccXCx1YG.s</p>
+<p>as -o /tmp/ccn8Cjq6.o /tmp/ccXCx1YG.s</p>
+<p>collect2 -o test /tmp/ccZfdaDo.o /tmp/ccn8Cjq6.o ....</p>
+<p>可以手工执行以下命令体验一下：</p>
+<p>gcc -E -o hello.i hello.c</p>
+<p>gcc -S -o hello.s hello.i</p>
+<p>gcc -c -o hello.o hello.s</p>
+<p>gcc -o hello hello.o</p>
+<h4 class="anchor anchorTargetStickyNavbar_Vzrq" id=预处理>预处理<a href=#预处理 class=hash-link aria-label=预处理的直接链接 title=预处理的直接链接 translate=no>​</a></h4>
+<p>C/C++源文件中，以“#”开头的命令被称为预处理命令，如包含命令“#include”、宏定义命令“#define”、条件编译命令“#if”、“#ifdef”等。预处理就是将要包含(include)的文件插入原文件中、将宏定义展开、根据条件编译命令选择要使用的代码，最后将这些东西输出到一个“.i”文件中等待进一步处理。</p>
+<h4 class="anchor anchorTargetStickyNavbar_Vzrq" id=编译>编译<a href=#编译 class=hash-link aria-label=编译的直接链接 title=编译的直接链接 translate=no>​</a></h4>
+<p>编译就是把C/C++代码(比如上述的“.i”文件)“翻译”成汇编代码，所用到的工具为cc1(它的名字就是cc1，x86有自己的cc1命令，ARM板也有自己的cc1命令)。</p>
+<h4 class="anchor anchorTargetStickyNavbar_Vzrq" id=汇编>汇编<a href=#汇编 class=hash-link aria-label=汇编的直接链接 title=汇编的直接链接 translate=no>​</a></h4>
+<p>汇编就是将第二步输出的汇编代码翻译成符合一定格式的机器代码，在Linux系统上一般表现为ELF目标文件(OBJ文件)，用到的工具为as。x86有自己的as命令，ARM版也有自己的as命令，也可能是xxxx-as（比如arm-linux-as）。</p>
+<p>“反汇编”是指将机器代码转换为汇编代码，这在调试程序时常常用到。</p>
+<h4 class="anchor anchorTargetStickyNavbar_Vzrq" id=链接>链接<a href=#链接 class=hash-link aria-label=链接的直接链接 title=链接的直接链接 translate=no>​</a></h4>
+<p>链接就是将上步生成的OBJ文件和系统库的OBJ文件、库文件链接起来，最终生成了可以在特定平台运行的可执行文件，用到的工具为ld或collect2。</p>
+<p>编译程序时，加上-v选项就可以看到这几个步骤。比如：</p>
+<p>gcc -o hello hello.c -v</p>
+<p>可以看到很多输出结果，我们把其中的主要信息摘出来：</p>
+<p>cc1 hello.c -o /tmp/cctETob7.s</p>
+<p>as -o /tmp/ccvv2KbL.o /tmp/cctETob7.s</p>
+<p>collect2 -o hello crt1.o crti.o crtbegin.o /tmp/ccvv2KbL.o crtend.o crtn.o</p>
+<p>以上3个命令分别对应于编译步骤中的预处理+编译、汇编和链接，ld被collect2调用来链接程序。预处理和编译被放在了一个命令（cc1）中进行的，可以把它再次拆分为以下两步：</p>
+<p>cpp -o hello.i hello.c</p>
+<p>cc1 hello.i -o /tmp/cctETob7.s</p>
+<p>我们不需要手工去执行cpp、cc1、collect2等命令，我们直接执行gcc并指定不同的参数就可以了。</p>
+<h3 class="anchor anchorTargetStickyNavbar_Vzrq" id=gcc常用选项>GCC常用选项<a href=#gcc常用选项 class=hash-link aria-label=GCC常用选项的直接链接 title=GCC常用选项的直接链接 translate=no>​</a></h3>
+<p>以下内容为例便于操作以GCC为例，对于交叉编译工具链也是一样的。</p>
+<h4 class="anchor anchorTargetStickyNavbar_Vzrq" id=怎么编译多个文件>怎么编译多个文件<a href=#怎么编译多个文件 class=hash-link aria-label=怎么编译多个文件的直接链接 title=怎么编译多个文件的直接链接 translate=no>​</a></h4>
+<p>① 一起编译、链接：</p>
+<p>gcc -o test main.c sub.c</p>
+<p>② 分开编译，统一链接：</p>
+<p>gcc -c -o main.o main.c</p>
+<p>gcc -c -o sub.o sub.c</p>
+<p>gcc -o test main.o sub.o</p>
+<h4 class="anchor anchorTargetStickyNavbar_Vzrq" id=制作使用动态库>制作、使用动态库<a href=#制作使用动态库 class=hash-link aria-label=制作、使用动态库的直接链接 title=制作、使用动态库的直接链接 translate=no>​</a></h4>
+<p>制作、编译动态库：</p>
+<p>gcc -c -o main.o main.c</p>
+<p>gcc -c -o sub.o sub.c</p>
+<p>gcc -shared -o libsub.so sub.o sub2.o sub3.o(可以使用多个.o生成动态库)</p>
+<p>gcc -o test main.o -lsub -L /libsub.so/所在目录/</p>
+<p>使用动态库时，先把libsub.so放到Ubuntu的/lib目录，然后就可以运行test程序。</p>
+<p>如果不想把libsub.so放到/lib，也可以放在某个目录比如/a，然后如下执行：</p>
+<div class="language-text codeBlockContainer_Ckt0 theme-code-block" style=--prism-color:#393A34;--prism-background-color:#f6f8fa><div class=codeBlockContent_QJqH><pre tabindex=0 class="prism-code language-text codeBlock_bY9V thin-scrollbar" style=color:#393A34;background-color:#f6f8fa><code class=codeBlockLines_e6Vv><div class=token-line style=color:#393A34><span class="token plain">export LD_LIBRARY_PATH=\$LD_LIBRARY_PATH:/a</span><br/></div><div class=token-line style=color:#393A34><span class="token plain" style=display:inline-block></span><br/></div><div class=token-line style=color:#393A34><span class="token plain">./test</span><br/></div><div class=token-line style=color:#393A34><span class="token plain" style=display:inline-block></span><br/></div></code></pre></div></div>
+<h4 class="anchor anchorTargetStickyNavbar_Vzrq" id=制作使用静态库>制作、使用静态库<a href=#制作使用静态库 class=hash-link aria-label=制作、使用静态库的直接链接 title=制作、使用静态库的直接链接 translate=no>​</a></h4>
+<p>gcc -c -o main.o main.c</p>
+<p>gcc -c -o sub.o sub.c</p>
+<p>ar crs libsub.a sub.o sub2.o sub3.o(可以使用多个.o生成静态库)</p>
+<p>gcc -o test main.o libsub.a (如果.a不在当前目录下，需要指定它的绝对或相对路径)</p>
+<p>运行：不需要把静态库libsub.a放到板子上。</p>
+<h4 class="anchor anchorTargetStickyNavbar_Vzrq" id=很有用的选项>很有用的选项<a href=#很有用的选项 class=hash-link aria-label=很有用的选项的直接链接 title=很有用的选项的直接链接 translate=no>​</a></h4>
+<p>gcc -E main.c // 查看预处理结果，比如头文件是哪个</p>
+<p>gcc -E -dM main.c &amp;gt; 1.txt // 把所有的宏展开，存在1.txt里</p>
+<p>gcc -Wp,-MD,abc.dep -c -o main.o main.c // 生成依赖文件abc.dep，后面Makefile会用</p>
+<p>echo 'main(){}'| gcc -E -v - // 它会列出头文件目录、库目录(LIBRARY_PATH)</p>
+<p>下面的资料来自GCC官方文档及一些中文资料，没必要逐一研读，用到时再翻翻。</p>
+<h4 class="anchor anchorTargetStickyNavbar_Vzrq" id=常见的头文件问题>常见的头文件问题<a href=#常见的头文件问题 class=hash-link aria-label=常见的头文件问题的直接链接 title=常见的头文件问题的直接链接 translate=no>​</a></h4>
+<p>编译时找不到头文件。在程序中这样包含头文件：#include &amp;lt;xxx.h&amp;gt;</p>
+<p>对于尖括号里的头文件，去哪里找它？</p>
+<p>系统目录：就是交叉编译工具链里的某个include目录；</p>
+<p>也可以自己指定：编译时用 “ -I dir ”选项指定。</p>
+<p>怎么确定“系统目录”？</p>
+<p>执行下面命令确定目录：</p>
+<div class="language-text codeBlockContainer_Ckt0 theme-code-block" style=--prism-color:#393A34;--prism-background-color:#f6f8fa><div class=codeBlockContent_QJqH><pre tabindex=0 class="prism-code language-text codeBlock_bY9V thin-scrollbar" style=color:#393A34;background-color:#f6f8fa><code class=codeBlockLines_e6Vv><div class=token-line style=color:#393A34><span class="token plain">echo 'main(){}'\| \$CC -E -v -</span><br/></div><div class=token-line style=color:#393A34><span class="token plain" style=display:inline-block></span><br/></div></code></pre></div></div>
+<p>它会列出头文件目录、库目录(LIBRARY_PATH)。</p>
+<p>你需要在头文件目录中确定有没有这个文件，或是自己指定头文件目录。</p>
+<h4 class="anchor anchorTargetStickyNavbar_Vzrq" id=常见的库文件问题>常见的库文件问题<a href=#常见的库文件问题 class=hash-link aria-label=常见的库文件问题的直接链接 title=常见的库文件问题的直接链接 translate=no>​</a></h4>
+<p>链接程序时如果有这样的提示：undefined reference to `xxx'，它表示xxx函数未定义。</p>
+<p>那么解决方法有2：</p>
+<p>① 去写出这个函数</p>
+<p>② 或是使用库函数，那需要在链接时指定库</p>
+<p>怎么指定库？想链接libabc.so，那链接时加上：-labc。</p>
+<p>库在哪里？</p>
+<p>① 系统目录：就是交叉编译工具链里的某个lib目录</p>
+<p>② 也可以自己指定：链接时用 “ -L dir ”选项指定</p>
+<p>怎么确定“系统目录”？执行下面命令确定目录：</p>
+<div class="language-text codeBlockContainer_Ckt0 theme-code-block" style=--prism-color:#393A34;--prism-background-color:#f6f8fa><div class=codeBlockContent_QJqH><pre tabindex=0 class="prism-code language-text codeBlock_bY9V thin-scrollbar" style=color:#393A34;background-color:#f6f8fa><code class=codeBlockLines_e6Vv><div class=token-line style=color:#393A34><span class="token plain">echo 'main(){}'\| \$CC -E -v -</span><br/></div><div class=token-line style=color:#393A34><span class="token plain" style=display:inline-block></span><br/></div></code></pre></div></div>
+<p>它会列出头文件目录、库目录(LIBRARY_PATH)，你编译出库文件时，可以把它放入系统库目录。</p>
+<h3 class="anchor anchorTargetStickyNavbar_Vzrq" id=makefile的使用>Makefile的使用<a href=#makefile的使用 class=hash-link aria-label=Makefile的使用的直接链接 title=Makefile的使用的直接链接 translate=no>​</a></h3>
+<h4 class="anchor anchorTargetStickyNavbar_Vzrq" id=makefile规则>Makefile规则<a href=#makefile规则 class=hash-link aria-label=Makefile规则的直接链接 title=Makefile规则的直接链接 translate=no>​</a></h4>
+<p>一个简单的Makefile文件包含一系列的“规则”，其样式如下：</p>
+<p>目标(target)…: 依赖(prerequiries)…</p>
+<p>&amp;lt;tab&amp;gt;命令(command)</p>
+<p>目标(target)通常是要生成的文件的名称，可以是可执行文件或OBJ文件，也可以是一个执行的动作名称，诸如`clean’。</p>
+<p>依赖是用来产生目标的材料(比如源文件)，一个目标经常有几个依赖。</p>
+<p>命令是生成目标时执行的动作，一个规则可以含有几个命令，每个命令占一行。</p>
+<div class="language-text codeBlockContainer_Ckt0 theme-code-block" style=--prism-color:#393A34;--prism-background-color:#f6f8fa><div class=codeBlockContent_QJqH><pre tabindex=0 class="prism-code language-text codeBlock_bY9V thin-scrollbar" style=color:#393A34;background-color:#f6f8fa><code class=codeBlockLines_e6Vv><div class=token-line style=color:#393A34><span class="token plain">**注意**：每个命令行前面必须是一个Tab字符，即命令行第一个字符是Tab。这是容易出错的地方。</span><br/></div><div class=token-line style=color:#393A34><span class="token plain" style=display:inline-block></span><br/></div></code></pre></div></div>
+<p>通常，如果一个依赖发生了变化，就需要规则调用命令以更新或创建目标。但是并非所有的目标都有依赖，例如，目标“clean”的作用是清除文件，它没有依赖。</p>
+<p>规则一般是用于解释怎样和何时重建目标。make首先调用命令处理依赖，进而才能创建或更新目标。当然，一个规则也可以是用于解释怎样和何时执行一个动作，即打印提示信息。</p>
+<p>一个Makefile文件可以包含规则以外的其他文本，但一个简单的Makefile文件仅仅需要包含规则。虽然真正的规则比这里展示的例子复杂，但格式是完全一样的。</p>
+<p>对于上面的Makefile，执行“<strong>make</strong>”命令时，仅当hello.c文件比hello文件新，才会执行命令“<strong>arm-linux-gcc –o hello hello.c</strong>”生成可执行文件hello；如果还没有hello文件，这个命令也会执行。</p>
+<p>运行“<strong>make clean</strong>”时，由于目标clean没有依赖，它的命令“<strong>rm -f hello</strong>”将被强制执行。</p>
+<h4 class="anchor anchorTargetStickyNavbar_Vzrq" id=makefile变量与赋值>Makefile变量与赋值<a href=#makefile变量与赋值 class=hash-link aria-label=Makefile变量与赋值的直接链接 title=Makefile变量与赋值的直接链接 translate=no>​</a></h4>
+<p>变量的定义语法形式如下：</p>
+<p>> immediate = deferred
+>
+> immediate ?= deferred
+>
+> immediate := immediate
+>
+> immediate += deferred or immediate
+>
+> define immediate
+>
+> deferred
+>
+> endef</p>
+<p>在GNU make中对变量的赋值有两种方式：延时变量、立即变量。区别在于它们的定义方式和扩展时的方式不同，前者在这个变量使用时才扩展开，意即当真正使用时这个变量的值才确定；后者在定义时它的值就已经确定了。使用`=’，`?=’定义或使用define指令定义的变量是延时变量；使用`:=’定义的变量是立即变量。需要注意的一点是，`?=’仅仅在变量还没有定义的情况下有效，即`?=’被用来定义第一次出现的延时变量。</p>
+<p>对于附加操作符`+=’，右边变量如果在前面使用（:=）定义为立即变量则它也是立即变量，否则均为延时变量。</p>
+<h3 class="anchor anchorTargetStickyNavbar_Vzrq" id=makefile常用函数>Makefile常用函数<a href=#makefile常用函数 class=hash-link aria-label=Makefile常用函数的直接链接 title=Makefile常用函数的直接链接 translate=no>​</a></h3>
+<p>函数调用的格式如下：</p>
+<p>$(function arguments)</p>
+<p>这里`function’是函数名，`arguments’是该函数的参数。参数和函数名之间是用空格或Tab隔开，如果有多个参数，它们之间用逗号隔开。这些空格和逗号不是参数值的一部分。内核的Makefile中用到大量的函数，现在介绍一些常用的。</p>
+<h4 class="anchor anchorTargetStickyNavbar_Vzrq" id=字符串替换和分析函数>字符串替换和分析函数<a href=#字符串替换和分析函数 class=hash-link aria-label=字符串替换和分析函数的直接链接 title=字符串替换和分析函数的直接链接 translate=no>​</a></h4>
+<p>① $(subst from,to,text)</p>
+<p>在文本`text’中使用`to’替换每一处`from’。</p>
+<p>比如：$(subst ee,EE,feet on the street)</p>
+<p>结果为‘<strong>fEEt on the strEEt</strong>’。</p>
+<p>② $(patsubst pattern,replacement,text)</p>
+<p>寻找`text’中符合格式`pattern’的字，用`replacement’替换它们。`pattern’和`replacement’中可以使用通配符。</p>
+<p>比如：$(patsubst %.c,%.o,x.c.c bar.c)</p>
+<p>结果为：`<strong>x.c.o bar.o</strong>’。</p>
+<p>③ $(strip string)</p>
+<p>去掉前导和结尾空格，并将中间的多个空格压缩为单个空格。</p>
+<p>比如：$(strip a b c )</p>
+<p>结果为`<strong>a b c</strong>’。</p>
+<p>④ $(findstring find,in)</p>
+<p>在字符串`in’中搜寻`find’，如果找到，则返回值是`find’，否则返回值为空。</p>
+<p>比如：</p>
+<p>$(findstring a,a b c)</p>
+<p>$(findstring a,b c)</p>
+<p>将分别产生值`a’和`’(空字符串)。</p>
+<p>⑥ $(filter pattern...,text)</p>
+<p>返回在`text’中由空格隔开且匹配格式`pattern...’的字，去除不符合格式`pattern...’的字。</p>
+<p>比如：$(filter %.c %.s,foo.c bar.c baz.s ugh.h)</p>
+<p>结果为`<strong>foo.c bar.c baz.s</strong>’。</p>
+<p>⑦ $(filter-out pattern...,text)</p>
+<p>返回在`text’中由空格隔开且不匹配格式`pattern...’的字，去除符合格式`pattern...’的字。它是函数filter的反函数。</p>
+<p>比如：$(filter %.c %.s,foo.c bar.c baz.s ugh.h)</p>
+<p>结果为‘<strong>ugh.h</strong>’。</p>
+<p>⑧ $(sort list)</p>
+<p>将‘list’中的字按字母顺序排序，并去掉重复的字。输出由单个空格隔开的字的列表。</p>
+<p>比如：$(sort foo bar lose)</p>
+<p>返回值是‘<strong>bar foo lose</strong>’。</p>
+<h4 class="anchor anchorTargetStickyNavbar_Vzrq" id=文件名函数>文件名函数<a href=#文件名函数 class=hash-link aria-label=文件名函数的直接链接 title=文件名函数的直接链接 translate=no>​</a></h4>
+<p>① $(dir names...)</p>
+<p>抽取‘names...’中每一个文件名的路径部分，文件名的路径部分包括从文件名的首字符到最后一个斜杠(含斜杠)之前的一切字符。</p>
+<p>比如：$(dir src/foo.c hacks)</p>
+<p>结果为‘<strong>src/ ./</strong>’。</p>
+<p>② $(notdir names...)</p>
+<p>抽取‘names...’中每一个文件名中除路径部分外一切字符（真正的文件名）。</p>
+<p>比如：$(notdir src/foo.c hacks)</p>
+<p>结果为‘<strong>foo.c hacks</strong>’。</p>
+<p>③ $(suffix names...)</p>
+<p>抽取‘names...’中每一个文件名的后缀。</p>
+<p>比如：$(suffix src/foo.c src-1.0/bar.c hacks)</p>
+<p>结果为‘<strong>.c .c</strong>’。</p>
+<p>④ $(basename names...)</p>
+<p>抽取‘names...’中每一个文件名中除后缀外一切字符。</p>
+<p>比如：$(basename src/foo.c src-1.0/bar hacks)</p>
+<p>结果为‘<strong>src/foo src-1.0/bar hacks</strong>’。</p>
+<p>⑤ $(addsuffix suffix,names...)</p>
+<p>参数‘names...’是一系列的文件名，文件名之间用空格隔开；suffix是一个后缀名。将suffix(后缀)的值附加在每一个独立文件名的后面，完成后将文件名串联起来，它们之间用单个空格隔开。</p>
+<p>比如：$(addsuffix .c,foo bar)</p>
+<p>结果为‘<strong>foo.c bar.c</strong>’。</p>
+<p>⑥ $(addprefix prefix,names...)</p>
+<p>参数‘names’是一系列的文件名，文件名之间用空格隔开；prefix是一个前缀名。将preffix(前缀)的值附加在每一个独立文件名的前面，完成后将文件名串联起来，它们之间用单个空格隔开。</p>
+<p>比如：$(addprefix src/,foo bar)</p>
+<p>结果为‘<strong>src/foo src/bar</strong>’。</p>
+<p>⑦ $(wildcard pattern)</p>
+<p>参数‘pattern’是一个文件名格式，包含有通配符(通配符和shell中的用法一样)。函数wildcard的结果是一列和格式匹配的且真实存在的文件的名称，文件名之间用一个空格隔开。</p>
+<p>比如若当前目录下有文件1.c、2.c、1.h、2.h，则：</p>
+<p>> c_src := $(wildcard *.c)</p>
+<p>结果为‘<strong>1.c 2.c</strong>’。</p>
+<h4 class="anchor anchorTargetStickyNavbar_Vzrq" id=其他函数>其他函数<a href=#其他函数 class=hash-link aria-label=其他函数的直接链接 title=其他函数的直接链接 translate=no>​</a></h4>
+<p>① $(foreach var,list,text)</p>
+<p>前两个参数，‘var’和‘list’将首先扩展，注意最后一个参数‘text’此时不扩展；接着，‘list’扩展所得的每个字，都赋给‘var’变量；然后‘text’引用该变量进行扩展，因此‘text’每次扩展都不相同。</p>
+<p>函数的结果是由空格隔开的‘text’ 在‘list’中多次扩展后，得到的新‘list’，就是说：‘text’多次扩展的字串联起来，字与字之间由空格隔开，如此就产生了函数foreach的返回值。</p>
+<p>下面是一个简单的例子，将变量‘files’的值设置为 ‘dirs’中的所有目录下的所有文件的列表：</p>
+<p>> dirs := a b c d
+>
+> files := $(foreach dir,$(dirs),$(wildcard $(dir)/*))</p>
+<p>这里‘text’是‘$(wildcard $(dir)/*)’，它的扩展过程如下：</p>
+<p>a. 第一个赋给变量dir的值是`a’，扩展结果为‘$(wildcard a/*)’；</p>
+<p>b. 第二个赋给变量dir的值是`b’，扩展结果为‘$(wildcard b/*)’；</p>
+<p>c. 第三个赋给变量dir的值是`c’，扩展结果为‘$(wildcard c/*)’；</p>
+<p>如此继续扩展。</p>
+<p>这个例子和下面的例有共同的结果：</p>
+<p>> files := $(wildcard a/* b/* c/* d/*)</p>
+<p>② $(if condition,then-part[,else-part])</p>
+<p>首先把第一个参数‘condition’的前导空格、结尾空格去掉，然后扩展。如果扩展为非空字符串，则条件‘condition’为‘真’；如果扩展为空字符串，则条件‘condition’为‘假’。</p>
+<p>如果条件‘condition’为‘真’,那么计算第二个参数‘then-part’的值，并将该值作为整个函数if的值。</p>
+<p>如果条件‘condition’为‘假’,并且第三个参数存在，则计算第三个参数‘else-part’的值，并将该值作为整个函数if的值；如果第三个参数不存在，函数if将什么也不计算，返回空值。</p>
+<div class="language-text codeBlockContainer_Ckt0 theme-code-block" style=--prism-color:#393A34;--prism-background-color:#f6f8fa><div class=codeBlockContent_QJqH><pre tabindex=0 class="prism-code language-text codeBlock_bY9V thin-scrollbar" style=color:#393A34;background-color:#f6f8fa><code class=codeBlockLines_e6Vv><div class=token-line style=color:#393A34><span class="token plain">**注意：**仅能计算‘then-part’和‘else-part’二者之一，不能同时计算。这样有可能产生副作用（例如函数shell的调用）。</span><br/></div><div class=token-line style=color:#393A34><span class="token plain" style=display:inline-block></span><br/></div></code></pre></div></div>
+<p>③ $(origin variable)</p>
+<p>变量‘variable’是一个查询变量的名称，不是对该变量的引用。所以，不能采用‘$’和圆括号的格式书写该变量，当然，如果需要使用非常量的文件名，可以在文件名中使用变量引用。</p>
+<p>函数origin的结果是一个字符串，该字符串变量是这样定义的：</p>
+<p>> ‘undefined' ：如果变量‘variable’从没有定义；
+>
+> ‘default' ：变量‘variable’是缺省定义；
+>
+> ‘environment' ：变量‘variable’作为环境变量定义，选项‘-e’没有打开；
+>
+> ‘environment override' ：变量‘variable’作为环境变量定义，选项‘-e’已打开；
+>
+> ‘file' ：变量‘variable’在Makefile中定义；
+>
+> ‘command line' ：变量‘variable’在命令行中定义；
+>
+> ‘override' ：变量‘variable’在Makefile中用override指令定义；
+>
+> ‘automatic' ：变量‘variable’是自动变量</p>
+<p>④ $(shell command arguments)</p>
+<p>函数shell是make与外部环境的通讯工具。函数shell的执行结果和在控制台上执行‘command arguments’的结果相似。不过如果‘command arguments’的结果含有换行符（和回车符），则在函数shell的返回结果中将把它们处理为单个空格，若返回结果最后是换行符（和回车符）则被去掉。</p>
+<p>比如当前目录下有文件1.c、2.c、1.h、2.h，则：</p>
+<p>> c_src := $(shell ls *.c)</p>
+<p>结果为‘<strong>1.c 2.c</strong>’。</p>
+<p>《Makefile介绍》这小节可以在阅读内核、bootloader、应用程序的Makefile文件时，作为手册来查询。下面以options程序的Makefile作为例子进行演示，Makefile的内容如下：</p>
+<p>> File: Makefile
+>
+> 01 src := $(shell ls *.c)
+>
+> 02 objs := $(patsubst %.c,%.o,$(src))
+>
+> 03
+>
+> 04 test: $(objs)
+>
+> 05 gcc -o $@ $^
+>
+> 06
+>
+> 07 %.o:%.c
+>
+> 08 gcc -c -o $@ $&amp;lt;
+>
+> 09
+>
+> 10 clean:
+>
+> 11 rm -f test *.o</p>
+<p>上述Makefile中$@、$^、$&amp;lt;称为自动变量。$@表示规则的目标文件名；$^表示所有依赖的名字，名字之间用空格隔开；$&amp;lt;表示第一个依赖的文件名。‘%’是通配符，它和一个字符串中任意个数的字符相匹配。</p>
+<p>options目录下所有的文件为main.c，Makefile，sub.c和sub.h，下面一行行地分析：</p>
+<p>第1行src变量的值为‘main.c sub.c’。</p>
+<p>第2行objs变量的值为‘main.o sub.o’，是src变量经过patsubst函数处理后得到的。</p>
+<p>第4行实际上就是：</p>
+<p>test : main.o sub.o</p>
+<p>目标test的依赖有二：main.o和sub.o。开始时这两个文件还没有生成，在执行生成test的命令之前先将main.o、sub.o作为目标查找到合适的规则，以生成main.o、sub.o。</p>
+<p>第7、8行就是用来生成main.o、sub.o的规则：</p>
+<p>对于main.o这个规则就是：</p>
+<p>> main.o<!-- -->:main<!-- -->.c
+>
+> gcc -c -o main.o main.c</p>
+<p>对于sub.o这个规则就是：</p>
+<p>> sub.o<!-- -->:sub<!-- -->.c
+>
+> gcc -c -o sub.o sub.c</p>
+<p>这样，test的依赖main.o和sub.o就生成了。</p>
+<p>第5行的命令在生成main.o、sub.o后得以执行。</p>
+<p>在options目录下第一次执行make命令可以看到如下信息：</p>
+<p>> gcc -c -o main.o main.c
+>
+> gcc -c -o sub.o sub.c
+>
+> gcc -o test main.o sub.o</p>
+<p>然后修改sub.c文件，再次执行make命令，可以看到如下信息：</p>
+<p>> gcc -c -o sub.o sub.c
+>
+> gcc -o test main.o sub.o</p>
+<p>可见，只编译了更新过的sub.c文件，对main.c文件不用再次编译，节省了编译的时间。</p>
+<h3 class="anchor anchorTargetStickyNavbar_Vzrq" id=kconfig介绍>Kconfig介绍<a href=#kconfig介绍 class=hash-link aria-label=Kconfig介绍的直接链接 title=Kconfig介绍的直接链接 translate=no>​</a></h3>
+<p>参考文档：任一个Linux内核的Documentation\kbuild\kconfig-language.rst</p>
+<p>对于各类内核，只要支持menuconfig配置界面，都是使用Kconfig。在配置界面中，可以选择、设置选项，这些设置会保存在.config文件里。编译脚本会包含“.config”，根据里面的值决定编译哪些文件、怎么编译文件。“.config”文件也会被转换为头文件，C程序可以从头文件中获得配置信息。</p>
+<p>本节使用一个“test_kconfig”工程来讲解，对于openvela，可以执行“m menuconfig”进行操作。</p>
+<h4 class="anchor anchorTargetStickyNavbar_Vzrq" id=配置界面示例>配置界面示例<a href=#配置界面示例 class=hash-link aria-label=配置界面示例的直接链接 title=配置界面示例的直接链接 translate=no>​</a></h4>
+<p>执行“m menuconfig”命令，可以得到如下配置界面：</p>
+<p><img decoding=async loading=lazy src=/assets/images/image132-6cd873a775969626bdaea29bb6527b2e.png width=755 height=255 class=img_ev3q /></p>
+<p>问题：</p>
+<ul>
+<li class="">
+<p>这个界面里，各个配置项来自哪里</p>
+</li>
+<li class="">
+<p>这个界面里，这些配置项是怎么组织的</p>
+</li>
+<li class="">
+<p>这个界面里，我们的选择、设置，结果保存在哪里</p>
+</li>
+<li class="">
+<p>这些配置结果，怎么使用</p>
+</li>
+</ul>
+<h4 class="anchor anchorTargetStickyNavbar_Vzrq" id=配置结果的保存>配置结果的保存<a href=#配置结果的保存 class=hash-link aria-label=配置结果的保存的直接链接 title=配置结果的保存的直接链接 translate=no>​</a></h4>
+<p>在配置界面中操作的结果保存在.config文件中，示例如下：</p>
+<p>> #
+></p>
+<div class="language-text codeBlockContainer_Ckt0 theme-code-block" style=--prism-color:#393A34;--prism-background-color:#f6f8fa><div class=codeBlockContent_QJqH><pre tabindex=0 class="prism-code language-text codeBlock_bY9V thin-scrollbar" style=color:#393A34;background-color:#f6f8fa><code class=codeBlockLines_e6Vv><div class=token-line style=color:#393A34><span class="token plain">> \# Automatically generated file; DO NOT EDIT.</span><br/></div></code></pre></div></div>
+<p>>
+> # Configuration
+>
+> #
+>
+> #
+>
+> # test menu
+>
+> #
+>
+> CONFIG_TEST_A=y
+>
+> CONFIG_TEST_B=y
+>
+> CONFIG_TEST_C=y
+>
+> # CONFIG_TEST_D is not set
+>
+> # CONFIG_TEST_MENUCONFIG is not set</p>
+<p>内核的编译脚本会包含.config文件，它会根据里面的变量选择内核特性。</p>
+<ul>
+<li class=""></li>
+</ul>
+<h4 class="anchor anchorTargetStickyNavbar_Vzrq" id=描述单个配置项config>描述单个配置项config<a href=#描述单个配置项config class=hash-link aria-label=描述单个配置项config的直接链接 title=描述单个配置项config的直接链接 translate=no>​</a></h4>
+<p>在<code>menuconfig</code>界面，可以看到这个配置项：</p>
+<p><img decoding=async loading=lazy src=/assets/images/image133-2f6288e21b94d6bbe93703a632d912c4.png width=652 height=272 class=img_ev3q /></p>
+<p>在配置界面，使用方向箭头游走到“TEST E”后，可以：</p>
+<ul>
+<li class="">
+<p>输入Y，选择配置项，在.config中对应“CONFIG_TEST_E=y”</p>
+</li>
+<li class="">
+<p>输入N，不选择配置项，在.config中对应“# CONFIG_TEST_E is not set”</p>
+</li>
+</ul>
+<p>上图中的配置项怎么实现的？在Kconfig文件中，它对应下列代码：</p>
+<p><img decoding=async loading=lazy src=/assets/images/image134-d5093b8590376b7dffbc412ec8471e42.png width=689 height=113 class=img_ev3q /></p>
+<p>上面是一个精简的例子，完整的例子可以从Linux中获得，如下：</p>
+<p>> config SGI_SNSC<br/>
+<!-- -->> bool "SGI Altix system controller communication support"<br/>
+<!-- -->> depends on (IA64_SGI_SN2 || IA64_GENERIC)<br/>
+<!-- -->> default y<br/>
+<!-- -->> help<br/>
+<!-- -->> If you have an SGI Altix and you want to enable system<br/>
+<!-- -->> controller communication from user space (you want this!),<br/>
+<!-- -->> say Y. Otherwise, say N.</p>
+<p>解释如下：</p>
+<ul>
+<li class="">
+<p>config<br/>
+<!-- -->表示config option，这是Kconfig的基本entry；其他entry是用来管理config的。<br/>
+<!-- -->config 表示一个配置选项的开始，紧跟着的 SGI_SNSC 是配置选项的名称。<br/>
+<!-- -->config 下面几行定义了该配置选项的属性。<br/>
+<!-- -->属性可以是该配置选项的：类型、输入提示、依赖关系、默认值、帮助信息。</p>
+</li>
+<li class="">
+<p>bool 表示配置选项的类型，每个 config 菜单项都要有类型定义，变量有5种类型</p>
+</li>
+</ul>
+<p>> bool 布尔类型
+>
+> tristate 三态类型
+>
+> string 字符串
+>
+> hex 十六进制
+>
+> int 整型</p>
+<p>"SGI Altix system controller communication support"：提示信息</p>
+<ul>
+<li class="">
+<p>depends on：表示依赖关系，只有(IA64SGISN2 || IA64GENERIC)被选中，才可以选择SGISNSC</p>
+</li>
+<li class="">
+<p>select XXX：表示反向依赖关系，即当前配置选项被选中后，XXX选项就会被选中。</p>
+</li>
+<li class="">
+<p>default 表示配置选项的默认值，bool 类型的默认值可以是 y/n。</p>
+</li>
+<li class="">
+<p>help 帮助信息，在menuconfig界面输入H键时，就会提示帮助信息。</p>
+</li>
+</ul>
+<h4 class="anchor anchorTargetStickyNavbar_Vzrq" id=实现菜单menuendmenu>实现菜单menu/endmenu<a href=#实现菜单menuendmenu class=hash-link aria-label=实现菜单menu/endmenu的直接链接 title=实现菜单menu/endmenu的直接链接 translate=no>​</a></h4>
+<p>代码如下：</p>
+<p>> menu "test menu"
+>
+> config TEST_A
+>
+> bool "TEST A"
+>
+> default y
+>
+> config TEST_B
+>
+> bool "TEST B"
+>
+> default y
+>
+> endmenu</p>
+<p>界面<code>如下</code>：</p>
+<p><img decoding=async loading=lazy src="data:image/png;base64,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" width=591 height=131 class=img_ev3q /></p>
+<p><code>语法``解释如下：</code></p>
+<ul>
+<li class="">
+<p>menu <code>"xxx"表示一个菜单，菜单名是"xxx"</code></p>
+</li>
+<li class="">
+<p>menu<code>和endmenu之间的entry都是"xxx"菜单的选项</code></p>
+</li>
+<li class="">
+<p><code>在上面的例子中子菜单有``2``个选项：</code></p>
+</li>
+</ul>
+<p>> "TEST A"
+>
+> "TEST B"</p>
+<ul>
+<li class=""></li>
+</ul>
+<h4 class="anchor anchorTargetStickyNavbar_Vzrq" id=实现单选choiceendchoice>实现单选choice/endchoice<a href=#实现单选choiceendchoice class=hash-link aria-label=实现单选choice/endchoice的直接链接 title=实现单选choice/endchoice的直接链接 translate=no>​</a></h4>
+<p>代码如下：</p>
+<p>> choice
+>
+> prompt "test choise"
+>
+> default TEST_C
+>
+> config TEST_C
+>
+> bool "TEST C"
+>
+> default y
+>
+> config TEST_D
+>
+> bool "TEST D"
+>
+> default y
+>
+> endchoice</p>
+<p>界面如下：</p>
+<p><img decoding=async loading=lazy src=/assets/images/image136-ea1e8205be4484d69de9e9f99b381de4.png width=1083 height=192 class=img_ev3q /></p>
+<p>在上述界面中，对于<code>“``test choise``”</code>，有2个选择：</p>
+<p>> TEST C
+>
+> TEST D</p>
+<p>语法解释如下：</p>
+<ul>
+<li class="">
+<p>choice表示"选择"</p>
+</li>
+<li class="">
+<p>choice和<code>endchoice</code>之间的entry是可以选择的项目</p>
+</li>
+<li class="">
+<p>它们之间，只能有<code>一个</code>被设置为"y"：表示编进内核</p>
+</li>
+<li class="">
+<p>它们之间，可以设置多个为"m"：表示编译为模块</p>
+</li>
+<li class="">
+<p>比如一个硬件有多个<code>驱动</code>程序：</p>
+</li>
+</ul>
+<p>同一时间只能有一个驱动能编进内核</p>
+<p>但是多个驱动都可以单独编译为模块</p>
+<h4 class="anchor anchorTargetStickyNavbar_Vzrq" id=menuconfig>menuconfig<a href=#menuconfig class=hash-link aria-label=menuconfig的直接链接 title=menuconfig的直接链接 translate=no>​</a></h4>
+<div class="language-text codeBlockContainer_Ckt0 theme-code-block" style=--prism-color:#393A34;--prism-background-color:#f6f8fa><div class=codeBlockContent_QJqH><pre tabindex=0 class="prism-code language-text codeBlock_bY9V thin-scrollbar" style=color:#393A34;background-color:#f6f8fa><code class=codeBlockLines_e6Vv><div class=token-line style=color:#393A34><span class="token plain">menuconfig XXX和config XXX类似，唯一不同的是该选项除了能设置y/m/n外，还可以实现菜单效果(能回车进入该项内部)。</span><br/></div><div class=token-line style=color:#393A34><span class="token plain" style=display:inline-block></span><br/></div></code></pre></div></div>
+<p>示例代码：</p>
+<p>> menuconfig TEST_MENUCONFIG
+>
+> bool "test menuconfig"
+>
+> default n
+>
+> if TEST_MENUCONFIG
+>
+> config TEST_E
+>
+> bool "TEST E"
+>
+> default y
+>
+> config TEST_F
+>
+> bool "TEST F"
+>
+> default y
+>
+> endif</p>
+<p>界面如下：</p>
+<p><img decoding=async loading=lazy src=/assets/images/image137-8a070f4194ceacf50f5cfc82e7c302fc.png width=583 height=199 class=img_ev3q /></p>
+<div class="language-text codeBlockContainer_Ckt0 theme-code-block" style=--prism-color:#393A34;--prism-background-color:#f6f8fa><div class=codeBlockContent_QJqH><pre tabindex=0 class="prism-code language-text codeBlock_bY9V thin-scrollbar" style=color:#393A34;background-color:#f6f8fa><code class=codeBlockLines_e6Vv><div class=token-line style=color:#393A34><span class="token plain">menuconfig常用格式有2种：</span><br/></div><div class=token-line style=color:#393A34><span class="token plain" style=display:inline-block></span><br/></div></code></pre></div></div>
+<p>> menuconfig M<br/>
+<!-- -->> if M<br/>
+<!-- -->> config C1<br/>
+<!-- -->> config C2<br/>
+<!-- -->> endif</p>
+<p>或：</p>
+<p>> menuconfig M<br/>
+<!-- -->> config C1<br/>
+<!-- -->> depends on M<br/>
+<!-- -->> config C2<br/>
+<!-- -->> depends on M</p>
+<p>第1项<code>menuconfig M</code>跟<code>config M</code>语法是一样的，不同之处在于<code>menuocnfig M</code>后面可以跟着好几个依赖于M的<code>config C1</code>、<code>config C2</code>等子配置项。</p>
+<h4 class="anchor anchorTargetStickyNavbar_Vzrq" id=ifendif>if/endif<a href=#ifendif class=hash-link aria-label=if/endif的直接链接 title=if/endif的直接链接 translate=no>​</a></h4>
+<p>在上面的menuconfig中就有<code>if/endif</code>的使用，它的语法如下：</p>
+<p>> "if" &amp;lt;expr&amp;gt;<br/>
+<!-- -->> &amp;lt;if block&amp;gt;<br/>
+<!-- -->> "endif"</p>
+<p>示例如下，只有定义了的TEST_MENUCONFIG项，<code>“``TEST_E``”</code>等才会显示出来：</p>
+<p>> if TEST_MENUCONFIG
+>
+> config TEST_E
+>
+> bool "TEST E"
+>
+> default y
+>
+> config TEST_F
+>
+> bool "TEST F"
+>
+> default y
+>
+> endif</p>
+<h4 class="anchor anchorTargetStickyNavbar_Vzrq" id=source>source<a href=#source class=hash-link aria-label=source的直接链接 title=source的直接链接 translate=no>​</a></h4>
+<div class="language-text codeBlockContainer_Ckt0 theme-code-block" style=--prism-color:#393A34;--prism-background-color:#f6f8fa><div class=codeBlockContent_QJqH><pre tabindex=0 class="prism-code language-text codeBlock_bY9V thin-scrollbar" style=color:#393A34;background-color:#f6f8fa><code class=codeBlockLines_e6Vv><div class=token-line style=color:#393A34><span class="token plain">source 语句用于读取另一个文件中的 Kconfig 文件，比如：</span><br/></div><div class=token-line style=color:#393A34><span class="token plain" style=display:inline-block></span><br/></div></code></pre></div></div>
+<p>> <code>source "``abc``/Kconfig"</code></p>
+<h4 class="anchor anchorTargetStickyNavbar_Vzrq" id=comment>comment<a href=#comment class=hash-link aria-label=comment的直接链接 title=comment的直接链接 translate=no>​</a></h4>
+<p>comment 语句出现在界面的第一行，用于定义一些提示信息，如：</p>
+<p>> <code>comment "abc/ Configurations"</code>
+>
+> <code>source "abc/Kconfig"</code></p>
+<p>界面如下：<br/>
+<img decoding=async loading=lazy src="data:image/png;base64,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" width=428 height=141 class=img_ev3q /></div><footer class="theme-doc-footer docusaurus-mt-lg"><div class="row margin-top--sm theme-doc-footer-edit-meta-row"><div class="col noPrint_WFHX"><a href=https://github.com/100askTeam/openvela-docs/tree/master/docs/06-openvela的启动与构建/03-构建脚本的基础知识.mdx target=_blank rel="noopener noreferrer" class=theme-edit-this-page><svg fill=currentColor height=20 width=20 viewBox="0 0 40 40" class=iconEdit_Z9Sw aria-hidden=true><g><path d="m34.5 11.7l-3 3.1-6.3-6.3 3.1-3q0.5-0.5 1.2-0.5t1.1 0.5l3.9 3.9q0.5 0.4 0.5 1.1t-0.5 1.2z m-29.5 17.1l18.4-18.5 6.3 6.3-18.4 18.4h-6.3v-6.2z"/></g></svg>编辑此页</a></div><div class="col lastUpdated_JAkA"></div></div></footer></article><nav class="docusaurus-mt-lg pagination-nav" aria-label=文件选项卡><a class="pagination-nav__link pagination-nav__link--prev" href=/docs/openvela的启动与构建/openvela系统启动流程><div class=pagination-nav__sublabel>上一页</div><div class=pagination-nav__label>openvela系统启动流程</div></a><a class="pagination-nav__link pagination-nav__link--next" href=/docs/openvela的启动与构建/openvela系统构建脚本解析><div class=pagination-nav__sublabel>下一页</div><div class=pagination-nav__label>openvela系统构建脚本解析</div></a></nav></div></div><div class="col col--3"><div class="tableOfContents_bqdL thin-scrollbar theme-doc-toc-desktop"><ul class="table-of-contents table-of-contents__left-border"><li><a href=#gcc编译过程 class="table-of-contents__link toc-highlight">GCC编译过程</a><li><a href=#gcc常用选项 class="table-of-contents__link toc-highlight">GCC常用选项</a><li><a href=#makefile的使用 class="table-of-contents__link toc-highlight">Makefile的使用</a><li><a href=#makefile常用函数 class="table-of-contents__link toc-highlight">Makefile常用函数</a><li><a href=#kconfig介绍 class="table-of-contents__link toc-highlight">Kconfig介绍</a></ul></div></div></div></div></main></div></div></div><footer class="theme-layout-footer footer footer--dark"><div class="container container-fluid"><div class="footer__bottom text--center"><div class=footer__copyright>Copyright © 2026 100askTeam, Inc. Built with Docusaurus.</div></div></div></footer></div></body>

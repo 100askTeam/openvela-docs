@@ -1,0 +1,424 @@
+<!doctype html><html lang=zh-Hans dir=ltr class="docs-wrapper plugin-docs plugin-id-default docs-version-current docs-doc-page docs-doc-id-openvela调试技术/nsh中的工具" data-has-hydrated=false><head><meta charset=UTF-8><meta name=generator content="Docusaurus v3.10.2"><title data-rh=true>nsh中的工具 | 东山Π</title><meta data-rh=true name=viewport content="width=device-width, initial-scale=1.0"/><meta data-rh=true name=twitter:card content=summary_large_image /><meta data-rh=true property=og:image content=https://openvela.100ask.org/img/docusaurus-social-card.jpg /><meta data-rh=true name=twitter:image content=https://openvela.100ask.org/img/docusaurus-social-card.jpg /><meta data-rh=true property=og:url content=https://openvela.100ask.org/docs/openvela调试技术/nsh中的工具 /><meta data-rh=true property=og:locale content=zh_Hans /><meta data-rh=true name=docusaurus_locale content=zh-Hans /><meta data-rh=true name=docsearch:language content=zh-Hans /><meta data-rh=true name=docusaurus_version content=current /><meta data-rh=true name=docusaurus_tag content=docs-default-current /><meta data-rh=true name=docsearch:version content=current /><meta data-rh=true name=docsearch:docusaurus_tag content=docs-default-current /><meta data-rh=true property=og:title content="nsh中的工具 | 东山Π"/><meta data-rh=true name=description content=ps命令的使用与内部机制 /><meta data-rh=true property=og:description content=ps命令的使用与内部机制 /><link data-rh=true rel=icon href=/img/favicon.ico /><link data-rh=true rel=canonical href=https://openvela.100ask.org/docs/openvela调试技术/nsh中的工具 /><link data-rh=true rel=alternate href=https://openvela.100ask.org/docs/openvela调试技术/nsh中的工具 hreflang=zh-Hans /><link data-rh=true rel=alternate href=https://openvela.100ask.org/docs/openvela调试技术/nsh中的工具 hreflang=x-default /><script data-rh=true type=application/ld+json>{"@context":"https://schema.org","@type":"BreadcrumbList","itemListElement":[{"@type":"ListItem","item":"https://openvela.100ask.org/docs/category/openvela调试技术","name":"openvela调试技术","position":1},{"@type":"ListItem","item":"https://openvela.100ask.org/docs/openvela调试技术/nsh中的工具","name":"nsh中的工具","position":2}]}</script><link rel=stylesheet href=/assets/css/styles.f22bb743.css /><script src=/assets/js/runtime~main.4ebc8941.js defer></script><script src=/assets/js/main.8ab7730a.js defer></script></head><body><svg style="display: none;"><defs>
+<symbol id=theme-svg-external-link viewBox="0 0 24 24"><path fill=currentColor d="M21 13v10h-21v-19h12v2h-10v15h17v-8h2zm3-12h-10.988l4.035 4-6.977 7.07 2.828 2.828 6.977-7.07 4.125 4.172v-11z"/></symbol>
+</defs></svg>
+<script>!function(){var t=function(){try{return new URLSearchParams(window.location.search).get("docusaurus-theme")}catch(t){}}()||function(){try{return window.localStorage.getItem("theme-48e")}catch(t){}}();document.documentElement.setAttribute("data-theme",t||(window.matchMedia("(prefers-color-scheme: dark)").matches?"dark":"light")),document.documentElement.setAttribute("data-theme-choice",t||"system")}(),function(){try{for(var[t,e]of new URLSearchParams(window.location.search).entries())if(t.startsWith("docusaurus-data-")){var a=t.replace("docusaurus-data-","data-");document.documentElement.setAttribute(a,e)}}catch(t){}}()</script><div id=__docusaurus><link rel=preload as=image href=/img/logo.svg /><div role=region aria-label=跳到主要内容><a class=skipToContent_fXgn href=#__docusaurus_skipToContent_fallback>跳到主要内容</a></div><nav aria-label=主导航 class="theme-layout-navbar navbar navbar--fixed-top"><div class=navbar__inner><div class="theme-layout-navbar-left navbar__items"><button aria-label=切换导航栏 aria-expanded=false class="navbar__toggle clean-btn" type=button><svg width=30 height=30 viewBox="0 0 30 30" aria-hidden=true><path stroke=currentColor stroke-linecap=round stroke-miterlimit=10 stroke-width=2 d="M4 7h22M4 15h22M4 23h22"/></svg></button><a class=navbar__brand href=/><div class=navbar__logo><img src=/img/logo.svg alt=东山PI class="themedComponent_mlkZ themedComponent--light_NVdE"/><img src=/img/logo.svg alt=东山PI class="themedComponent_mlkZ themedComponent--dark_xIcU"/></div><b class="navbar__title text--truncate">东山Π</b></a><a class="navbar__item navbar__link" href=/docs/openvela开发环境搭建与体验/课程介绍与资料下载>文档</a></div><div class="theme-layout-navbar-right navbar__items navbar__items--right"><a href=https://github.com/100askTeam/openvela-docs target=_blank rel="noopener noreferrer" class="navbar__item navbar__link">GitHub<svg width=13.5 height=13.5 aria-label="(opens in new tab)" class=iconExternalLink_nPIU><use href=#theme-svg-external-link /></svg></a><div class="toggle_vylO colorModeToggle_DEke"><button class="clean-btn toggleButton_gllP toggleButtonDisabled_aARS" type=button disabled title="system mode" aria-label="切换浅色/暗黑模式（当前为system mode）"><svg viewBox="0 0 24 24" width=24 height=24 aria-hidden=true class="toggleIcon_g3eP lightToggleIcon_pyhR"><path fill=currentColor d="M12,9c1.65,0,3,1.35,3,3s-1.35,3-3,3s-3-1.35-3-3S10.35,9,12,9 M12,7c-2.76,0-5,2.24-5,5s2.24,5,5,5s5-2.24,5-5 S14.76,7,12,7L12,7z M2,13l2,0c0.55,0,1-0.45,1-1s-0.45-1-1-1l-2,0c-0.55,0-1,0.45-1,1S1.45,13,2,13z M20,13l2,0c0.55,0,1-0.45,1-1 s-0.45-1-1-1l-2,0c-0.55,0-1,0.45-1,1S19.45,13,20,13z M11,2v2c0,0.55,0.45,1,1,1s1-0.45,1-1V2c0-0.55-0.45-1-1-1S11,1.45,11,2z M11,20v2c0,0.55,0.45,1,1,1s1-0.45,1-1v-2c0-0.55-0.45-1-1-1C11.45,19,11,19.45,11,20z M5.99,4.58c-0.39-0.39-1.03-0.39-1.41,0 c-0.39,0.39-0.39,1.03,0,1.41l1.06,1.06c0.39,0.39,1.03,0.39,1.41,0s0.39-1.03,0-1.41L5.99,4.58z M18.36,16.95 c-0.39-0.39-1.03-0.39-1.41,0c-0.39,0.39-0.39,1.03,0,1.41l1.06,1.06c0.39,0.39,1.03,0.39,1.41,0c0.39-0.39,0.39-1.03,0-1.41 L18.36,16.95z M19.42,5.99c0.39-0.39,0.39-1.03,0-1.41c-0.39-0.39-1.03-0.39-1.41,0l-1.06,1.06c-0.39,0.39-0.39,1.03,0,1.41 s1.03,0.39,1.41,0L19.42,5.99z M7.05,18.36c0.39-0.39,0.39-1.03,0-1.41c-0.39-0.39-1.03-0.39-1.41,0l-1.06,1.06 c-0.39,0.39-0.39,1.03,0,1.41s1.03,0.39,1.41,0L7.05,18.36z"/></svg><svg viewBox="0 0 24 24" width=24 height=24 aria-hidden=true class="toggleIcon_g3eP darkToggleIcon_wfgR"><path fill=currentColor d="M9.37,5.51C9.19,6.15,9.1,6.82,9.1,7.5c0,4.08,3.32,7.4,7.4,7.4c0.68,0,1.35-0.09,1.99-0.27C17.45,17.19,14.93,19,12,19 c-3.86,0-7-3.14-7-7C5,9.07,6.81,6.55,9.37,5.51z M12,3c-4.97,0-9,4.03-9,9s4.03,9,9,9s9-4.03,9-9c0-0.46-0.04-0.92-0.1-1.36 c-0.98,1.37-2.58,2.26-4.4,2.26c-2.98,0-5.4-2.42-5.4-5.4c0-1.81,0.89-3.42,2.26-4.4C12.92,3.04,12.46,3,12,3L12,3z"/></svg><svg viewBox="0 0 24 24" width=24 height=24 aria-hidden=true class="toggleIcon_g3eP systemToggleIcon_QzmC"><path fill=currentColor d="m12 21c4.971 0 9-4.029 9-9s-4.029-9-9-9-9 4.029-9 9 4.029 9 9 9zm4.95-13.95c1.313 1.313 2.05 3.093 2.05 4.95s-0.738 3.637-2.05 4.95c-1.313 1.313-3.093 2.05-4.95 2.05v-14c1.857 0 3.637 0.737 4.95 2.05z"/></svg></button></div><div class=navbarSearchContainer_Bca1><div class="navbar__search searchBarContainer_NW3z" dir=ltr><input placeholder=搜索 aria-label=Search class="navbar__search-input searchInput_YFbd" value="" /><div class="loadingRing_RJI3 searchBarLoadingRing_YnHq"><div></div><div></div><div></div><div></div></div></div></div></div></div><div role=presentation class=navbar-sidebar__backdrop></div></nav><div id=__docusaurus_skipToContent_fallback class="theme-layout-main main-wrapper mainWrapper_z2l0"><div class=docsWrapper_hBAB><button aria-label=回到顶部 class="clean-btn theme-back-to-top-button backToTopButton_sjWU" type=button></button><div class=docRoot_UBD9><aside class="theme-doc-sidebar-container docSidebarContainer_YfHR"><div class=sidebarViewport_aRkj><div class=sidebar_njMd><nav aria-label=文档侧边栏 class="menu thin-scrollbar menu_SIkG"><ul class="theme-doc-sidebar-menu menu__list"><li class="theme-doc-sidebar-item-category theme-doc-sidebar-item-category-level-1 menu__list-item"><div class=menu__list-item-collapsible><a class="categoryLink_byQd menu__link menu__link--sublist" href=/docs/category/openvela开发环境搭建与体验><span class=categoryLinkLabel_W154>openvela开发环境搭建与体验</span></a><button aria-label="折叠侧边栏分类 'openvela开发环境搭建与体验'" aria-expanded=true type=button class="clean-btn menu__caret"></button></div><ul class=menu__list><li class="theme-doc-sidebar-item-link theme-doc-sidebar-item-link-level-2 menu__list-item"><a class=menu__link tabindex=0 href=/docs/openvela开发环境搭建与体验/课程介绍与资料下载><span class=linkLabel_WmDU>课程介绍与资料下载</span></a><li class="theme-doc-sidebar-item-link theme-doc-sidebar-item-link-level-2 menu__list-item"><a class=menu__link tabindex=0 href=/docs/openvela开发环境搭建与体验/搭建开发环境><span class=linkLabel_WmDU>搭建开发环境</span></a><li class="theme-doc-sidebar-item-link theme-doc-sidebar-item-link-level-2 menu__list-item"><a class=menu__link tabindex=0 href=/docs/openvela开发环境搭建与体验/体验openvela><span class=linkLabel_WmDU>体验openvela</span></a><li class="theme-doc-sidebar-item-link theme-doc-sidebar-item-link-level-2 menu__list-item"><a class=menu__link tabindex=0 href=/docs/openvela开发环境搭建与体验/vscode的设置与使用><span class=linkLabel_WmDU>vscode的设置与使用</span></a></ul><li class="theme-doc-sidebar-item-category theme-doc-sidebar-item-category-level-1 menu__list-item"><div class=menu__list-item-collapsible><a class="categoryLink_byQd menu__link menu__link--sublist" href=/docs/category/openvela系统介绍><span class=categoryLinkLabel_W154>openvela系统介绍</span></a><button aria-label="折叠侧边栏分类 'openvela系统介绍'" aria-expanded=true type=button class="clean-btn menu__caret"></button></div><ul class=menu__list><li class="theme-doc-sidebar-item-link theme-doc-sidebar-item-link-level-2 menu__list-item"><a class=menu__link tabindex=0 href=/docs/openvela系统介绍/裸机程序设计模式与缺陷><span class=linkLabel_WmDU>裸机程序设计模式与缺陷</span></a><li class="theme-doc-sidebar-item-link theme-doc-sidebar-item-link-level-2 menu__list-item"><a class=menu__link tabindex=0 href=/docs/openvela系统介绍/使用RTOS的优势与挑战><span class=linkLabel_WmDU>使用RTOS的优势与挑战</span></a><li class="theme-doc-sidebar-item-link theme-doc-sidebar-item-link-level-2 menu__list-item"><a class=menu__link tabindex=0 href=/docs/openvela系统介绍/为何选择openvela><span class=linkLabel_WmDU>为何选择openvela</span></a></ul><li class="theme-doc-sidebar-item-category theme-doc-sidebar-item-category-level-1 menu__list-item"><div class=menu__list-item-collapsible><a class="categoryLink_byQd menu__link menu__link--sublist" href=/docs/category/openvela多任务系统开发><span class=categoryLinkLabel_W154>openvela多任务系统开发</span></a><button aria-label="折叠侧边栏分类 'openvela多任务系统开发'" aria-expanded=true type=button class="clean-btn menu__caret"></button></div><ul class=menu__list><li class="theme-doc-sidebar-item-link theme-doc-sidebar-item-link-level-2 menu__list-item"><a class=menu__link tabindex=0 href=/docs/openvela多任务系统开发/任务、线程、调度><span class=linkLabel_WmDU>任务、线程、调度</span></a><li class="theme-doc-sidebar-item-link theme-doc-sidebar-item-link-level-2 menu__list-item"><a class=menu__link tabindex=0 href=/docs/openvela多任务系统开发/任务与线程上机实验><span class=linkLabel_WmDU>任务与线程上机实验</span></a><li class="theme-doc-sidebar-item-link theme-doc-sidebar-item-link-level-2 menu__list-item"><a class=menu__link tabindex=0 href=/docs/openvela多任务系统开发/openvela多任务系统开发示例><span class=linkLabel_WmDU>openvela多任务系统开发示例</span></a><li class="theme-doc-sidebar-item-link theme-doc-sidebar-item-link-level-2 menu__list-item"><a class=menu__link tabindex=0 href=/docs/openvela多任务系统开发/线程通信、同步、互斥><span class=linkLabel_WmDU>线程通信、同步、互斥</span></a><li class="theme-doc-sidebar-item-link theme-doc-sidebar-item-link-level-2 menu__list-item"><a class=menu__link tabindex=0 href=/docs/openvela多任务系统开发/进程、线程、调度的内部机制><span class=linkLabel_WmDU>进程、线程、调度的内部机制</span></a><li class="theme-doc-sidebar-item-link theme-doc-sidebar-item-link-level-2 menu__list-item"><a class=menu__link tabindex=0 href=/docs/openvela多任务系统开发/通信互斥同步的内部机制><span class=linkLabel_WmDU>通信/互斥/同步的内部机制</span></a></ul><li class="theme-doc-sidebar-item-category theme-doc-sidebar-item-category-level-1 menu__list-item"><div class=menu__list-item-collapsible><a class="categoryLink_byQd menu__link menu__link--sublist" href=/docs/category/openvela驱动程序开发><span class=categoryLinkLabel_W154>openvela驱动程序开发</span></a><button aria-label="折叠侧边栏分类 'openvela驱动程序开发'" aria-expanded=true type=button class="clean-btn menu__caret"></button></div><ul class=menu__list><li class="theme-doc-sidebar-item-link theme-doc-sidebar-item-link-level-2 menu__list-item"><a class=menu__link tabindex=0 href=/docs/openvela驱动程序开发/基本驱动模型><span class=linkLabel_WmDU>基本驱动模型</span></a><li class="theme-doc-sidebar-item-link theme-doc-sidebar-item-link-level-2 menu__list-item"><a class=menu__link tabindex=0 href=/docs/openvela驱动程序开发/I2C驱动开发><span class=linkLabel_WmDU>I2C驱动开发</span></a><li class="theme-doc-sidebar-item-link theme-doc-sidebar-item-link-level-2 menu__list-item"><a class=menu__link tabindex=0 href=/docs/openvela驱动程序开发/SPI驱动开发><span class=linkLabel_WmDU>SPI驱动开发</span></a></ul><li class="theme-doc-sidebar-item-category theme-doc-sidebar-item-category-level-1 menu__list-item"><div class=menu__list-item-collapsible><a class="categoryLink_byQd menu__link menu__link--sublist" href=/docs/category/openvela文件系统><span class=categoryLinkLabel_W154>openvela文件系统</span></a><button aria-label="折叠侧边栏分类 'openvela文件系统'" aria-expanded=true type=button class="clean-btn menu__caret"></button></div><ul class=menu__list><li class="theme-doc-sidebar-item-link theme-doc-sidebar-item-link-level-2 menu__list-item"><a class=menu__link tabindex=0 href=/docs/openvela文件系统/VFS（虚拟文件系统）的使用><span class=linkLabel_WmDU>VFS（虚拟文件系统）的使用</span></a><li class="theme-doc-sidebar-item-link theme-doc-sidebar-item-link-level-2 menu__list-item"><a class=menu__link tabindex=0 href=/docs/openvela文件系统/文件系统内部实现><span class=linkLabel_WmDU>文件系统内部实现</span></a><li class="theme-doc-sidebar-item-link theme-doc-sidebar-item-link-level-2 menu__list-item"><a class=menu__link tabindex=0 href=/docs/openvela文件系统/常见虚拟文件系统><span class=linkLabel_WmDU>常见虚拟文件系统</span></a><li class="theme-doc-sidebar-item-link theme-doc-sidebar-item-link-level-2 menu__list-item"><a class=menu__link tabindex=0 href=/docs/openvela文件系统/真实文件系统><span class=linkLabel_WmDU>真实文件系统</span></a></ul><li class="theme-doc-sidebar-item-category theme-doc-sidebar-item-category-level-1 menu__list-item"><div class=menu__list-item-collapsible><a class="categoryLink_byQd menu__link menu__link--sublist" href=/docs/category/openvela的启动与构建><span class=categoryLinkLabel_W154>openvela的启动与构建</span></a><button aria-label="折叠侧边栏分类 'openvela的启动与构建'" aria-expanded=true type=button class="clean-btn menu__caret"></button></div><ul class=menu__list><li class="theme-doc-sidebar-item-link theme-doc-sidebar-item-link-level-2 menu__list-item"><a class=menu__link tabindex=0 href=/docs/openvela的启动与构建/openvela系统启动流程><span class=linkLabel_WmDU>openvela系统启动流程</span></a><li class="theme-doc-sidebar-item-link theme-doc-sidebar-item-link-level-2 menu__list-item"><a class=menu__link tabindex=0 href=/docs/openvela的启动与构建/构建脚本的基础知识><span class=linkLabel_WmDU>构建脚本的基础知识</span></a><li class="theme-doc-sidebar-item-link theme-doc-sidebar-item-link-level-2 menu__list-item"><a class=menu__link tabindex=0 href=/docs/openvela的启动与构建/openvela系统构建脚本解析><span class=linkLabel_WmDU>openvela系统构建脚本解析</span></a></ul><li class="theme-doc-sidebar-item-category theme-doc-sidebar-item-category-level-1 menu__list-item"><div class=menu__list-item-collapsible><a class="categoryLink_byQd menu__link menu__link--sublist" href=/docs/category/跨核通信><span class=categoryLinkLabel_W154>跨核通信</span></a><button aria-label="折叠侧边栏分类 '跨核通信'" aria-expanded=true type=button class="clean-btn menu__caret"></button></div><ul class=menu__list><li class="theme-doc-sidebar-item-link theme-doc-sidebar-item-link-level-2 menu__list-item"><a class=menu__link tabindex=0 href=/docs/跨核通信/跨核通信的方法><span class=linkLabel_WmDU>跨核通信的方法</span></a><li class="theme-doc-sidebar-item-link theme-doc-sidebar-item-link-level-2 menu__list-item"><a class=menu__link tabindex=0 href=/docs/跨核通信/RPMSG（远程处理器消息传递）><span class=linkLabel_WmDU>RPMSG（远程处理器消息传递）</span></a><li class="theme-doc-sidebar-item-link theme-doc-sidebar-item-link-level-2 menu__list-item"><a class=menu__link tabindex=0 href=/docs/跨核通信/基于VirtIO的跨核通信><span class=linkLabel_WmDU>基于VirtIO的跨核通信</span></a></ul><li class="theme-doc-sidebar-item-category theme-doc-sidebar-item-category-level-1 menu__list-item"><div class=menu__list-item-collapsible><a class="categoryLink_byQd menu__link menu__link--sublist menu__link--active" href=/docs/category/openvela调试技术><span class=categoryLinkLabel_W154>openvela调试技术</span></a><button aria-label="折叠侧边栏分类 'openvela调试技术'" aria-expanded=true type=button class="clean-btn menu__caret"></button></div><ul class=menu__list><li class="theme-doc-sidebar-item-link theme-doc-sidebar-item-link-level-2 menu__list-item"><a class="menu__link menu__link--active" aria-current=page tabindex=0 href=/docs/openvela调试技术/nsh中的工具><span class=linkLabel_WmDU>nsh中的工具</span></a><li class="theme-doc-sidebar-item-link theme-doc-sidebar-item-link-level-2 menu__list-item"><a class=menu__link tabindex=0 href=/docs/openvela调试技术/ARM架构简明教程><span class=linkLabel_WmDU>ARM架构简明教程</span></a><li class="theme-doc-sidebar-item-link theme-doc-sidebar-item-link-level-2 menu__list-item"><a class=menu__link tabindex=0 href=/docs/openvela调试技术/openvela高级调试技术><span class=linkLabel_WmDU>openvela高级调试技术</span></a></ul><li class="theme-doc-sidebar-item-category theme-doc-sidebar-item-category-level-1 menu__list-item"><div class=menu__list-item-collapsible><a class="categoryLink_byQd menu__link menu__link--sublist" href=/docs/category/项目实战><span class=categoryLinkLabel_W154>项目实战</span></a><button aria-label="折叠侧边栏分类 '项目实战'" aria-expanded=true type=button class="clean-btn menu__caret"></button></div><ul class=menu__list><li class="theme-doc-sidebar-item-link theme-doc-sidebar-item-link-level-2 menu__list-item"><a class=menu__link tabindex=0 href=/docs/项目实战/AI聊天机器人程序框架><span class=linkLabel_WmDU>AI聊天机器人程序框架</span></a><li class="theme-doc-sidebar-item-link theme-doc-sidebar-item-link-level-2 menu__list-item"><a class=menu__link tabindex=0 href=/docs/项目实战/语音功能开发><span class=linkLabel_WmDU>语音功能开发</span></a><li class="theme-doc-sidebar-item-link theme-doc-sidebar-item-link-level-2 menu__list-item"><a class=menu__link tabindex=0 href=/docs/项目实战/控制中心功能开发><span class=linkLabel_WmDU>控制中心功能开发</span></a><li class="theme-doc-sidebar-item-link theme-doc-sidebar-item-link-level-2 menu__list-item"><a class=menu__link tabindex=0 href=/docs/项目实战/GUI开发><span class=linkLabel_WmDU>GUI开发</span></a><li class="theme-doc-sidebar-item-link theme-doc-sidebar-item-link-level-2 menu__list-item"><a class=menu__link tabindex=0 href=/docs/项目实战/系统集成><span class=linkLabel_WmDU>系统集成</span></a></ul></ul></nav><button type=button title=收起侧边栏 aria-label=收起侧边栏 class="button button--secondary button--outline collapseSidebarButton_PEFL"><svg width=20 height=20 aria-hidden=true class=collapseSidebarButtonIcon_kv0_><g fill=#7a7a7a><path d="M9.992 10.023c0 .2-.062.399-.172.547l-4.996 7.492a.982.982 0 01-.828.454H1c-.55 0-1-.453-1-1 0-.2.059-.403.168-.551l4.629-6.942L.168 3.078A.939.939 0 010 2.528c0-.548.45-.997 1-.997h2.996c.352 0 .649.18.828.45L9.82 9.472c.11.148.172.347.172.55zm0 0"/><path d="M19.98 10.023c0 .2-.058.399-.168.547l-4.996 7.492a.987.987 0 01-.828.454h-3c-.547 0-.996-.453-.996-1 0-.2.059-.403.168-.551l4.625-6.942-4.625-6.945a.939.939 0 01-.168-.55 1 1 0 01.996-.997h3c.348 0 .649.18.828.45l4.996 7.492c.11.148.168.347.168.55zm0 0"/></g></svg></button></div></div></aside><main class=docMainContainer_TBSr><div class="container padding-top--md padding-bottom--lg"><div class=row><div class="col docItemCol_VOVn"><div class=docItemContainer_Djhp><article><nav class="theme-doc-breadcrumbs breadcrumbsContainer_Z_bl" aria-label=页面路径><ul class=breadcrumbs><li class=breadcrumbs__item><a aria-label=主页面 class=breadcrumbs__link href=/><svg viewBox="0 0 24 24" class=breadcrumbHomeIcon_YNFT><path d="M10 19v-5h4v5c0 .55.45 1 1 1h3c.55 0 1-.45 1-1v-7h1.7c.46 0 .68-.57.33-.87L12.67 3.6c-.38-.34-.96-.34-1.34 0l-8.36 7.53c-.34.3-.13.87.33.87H5v7c0 .55.45 1 1 1h3c.55 0 1-.45 1-1z" fill=currentColor /></svg></a><li class=breadcrumbs__item><a class=breadcrumbs__link href=/docs/category/openvela调试技术><span>openvela调试技术</span></a><li class="breadcrumbs__item breadcrumbs__item--active"><span class=breadcrumbs__link>nsh中的工具</span></ul></nav><div class="tocCollapsible_ETCw theme-doc-toc-mobile tocMobile_ITEo"><button type=button class="clean-btn tocCollapsibleButton_TO0P">本页总览</button></div><div class="theme-doc-markdown markdown"><header><h1>nsh中的工具</h1></header><h3 class="anchor anchorTargetStickyNavbar_Vzrq" id=ps命令的使用与内部机制>ps命令的使用与内部机制<a href=#ps命令的使用与内部机制 class=hash-link aria-label=ps命令的使用与内部机制的直接链接 title=ps命令的使用与内部机制的直接链接 translate=no>​</a></h3>
+<p>ps命令的作用是“report a snapshot of the current processes”：报告当前时刻各个进程的快照，即显示当前时刻各个进程的状态。</p>
+<h4 class="anchor anchorTargetStickyNavbar_Vzrq" id=配置和使用>配置和使用<a href=#配置和使用 class=hash-link aria-label=配置和使用的直接链接 title=配置和使用的直接链接 translate=no>​</a></h4>
+<p>要想使用ps命令的更多功能，可以如下配置：</p>
+<p># 不配置 CONFIG_SCHED_CPULOAD_NONE,</p>
+<p># 不配置 CONFIG_NSH_DISABLE_PSSTACKUSAGE</p>
+<p># 不配置 CONFIG_FS_PROCFS_EXCLUDE_CPULOAD</p>
+<p># 不配置 CONFIG_NSH_DISABLE_PSHEAPUSAGE</p>
+<p>CONFIG_FS_PROCFS=y</p>
+<p>CONFIG_SCHED_CPULOAD_SYSCLK=y</p>
+<p>CONFIG_MM_BACKTRACE=8</p>
+<p>CONFIG_STACK_COLORATION=y</p>
+<p>ps命令的用法为：</p>
+<p>ps [-heap] [pid1 pid2 ...]</p>
+<p>可以执行这样的命令：</p>
+<p>ps # 查看所有线程状态</p>
+<p>ps -heap # 查看所有线程状态，包括它们使用堆的信息</p>
+<p>ps 12 # 查看PID=12的进程的状态</p>
+<p>ps -heap 12 # 查看PID=12的进程的状态，包括它堆的信息</p>
+<p>示例：</p>
+<p><img decoding=async loading=lazy src=/assets/images/image227-83ddbc9142947c6205a44e43d1edf75d.png width=1586 height=290 class=img_ev3q /></p>
+<table><thead><tr><th><th><th><tbody><tr><td><strong>字段</strong><td><strong>含义说明</strong><td><strong>示例值（对应PID=12的进程）</strong><tr><td>PID<td>进程/任务ID，系统中唯一标识一个任务的编号。<td>12 → 该任务的ID是12。<tr><td>GROUP<td>进程组ID，用于进程组管理（通常与PID相同，除非有特殊分组）。<td>12 → 进程组ID为12。<tr><td>CPU<td>任务当前运行的CPU核心（多核系统中有效，单核系统中通常为0）。<td>单核系统，无特定CPU核心标识。<tr><td>PRI<td>任务优先级，数值越大优先级越高（NuttX中通常范围0-255）。<td>100 → 优先级为100，属于中等偏上优先级。<tr><td>POLICY<td>调度策略：- RR：时间片轮转调度（Round-Robin）- FIFO：先进先出调度<td>RR → 采用时间片轮转调度，多个同优先级任务轮流执行。<tr><td>TYPE<td>任务类型：- Task：普通任务 - KThread：内核线程<td>Task → 该进程是用户态普通任务。<tr><td>NPX<td>未使用的协处理器数量（通常为 -）。<td>- → 无协处理器使用。<tr><td>STATE<td>任务当前状态：- Waiting：等待状态（等待事件/信号）- Running：运行中<td>Waiting → 任务正处于等待状态。<tr><td>EVENT<td>任务等待的事件类型：- Signal：等待信号 - Sem：等待信号量等<td>Signal → 任务正在等待一个信号（如sigwait等待信号触发）。<tr><td>SIGMASK<td>信号屏蔽字（16进制），表示当前被屏蔽的信号（0表示无屏蔽）。<td>0000000000000000 → 无任何信号被屏蔽。<tr><td>HEAP<td>任务堆的总大小（单位：字节），即该任务可使用的堆内存总量。<td>00001416 → 堆总大小为0x1416字节（十进制5142字节）。<tr><td>STACK<td>任务栈的总大小（单位：字节），即分配给该任务的栈内存总量。<td>0002016 → 栈总大小为0x2016字节（十进制8214字节）。<tr><td>USED<td>堆的已使用大小（单位：字节），即当前已分配的堆内存。<td>0000448 → 已使用堆内存448字节。<tr><td>FILLED<td>栈的填充率（百分比），反映栈的使用紧张程度（接近100%可能栈溢出）。<td>22.2% → 栈已使用22.2%，剩余空间充足。<tr><td>CPU<td>任务累计使用的CPU时间百分比，反映任务的CPU占用率。<td>0.0% → 几乎未使用CPU时间。<tr><td>COMMAND<td>任务对应的命令/程序名。<td>hello → 该任务是hello程序启动的。</table>
+<p>以上图最后一行“hello”程序的信息为例进行解析：</p>
+<h4 class="anchor anchorTargetStickyNavbar_Vzrq" id=内部机制>内部机制<a href=#内部机制 class=hash-link aria-label=内部机制的直接链接 title=内部机制的直接链接 translate=no>​</a></h4>
+<p>ps命令是内嵌命令，对应函数为“cmd_ps”，源码在“apps/nshlib/nsh_proccmds.c”。它从“/proc”目录下获得各个进程/线程的信息，以PID=12的进程为例，可以在“/proc/12”目录下看到如下信息，可以看到ps命令只是读取这些文件并且整理输出：</p>
+<p>nsh&amp;gt; ps -heap 12</p>
+<p>PID GROUP CPU PRI POLICY TYPE NPX STATE EVENT SIGMASK HEAP STACK USED FILLED CPU COMMAND</p>
+<div class="language-text codeBlockContainer_Ckt0 theme-code-block" style=--prism-color:#393A34;--prism-background-color:#f6f8fa><div class=codeBlockContent_QJqH><pre tabindex=0 class="prism-code language-text codeBlock_bY9V thin-scrollbar" style=color:#393A34;background-color:#f6f8fa><code class=codeBlockLines_e6Vv><div class=token-line style=color:#393A34><span class="token plain"> 12 --- 100 RR Task - Waiting Signal 0000000000000000 00001416 0002016 0000448 22.2% 0.0% hello</span><br/></div><div class=token-line style=color:#393A34><span class="token plain" style=display:inline-block></span><br/></div></code></pre></div></div>
+<p>nsh&amp;gt;</p>
+<p>nsh&amp;gt;</p>
+<p>nsh&amp;gt; ls /proc/12</p>
+<p>/proc/12:</p>
+<p>status</p>
+<p>cmdline</p>
+<p>loadavg</p>
+<p>heap</p>
+<p>stack</p>
+<p>group/</p>
+<p>nsh&amp;gt; cat /proc/12/status</p>
+<p>Name: hello</p>
+<p>Type: Task</p>
+<p>Group: 12</p>
+<p>CPU: ---</p>
+<p>State: Waiting,Signal</p>
+<p>Flags: -</p>
+<p>Priority: 100</p>
+<p>Scheduler: SCHED_RR</p>
+<p>SigMask: 0000000000000000</p>
+<p>nsh&amp;gt; cat cmdline</p>
+<p>hello</p>
+<p>nsh&amp;gt; cat heap</p>
+<p>AllocSize: 1416</p>
+<p>AllocBlks: 19</p>
+<p>nsh&amp;gt; cat stack</p>
+<p>StackAlloc: 0x416dde78</p>
+<p>StackBase: 0x416dde98</p>
+<p>StackSize: 2016</p>
+<p>StackUsed: 448</p>
+<p>nsh&amp;gt;</p>
+<p>nsh&amp;gt;</p>
+<p>nsh&amp;gt; cd /proc/12</p>
+<p>nsh&amp;gt; ls</p>
+<p>/proc/12:</p>
+<p>status</p>
+<p>cmdline</p>
+<p>loadavg</p>
+<p>heap</p>
+<p>stack</p>
+<p>group/</p>
+<p>nsh&amp;gt;</p>
+<p>nsh&amp;gt; cat status</p>
+<p>Name: hello</p>
+<p>Type: Task</p>
+<p>Group: 12</p>
+<p>CPU: ---</p>
+<p>State: Waiting,Signal</p>
+<p>Flags: -</p>
+<p>Priority: 100</p>
+<p>Scheduler: SCHED_RR</p>
+<p>SigMask: 0000000000000000</p>
+<p>nsh&amp;gt;</p>
+<p>nsh&amp;gt; cat cmdline</p>
+<p>hello</p>
+<p>nsh&amp;gt;</p>
+<p>nsh&amp;gt; cat loadavg</p>
+<div class="language-text codeBlockContainer_Ckt0 theme-code-block" style=--prism-color:#393A34;--prism-background-color:#f6f8fa><div class=codeBlockContent_QJqH><pre tabindex=0 class="prism-code language-text codeBlock_bY9V thin-scrollbar" style=color:#393A34;background-color:#f6f8fa><code class=codeBlockLines_e6Vv><div class=token-line style=color:#393A34><span class="token plain">.0%</span><br/></div><div class=token-line style=color:#393A34><span class="token plain" style=display:inline-block></span><br/></div></code></pre></div></div>
+<p>nsh&amp;gt;</p>
+<p>nsh&amp;gt; cat heap</p>
+<p>AllocSize: 1416</p>
+<p>AllocBlks: 19</p>
+<p>nsh&amp;gt;</p>
+<p>nsh&amp;gt; cat stack</p>
+<p>StackAlloc: 0x416dde78</p>
+<p>StackBase: 0x416dde98</p>
+<p>StackSize: 2016</p>
+<p>StackUsed: 448</p>
+<p>nsh&amp;gt;</p>
+<p>nsh&amp;gt; ls group</p>
+<p>/proc/12/group:</p>
+<p>status</p>
+<p>fd</p>
+<p>env</p>
+<p>ps命令读取“/proc/&amp;lt;PID&amp;gt;”目录下的文件时，导致这个函数被调用：</p>
+<p><img decoding=async loading=lazy src=/assets/images/image228-33bb3c742c69810280ddef74ee455f48.png width=783 height=646 class=img_ev3q /></p>
+<h3 class="anchor anchorTargetStickyNavbar_Vzrq" id=top命令的使用与内部机制>top命令的使用与内部机制<a href=#top命令的使用与内部机制 class=hash-link aria-label=top命令的使用与内部机制的直接链接 title=top命令的使用与内部机制的直接链接 translate=no>​</a></h3>
+<p>top 命令用于实时监控系统中任务（进程）的资源占用情况（如 CPU 使用率、内存使用等），类似 Linux 中的 top 命令。</p>
+<h4 class="anchor anchorTargetStickyNavbar_Vzrq" id=配置和使用-1>配置和使用<a href=#配置和使用-1 class=hash-link aria-label=配置和使用的直接链接 title=配置和使用的直接链接 translate=no>​</a></h4>
+<p>要想使用top命令，可以如下配置：</p>
+<p># 不配置 CONFIG_NSH_DISABLE_TOP</p>
+<p># 不配置 CONFIG_FS_PROCFS_EXCLUDE_CPULOAD</p>
+<p># 不配置 CONFIG_SCHED_CPULOAD_NONE</p>
+<p># 不配置 CONFIG_NSH_DISABLE_PS</p>
+<p>CONFIG_FS_PROCFS=y</p>
+<p>CONFIG_SCHED_CPULOAD_SYSCLK=y</p>
+<p>top命令的用法为：</p>
+<p>top [ -n &amp;lt;num&amp;gt; ][ -d &amp;lt;delay&amp;gt;] [ -p &amp;lt;pidlist&amp;gt;] [-h]</p>
+<ul>
+<li class="">
+<p>“-n &amp;lt;num&amp;gt;”：显示进程数量（CPU占用率最高的num个进程/线程）</p>
+</li>
+<li class="">
+<p>“-d &amp;lt;delay&amp;gt;”：指定刷新间隔（单位：秒，支持小数），不指定时默认间隔为3秒</p>
+</li>
+<li class="">
+<p>“-p &amp;lt;pidlist&amp;gt;”：指定监控的任务，格式为“top -p 12,13”，PID间用逗号隔开</p>
+</li>
+<li class="">
+<p>“-h”：显示帮助信息</p>
+</li>
+<li class="">
+<p>按“ctrl+c”退出</p>
+</li>
+</ul>
+<p>示例：</p>
+<p><img decoding=async loading=lazy src=/assets/images/image229-27a4ba79b5b38ab41580406b27be0783.png width=1525 height=270 class=img_ev3q /></p>
+<p>显示的内容跟ps命令是一样的，只不过会根据“CPU”占用率进行动态排序。</p>
+<h4 class="anchor anchorTargetStickyNavbar_Vzrq" id=内部机制-1>内部机制<a href=#内部机制-1 class=hash-link aria-label=内部机制的直接链接 title=内部机制的直接链接 translate=no>​</a></h4>
+<p>top命令对应的“apps/nshlib/nsh_proccmds.c”的“cmd_top”函数，流程如下：</p>
+<p><img decoding=async loading=lazy src=/assets/images/image230-e716d7ab4dca215c4f5a377dd4a345bc.png width=1258 height=618 class=img_ev3q /></p>
+<h3 class="anchor anchorTargetStickyNavbar_Vzrq" id=openvela堆的内部机制>openvela堆的内部机制<a href=#openvela堆的内部机制 class=hash-link aria-label=openvela堆的内部机制的直接链接 title=openvela堆的内部机制的直接链接 translate=no>​</a></h3>
+<h4 class="anchor anchorTargetStickyNavbar_Vzrq" id=核心结构体>核心结构体<a href=#核心结构体 class=hash-link aria-label=核心结构体的直接链接 title=核心结构体的直接链接 translate=no>​</a></h4>
+<p>openvela里，“堆”一开始是一个巨大的“空闲内存块”，应用程序可以使用malloc函数、驱动程序可以使用kmm_malloc函数从里面分配出“指定大小的内存”，使用完毕后再通过free函数、kmm_free函数把它“还回去”。需要说明的是，“kmm_malloc/kmm_free”就是“malloc/free”。</p>
+<p>经过多次malloc、free后，堆里会有“多个零散的、未使用的空闲块”、“多个在使用的空闲块”。</p>
+<p>openvela的堆算法里，怎么管理这些“未使用的内存块”、“在使用的内存块”？</p>
+<p>使用“struct mm_heap_s”结构体来表示“堆”，里面的“struct mm_freenode_s mm_nodelist[MM_NNODES]”是多个链表，每个链表里存放“空闲chunk”（空闲内存块）：</p>
+<p><img decoding=async loading=lazy src=/assets/images/image231-1e457067500d6e297bad86b29e6010fc.png width=653 height=813 class=img_ev3q /></p>
+<p>空闲内存块、正在使用的内存块，都被称为“chunk”，chunk由头部的node结构体、紧随其后的内存组成，它们的结构如下：</p>
+<p><img decoding=async loading=lazy src=/assets/images/image232-458c904cc1bc5fa2fb733ed3c16c3ac3.png width=1463 height=476 class=img_ev3q /></p>
+<p>空闲chunk、被分配出去（被占用）的chunk，它们的头部分别使用这2个结构体来表示：struct mm_freenode_s、struct mm_allocnode_s。代码如下：</p>
+<p><img decoding=async loading=lazy src=/assets/images/image233-94bd9cc378267e041d9a414e3f6b8874.png width=760 height=614 class=img_ev3q /></p>
+<h4 class="anchor anchorTargetStickyNavbar_Vzrq" id=堆的算法>堆的算法<a href=#堆的算法 class=hash-link aria-label=堆的算法的直接链接 title=堆的算法的直接链接 translate=no>​</a></h4>
+<p>openvela的堆算法，核心在于：</p>
+<ul>
+<li class="">
+<p>使用不同的链表来管理“各个size级别的、空闲的chunk”<br/>
+<!-- -->比如“struct mm_heap_s”结构体里，使用mm_nodelist[0]链表记录“size &amp;gt;= 2^6, size &amp;lt; 2^7”的chunk；使用mm_nodelist[1]链表记录“size &amp;gt;= 2^7, size &amp;lt; 2^8”的chunk。<br/>
+<!-- -->并且，这些链表里各个chunk按照从小到大排序</p>
+</li>
+<li class="">
+<p>执行malloc(size)时，根据size找到mm_nodelist[x]链表，遍历里面的node，找到最合适的chunk，后面将返回它的数据块的地址；如果mm_nodelist[x]链表为空，还会进入下一级的mm_nodelist[x+1]链表来继续查找</p>
+</li>
+<li class="">
+<p>如果这个chunk太大，还要把它拆分：拆分出来的chunk再加入某个mm_nodelist[y]链表</p>
+</li>
+<li class="">
+<p>执行free(ptr)时，根据ptr往前确定node结构体，把这个node放回某个mm_nodelist[z]链表</p>
+</li>
+<li class="">
+<p>如果这个chunk前面、后面有相邻的chunk，还要合并起来得到新的chunk：因为大小发生了变化，还要重新放入某个mm_nodelist[w]链表</p>
+</li>
+</ul>
+<p><img decoding=async loading=lazy src=/assets/images/image234-3dd232f6cac1a8dff23ba5afadf4f94b.png width=1763 height=758 class=img_ev3q /></p>
+<h4 class="anchor anchorTargetStickyNavbar_Vzrq" id=堆的初始化过程情景分析>堆的初始化过程情景分析<a href=#堆的初始化过程情景分析 class=hash-link aria-label=堆的初始化过程情景分析的直接链接 title=堆的初始化过程情景分析的直接链接 translate=no>​</a></h4>
+<p>看视频。</p>
+<p>函数调用关系：</p>
+<p>nx_start</p>
+<div class="language-text codeBlockContainer_Ckt0 theme-code-block" style=--prism-color:#393A34;--prism-background-color:#f6f8fa><div class=codeBlockContent_QJqH><pre tabindex=0 class="prism-code language-text codeBlock_bY9V thin-scrollbar" style=color:#393A34;background-color:#f6f8fa><code class=codeBlockLines_e6Vv><div class=token-line style=color:#393A34><span class="token plain">up_allocate_heap(&heap_start, &heap_size);</span><br/></div><div class=token-line style=color:#393A34><span class="token plain" style=display:inline-block></span><br/></div><div class=token-line style=color:#393A34><span class="token plain">kumm_initialize(heap_start, heap_size);</span><br/></div><div class=token-line style=color:#393A34><span class="token plain" style=display:inline-block></span><br/></div></code></pre></div></div>
+<p>umm_initialize(h,s)</p>
+<div class="language-text codeBlockContainer_Ckt0 theme-code-block" style=--prism-color:#393A34;--prism-background-color:#f6f8fa><div class=codeBlockContent_QJqH><pre tabindex=0 class="prism-code language-text codeBlock_bY9V thin-scrollbar" style=color:#393A34;background-color:#f6f8fa><code class=codeBlockLines_e6Vv><div class=token-line style=color:#393A34><span class="token plain">// nuttx/include/nuttx/mm/mm.h</span><br/></div><div class=token-line style=color:#393A34><span class="token plain" style=display:inline-block></span><br/></div><div class=token-line style=color:#393A34><span class="token plain">// \# define USR_HEAP g_mmheap</span><br/></div><div class=token-line style=color:#393A34><span class="token plain" style=display:inline-block></span><br/></div><div class=token-line style=color:#393A34><span class="token plain">USR_HEAP = mm_initialize_pool("Umem", heap_start, heap_size, NULL);</span><br/></div><div class=token-line style=color:#393A34><span class="token plain" style=display:inline-block></span><br/></div><div class=token-line style=color:#393A34><span class="token plain">// \# define mm_initialize_pool(name, heap_start, heap_size, init) \\</span><br/></div><div class=token-line style=color:#393A34><span class="token plain" style=display:inline-block></span><br/></div><div class=token-line style=color:#393A34><span class="token plain">// mm_initialize(name, heap_start, heap_size)</span><br/></div><div class=token-line style=color:#393A34><span class="token plain" style=display:inline-block></span><br/></div><div class=token-line style=color:#393A34><span class="token plain">// nuttx/mm/mm_heap/mm_initialize.c</span><br/></div><div class=token-line style=color:#393A34><span class="token plain" style=display:inline-block></span><br/></div></code></pre></div></div>
+<p>mm_initialize</p>
+<p>结果如下：</p>
+<ul>
+<li class="">
+<p>在堆的前面分配了一个“mm_heap_s”结构体，g_mmheap指向它</p>
+</li>
+<li class="">
+<p>剩下的内存被分为3个node：开始node（mm_heapstart[0]）、结尾node(mm_heapend[0])、一开始最大的空闲node<br/>
+<!-- -->mm_heapstart[0]指向第1个内存块的起始位置，意味着mm_heapstart[1]指向第2个内存块，即：openvela可以支持物理上分隔开的多个堆</p>
+</li>
+<li class="">
+<p>空闲node被放入链表</p>
+</li>
+</ul>
+<p><img decoding=async loading=lazy src=/assets/images/image235-0b5a7aedde4bc043ee2cc077c176f3fc.png width=2897 height=1914 class=img_ev3q /></p>
+<h4 class="anchor anchorTargetStickyNavbar_Vzrq" id=malloc过程情景分析>malloc过程情景分析<a href=#malloc过程情景分析 class=hash-link aria-label=malloc过程情景分析的直接链接 title=malloc过程情景分析的直接链接 translate=no>​</a></h4>
+<p>看视频。</p>
+<p>函数调用关系：</p>
+<p># APP调用malloc</p>
+<p># 内核/驱动调用 kmm_malloc 也是调用 malloc</p>
+<div class="language-text codeBlockContainer_Ckt0 theme-code-block" style=--prism-color:#393A34;--prism-background-color:#f6f8fa><div class=codeBlockContent_QJqH><pre tabindex=0 class="prism-code language-text codeBlock_bY9V thin-scrollbar" style=color:#393A34;background-color:#f6f8fa><code class=codeBlockLines_e6Vv><div class=token-line style=color:#393A34><span class="token plain">// nuttx/mm/umm_heap/umm_malloc.c</span><br/></div><div class=token-line style=color:#393A34><span class="token plain" style=display:inline-block></span><br/></div></code></pre></div></div>
+<p>malloc</p>
+<div class="language-text codeBlockContainer_Ckt0 theme-code-block" style=--prism-color:#393A34;--prism-background-color:#f6f8fa><div class=codeBlockContent_QJqH><pre tabindex=0 class="prism-code language-text codeBlock_bY9V thin-scrollbar" style=color:#393A34;background-color:#f6f8fa><code class=codeBlockLines_e6Vv><div class=token-line style=color:#393A34><span class="token plain">ret = mm_malloc(USR_HEAP, size);</span><br/></div><div class=token-line style=color:#393A34><span class="token plain" style=display:inline-block></span><br/></div><div class=token-line style=color:#393A34><span class="token plain">// 难点</span><br/></div><div class=token-line style=color:#393A34><span class="token plain" style=display:inline-block></span><br/></div><div class=token-line style=color:#393A34><span class="token plain">alignsize = MM_ALIGN_UP(size + MM_ALLOCNODE_OVERHEAD);</span><br/></div><div class=token-line style=color:#393A34><span class="token plain" style=display:inline-block></span><br/></div><div class=token-line style=color:#393A34><span class="token plain">ndx = mm_size2ndx(alignsize);</span><br/></div><div class=token-line style=color:#393A34><span class="token plain" style=display:inline-block></span><br/></div><div class=token-line style=color:#393A34><span class="token plain">// 遍历heap-\>mm_nodelist\[ndx\]</span><br/></div><div class=token-line style=color:#393A34><span class="token plain" style=display:inline-block></span><br/></div><div class=token-line style=color:#393A34><span class="token plain">// 找到第1个适合的freenode</span><br/></div><div class=token-line style=color:#393A34><span class="token plain" style=display:inline-block></span><br/></div><div class=token-line style=color:#393A34><span class="token plain">// 1. 如果大小差不多</span><br/></div><div class=token-line style=color:#393A34><span class="token plain" style=display:inline-block></span><br/></div><div class=token-line style=color:#393A34><span class="token plain">// 把这个freenode从链表中移除</span><br/></div><div class=token-line style=color:#393A34><span class="token plain" style=display:inline-block></span><br/></div><div class=token-line style=color:#393A34><span class="token plain">// 2. 如果太大了(拆分出来的空间还大于node头部)</span><br/></div><div class=token-line style=color:#393A34><span class="token plain" style=display:inline-block></span><br/></div><div class=token-line style=color:#393A34><span class="token plain">// 拆分出新node</span><br/></div><div class=token-line style=color:#393A34><span class="token plain" style=display:inline-block></span><br/></div><div class=token-line style=color:#393A34><span class="token plain">// 把新node放入链表</span><br/></div><div class=token-line style=color:#393A34><span class="token plain" style=display:inline-block></span><br/></div><div class=token-line style=color:#393A34><span class="token plain">// 返回node之后的内存</span><br/></div><div class=token-line style=color:#393A34><span class="token plain" style=display:inline-block></span><br/></div><div class=token-line style=color:#393A34><span class="token plain">ret = (FAR void \*)((FAR char \*)node + MM_SIZEOF_ALLOCNODE);</span><br/></div><div class=token-line style=color:#393A34><span class="token plain" style=display:inline-block></span><br/></div><div class=token-line style=color:#393A34><span class="token plain">// 记录调试信息，比如pid, 序列号seq, backtrace</span><br/></div><div class=token-line style=color:#393A34><span class="token plain" style=display:inline-block></span><br/></div><div class=token-line style=color:#393A34><span class="token plain">MM_ADD_BACKTRACE(heap, node);</span><br/></div><div class=token-line style=color:#393A34><span class="token plain" style=display:inline-block></span><br/></div></code></pre></div></div>
+<p>结果如下：</p>
+<ul>
+<li class="">
+<p>malloc(size)时，根据size计算链表ndx</p>
+</li>
+<li class="">
+<p>遍历g_mmheap-&amp;gt;mmnodelist[ndx]，找到合适的freenode</p>
+</li>
+<li class="">
+<p>如果这个freenode太大，还要把它拆分：拆分出来的freenode再加入某个mm_nodelist[y]链表</p>
+</li>
+<li class="">
+<p>返回“freenode+头部”，就是返回头部后面的buffer给调用者</p>
+</li>
+</ul>
+<p>malloc函数里比较难以理解的是：它会占用下一个node的“preceding”。下一个node的preceding表示物理上相邻的、上一个空闲的chunk的大小。但是当前node已经被占用了，“下一个node的preceding”就没有意义了，那就把它用起来。</p>
+<p><img decoding=async loading=lazy src=/assets/images/image236-2a53099bc69696ff49981bb536778116.png width=971 height=755 class=img_ev3q /></p>
+<h4 class="anchor anchorTargetStickyNavbar_Vzrq" id=free过程情景分析>free过程情景分析<a href=#free过程情景分析 class=hash-link aria-label=free过程情景分析的直接链接 title=free过程情景分析的直接链接 translate=no>​</a></h4>
+<p>看视频。</p>
+<p>函数调用关系：</p>
+<p># APP调用free</p>
+<p># 内核/驱动调用 kmm_free 也是调用 free</p>
+<div class="language-text codeBlockContainer_Ckt0 theme-code-block" style=--prism-color:#393A34;--prism-background-color:#f6f8fa><div class=codeBlockContent_QJqH><pre tabindex=0 class="prism-code language-text codeBlock_bY9V thin-scrollbar" style=color:#393A34;background-color:#f6f8fa><code class=codeBlockLines_e6Vv><div class=token-line style=color:#393A34><span class="token plain">// nuttx/mm/umm_heap/umm_free.c</span><br/></div><div class=token-line style=color:#393A34><span class="token plain" style=display:inline-block></span><br/></div></code></pre></div></div>
+<p>free</p>
+<div class="language-text codeBlockContainer_Ckt0 theme-code-block" style=--prism-color:#393A34;--prism-background-color:#f6f8fa><div class=codeBlockContent_QJqH><pre tabindex=0 class="prism-code language-text codeBlock_bY9V thin-scrollbar" style=color:#393A34;background-color:#f6f8fa><code class=codeBlockLines_e6Vv><div class=token-line style=color:#393A34><span class="token plain">mm_free(USR_HEAP, mem);</span><br/></div><div class=token-line style=color:#393A34><span class="token plain" style=display:inline-block></span><br/></div><div class=token-line style=color:#393A34><span class="token plain">mm_delayfree(heap, mem, CONFIG_MM_FREE_DELAYCOUNT_MAX \> 0);</span><br/></div><div class=token-line style=color:#393A34><span class="token plain" style=display:inline-block></span><br/></div><div class=token-line style=color:#393A34><span class="token plain">// 如果配置了CONFIG_MM_FREE_DELAYCOUNT_MAX</span><br/></div><div class=token-line style=color:#393A34><span class="token plain" style=display:inline-block></span><br/></div><div class=token-line style=color:#393A34><span class="token plain">// 就加入delaylist后面再真正释放</span><br/></div><div class=token-line style=color:#393A34><span class="token plain" style=display:inline-block></span><br/></div><div class=token-line style=color:#393A34><span class="token plain">// 以后delaylist里累加的node数 \>= CONFIG_MM_FREE_DELAYCOUNT_MAX</span><br/></div><div class=token-line style=color:#393A34><span class="token plain" style=display:inline-block></span><br/></div><div class=token-line style=color:#393A34><span class="token plain">// 就调用free_delaylist执行真正的释放操作</span><br/></div><div class=token-line style=color:#393A34><span class="token plain" style=display:inline-block></span><br/></div><div class=token-line style=color:#393A34><span class="token plain">add_delaylist(heap, mem);</span><br/></div><div class=token-line style=color:#393A34><span class="token plain" style=display:inline-block></span><br/></div><div class=token-line style=color:#393A34><span class="token plain">// 如果CONFIG_MM_FREE_DELAYCOUNT_MAX=0</span><br/></div><div class=token-line style=color:#393A34><span class="token plain" style=display:inline-block></span><br/></div><div class=token-line style=color:#393A34><span class="token plain">// 立刻释放</span><br/></div><div class=token-line style=color:#393A34><span class="token plain" style=display:inline-block></span><br/></div><div class=token-line style=color:#393A34><span class="token plain">// 1. 根据地址往前推得到node</span><br/></div><div class=token-line style=color:#393A34><span class="token plain" style=display:inline-block></span><br/></div></code></pre></div></div>
+<p>node = (FAR struct mm_freenode_s *)</p>
+<div class="language-text codeBlockContainer_Ckt0 theme-code-block" style=--prism-color:#393A34;--prism-background-color:#f6f8fa><div class=codeBlockContent_QJqH><pre tabindex=0 class="prism-code language-text codeBlock_bY9V thin-scrollbar" style=color:#393A34;background-color:#f6f8fa><code class=codeBlockLines_e6Vv><div class=token-line style=color:#393A34><span class="token plain">((FAR char \*)kasan_reset_tag(mem) - MM_SIZEOF_ALLOCNODE);</span><br/></div><div class=token-line style=color:#393A34><span class="token plain" style=display:inline-block></span><br/></div><div class=token-line style=color:#393A34><span class="token plain">nodesize = MM_SIZEOF_NODE(node);</span><br/></div><div class=token-line style=color:#393A34><span class="token plain" style=display:inline-block></span><br/></div><div class=token-line style=color:#393A34><span class="token plain">// 2. 先判断next node是否freenode,</span><br/></div><div class=token-line style=color:#393A34><span class="token plain" style=display:inline-block></span><br/></div><div class=token-line style=color:#393A34><span class="token plain">// 若是: 把next从链表里移除, 然后合并它们</span><br/></div><div class=token-line style=color:#393A34><span class="token plain" style=display:inline-block></span><br/></div><div class=token-line style=color:#393A34><span class="token plain">// 3. 再判断pre node是否freenode</span><br/></div><div class=token-line style=color:#393A34><span class="token plain" style=display:inline-block></span><br/></div><div class=token-line style=color:#393A34><span class="token plain">// 若是: 把pre从链表里移除, 然后合并它们</span><br/></div><div class=token-line style=color:#393A34><span class="token plain" style=display:inline-block></span><br/></div><div class=token-line style=color:#393A34><span class="token plain">// 4. 放入链表</span><br/></div><div class=token-line style=color:#393A34><span class="token plain" style=display:inline-block></span><br/></div><div class=token-line style=color:#393A34><span class="token plain">mm_addfreechunk(heap, node);</span><br/></div><div class=token-line style=color:#393A34><span class="token plain" style=display:inline-block></span><br/></div></code></pre></div></div>
+<h3 class="anchor anchorTargetStickyNavbar_Vzrq" id=memdump和free命令的使用与内部机制>memdump和free命令的使用与内部机制<a href=#memdump和free命令的使用与内部机制 class=hash-link aria-label=memdump和free命令的使用与内部机制的直接链接 title=memdump和free命令的使用与内部机制的直接链接 translate=no>​</a></h3>
+<h4 class="anchor anchorTargetStickyNavbar_Vzrq" id=memdump>memdump<a href=#memdump class=hash-link aria-label=memdump的直接链接 title=memdump的直接链接 translate=no>​</a></h4>
+<p>要想使用memdump命令，可以如下配置：</p>
+<p># 不配置 CONFIG_NSH_DISABLE_MEMDUMP</p>
+<p>CONFIG_DEBUG_FEATURES=y</p>
+<p>CONFIG_DEBUG_MM=y</p>
+<p>使用memdump命令来查看堆的使用情况，用法如下：</p>
+<p>nsh&amp;gt; cat /proc/memdump</p>
+<p>usage: &amp;lt;used/free/orphan/biggest/on/off/leak/pid&amp;gt; &amp;lt;seqmin&amp;gt; &amp;lt;seqmax&amp;gt;</p>
+<p>used: dump all allocated node</p>
+<p>free: dump all free node</p>
+<p>orphan: dump allocated free neighbored node</p>
+<p>biggest: dump allocated top n node</p>
+<p>on/off: set backtrace enabled state</p>
+<p>leak: dump all leaked node</p>
+<p>pid: dump pid allocated node</p>
+<p>更详细的用法看下表：</p>
+<p>&lt;table>
+&lt;colgroup>
+&lt;col style="width: 33%" />
+&lt;col style="width: 38%" />
+&lt;col style="width: 28%" />
+&lt;/colgroup>
+&lt;tbody>
+&lt;tr class="odd">
+&lt;td>memdump命令&lt;/td>
+&lt;td>/proc/memdump文件&lt;/td>
+&lt;td>说明&lt;/td>
+&lt;/tr>
+&lt;tr class="even">
+&lt;td>memdump或memdump used&lt;/td></p>
+<div class="language-text codeBlockContainer_Ckt0 theme-code-block" style=--prism-color:#393A34;--prism-background-color:#f6f8fa><div class=codeBlockContent_QJqH><pre tabindex=0 class="prism-code language-text codeBlock_bY9V thin-scrollbar" style=color:#393A34;background-color:#f6f8fa><code class=codeBlockLines_e6Vv><div class=token-line style=color:#393A34><span class="token plain">&lt;td>echo used &amp;gt; /proc/memdump&lt;/td></span><br/></div></code></pre></div></div>
+<p>&lt;td>显示已经分配的内存块&lt;/td>
+&lt;/tr>
+&lt;tr class="odd">
+&lt;td>memdump free&lt;/td></p>
+<div class="language-text codeBlockContainer_Ckt0 theme-code-block" style=--prism-color:#393A34;--prism-background-color:#f6f8fa><div class=codeBlockContent_QJqH><pre tabindex=0 class="prism-code language-text codeBlock_bY9V thin-scrollbar" style=color:#393A34;background-color:#f6f8fa><code class=codeBlockLines_e6Vv><div class=token-line style=color:#393A34><span class="token plain">&lt;td>echo free &amp;gt; /proc/memdump&lt;/td></span><br/></div></code></pre></div></div>
+<p>&lt;td>显示空闲的内存块&lt;/td>
+&lt;/tr>
+&lt;tr class="even">
+&lt;td>memdump orphan&lt;/td></p>
+<div class="language-text codeBlockContainer_Ckt0 theme-code-block" style=--prism-color:#393A34;--prism-background-color:#f6f8fa><div class=codeBlockContent_QJqH><pre tabindex=0 class="prism-code language-text codeBlock_bY9V thin-scrollbar" style=color:#393A34;background-color:#f6f8fa><code class=codeBlockLines_e6Vv><div class=token-line style=color:#393A34><span class="token plain">&lt;td>echo orphan &amp;gt; /proc/memdump&lt;/td></span><br/></div></code></pre></div></div>
+<p>&lt;td>显示“孤儿”内存块：它是空闲的，但是没有跟相邻的空闲内存块合并起来&lt;/td>
+&lt;/tr>
+&lt;tr class="odd">
+&lt;td>memdump biggest&lt;/td></p>
+<div class="language-text codeBlockContainer_Ckt0 theme-code-block" style=--prism-color:#393A34;--prism-background-color:#f6f8fa><div class=codeBlockContent_QJqH><pre tabindex=0 class="prism-code language-text codeBlock_bY9V thin-scrollbar" style=color:#393A34;background-color:#f6f8fa><code class=codeBlockLines_e6Vv><div class=token-line style=color:#393A34><span class="token plain">&lt;td>echo biggest &amp;gt; /proc/memdump&lt;/td></span><br/></div></code></pre></div></div>
+<p>&lt;td>列出已经分配的最大的内存块&lt;/td>
+&lt;/tr>
+&lt;tr class="even">
+&lt;td>memdump leak&lt;/td></p>
+<div class="language-text codeBlockContainer_Ckt0 theme-code-block" style=--prism-color:#393A34;--prism-background-color:#f6f8fa><div class=codeBlockContent_QJqH><pre tabindex=0 class="prism-code language-text codeBlock_bY9V thin-scrollbar" style=color:#393A34;background-color:#f6f8fa><code class=codeBlockLines_e6Vv><div class=token-line style=color:#393A34><span class="token plain">&lt;td>echo leak &amp;gt; /proc/memdump&lt;/td></span><br/></div></code></pre></div></div>
+<p>&lt;td>显示泄漏的内存，就是“分配这块内存的进程已经退出，但是没有调用free释放的内存块”&lt;/td>
+&lt;/tr>
+&lt;tr class="odd">
+&lt;td>&lt;p>memdump on&lt;/p>
+&lt;p>memdump off&lt;/p>&lt;/td></p>
+<div class="language-text codeBlockContainer_Ckt0 theme-code-block" style=--prism-color:#393A34;--prism-background-color:#f6f8fa><div class=codeBlockContent_QJqH><pre tabindex=0 class="prism-code language-text codeBlock_bY9V thin-scrollbar" style=color:#393A34;background-color:#f6f8fa><code class=codeBlockLines_e6Vv><div class=token-line style=color:#393A34><span class="token plain">&lt;td>echo on&amp;gt; /proc/memdump&lt;br /></span><br/></div><div class=token-line style=color:#393A34><span class="token plain">echo off&amp;gt; /proc/memdump&lt;/td></span><br/></div></code></pre></div></div>
+<p>&lt;td>启动或关闭堆的“backtrace”功能，这是总开关&lt;/td>
+&lt;/tr>
+&lt;tr class="even"></p>
+<div class="language-text codeBlockContainer_Ckt0 theme-code-block" style=--prism-color:#393A34;--prism-background-color:#f6f8fa><div class=codeBlockContent_QJqH><pre tabindex=0 class="prism-code language-text codeBlock_bY9V thin-scrollbar" style=color:#393A34;background-color:#f6f8fa><code class=codeBlockLines_e6Vv><div class=token-line style=color:#393A34><span class="token plain">&lt;td>&lt;p>memdump &amp;lt;PID&amp;gt; on&lt;/p></span><br/></div><div class=token-line style=color:#393A34><span class="token plain">&lt;p>memdump &amp;lt;PID&amp;gt; off&lt;/p>&lt;/td></span><br/></div><div class=token-line style=color:#393A34><span class="token plain">&lt;td>echo “PID on” &amp;gt; /proc/memdump&lt;br /></span><br/></div><div class=token-line style=color:#393A34><span class="token plain">echo “PID off” &amp;gt; /proc/memdump&lt;/td></span><br/></div></code></pre></div></div>
+<p>&lt;td>启动或关闭某个进程的堆的“backtrace”功能&lt;/td>
+&lt;/tr>
+&lt;tr class="odd">
+&lt;td>&lt;p>所有的命令，&lt;/p>
+&lt;p>都可以加上“&lt;seqmin> &lt;seqmax>”&lt;/p>
+&lt;p>比如：&lt;/p>
+&lt;p>memdump used 123 788&lt;/p>&lt;/td></p>
+<div class="language-text codeBlockContainer_Ckt0 theme-code-block" style=--prism-color:#393A34;--prism-background-color:#f6f8fa><div class=codeBlockContent_QJqH><pre tabindex=0 class="prism-code language-text codeBlock_bY9V thin-scrollbar" style=color:#393A34;background-color:#f6f8fa><code class=codeBlockLines_e6Vv><div class=token-line style=color:#393A34><span class="token plain">&lt;td>echo “used 123 788” &amp;gt; /proc/memdump&lt;/td></span><br/></div></code></pre></div></div>
+<p>&lt;td>每次调用malloc，都会记录“这是第几次调用”，这个数字就是seq。每个分配出去的内存块都有seq，可以指定要显示的seq范围。&lt;/td>
+&lt;/tr>
+&lt;/tbody>
+&lt;/table></p>
+<h4 class="anchor anchorTargetStickyNavbar_Vzrq" id=free>free<a href=#free class=hash-link aria-label=free的直接链接 title=free的直接链接 translate=no>​</a></h4>
+<p>要想使用free命令，可以如下配置：</p>
+<p># 不配置 CONFIG_NSH_DISABLE_FREE</p>
+<p>直接执行free命令即可：</p>
+<p>nsh&amp;gt; free</p>
+<p>total used free maxused maxfree nused nfree name</p>
+<p>959896100 961604 958934496 986320 958925080 968 10 Umem</p>
+<p>它就是读取“/proc/meminfo”并显示出来。</p>
+<h4 class="anchor anchorTargetStickyNavbar_Vzrq" id=内部机制-2>内部机制<a href=#内部机制-2 class=hash-link aria-label=内部机制的直接链接 title=内部机制的直接链接 translate=no>​</a></h4>
+<p>内部机制都是遍历堆里面的所有node，统计信息、打印：</p>
+<p>以“memdump used”命令为例，涉及的调用过程如下：</p>
+<p><img decoding=async loading=lazy src=/assets/images/image237-97f1e7af92e37d3b41d79375d82d05a7.png width=670 height=645 class=img_ev3q /></p>
+<p>写“/proc/memdump”文件时，涉及如下调用：</p>
+<p><img decoding=async loading=lazy src=/assets/images/image238-4e231891294a746a732e368aec0dbe84.png width=1448 height=2212 class=img_ev3q /></p>
+<h3 class="anchor anchorTargetStickyNavbar_Vzrq" id=ctrl命令的使用与内部机制>“ctrl+?”命令的使用与内部机制<a href=#ctrl命令的使用与内部机制 class=hash-link aria-label=“ctrl+?”命令的使用与内部机制的直接链接 title=“ctrl+?”命令的使用与内部机制的直接链接 translate=no>​</a></h3>
+<p>注意：“Ctrl+?”里的问号，可以表示很多字符。Ctrl加上不同的字符代表一些特殊字符。通过串口发送一些特殊字符给开发板，可以触发一些事情。</p>
+<p>可见 ASCII 字符的编码范围是 0x20（十进制 32）到 0x7E（十进制 126），共 95 个字符。对于编码值小于0x20的特殊字符，可以使用Ctrl和字母产生，规则是：可见字符（大写）的ASCII码是m，Ctrl+这个可见字符的编码就是“m-64”。</p>
+<p>比如“C”的ASCII码是0x43，那么Ctrl+C的编码就是0x03。</p>
+<p>这些特殊编码可以用来进行一些控制，如下表（参考“nuttx/drivers/serial/Kconfig”）：</p>
+<p>&lt;table>
+&lt;colgroup>
+&lt;col style="width: 13%" />
+&lt;col style="width: 13%" />
+&lt;col style="width: 37%" />
+&lt;col style="width: 36%" />
+&lt;/colgroup>
+&lt;tbody>
+&lt;tr class="odd">
+&lt;td>Ctrl+?&lt;/td>
+&lt;td>ASCII码&lt;/td>
+&lt;td>配置项&lt;/td>
+&lt;td>作用&lt;/td>
+&lt;/tr>
+&lt;tr class="even">
+&lt;td>Ctrl+C&lt;/td>
+&lt;td>0x03&lt;/td>
+&lt;td>&lt;p>CONFIG_TTY_SIGINT=y&lt;/p>
+&lt;p>CONFIG_TTY_SIGINT_CHAR=0x03&lt;/p>&lt;/td>
+&lt;td>向当前进程发出SIGINT信号&lt;/td>
+&lt;/tr>
+&lt;tr class="odd">
+&lt;td>Ctrl+D&lt;/td>
+&lt;td>0x04&lt;/td>
+&lt;td>&lt;p>CONFIG_TTY_SIGINT=y&lt;/p>
+&lt;p>CONFIG_TTY_SIGINT_CHAR=0x04&lt;/p>&lt;/td>
+&lt;td>向当前进程发出SIGINT信号&lt;/td>
+&lt;/tr>
+&lt;tr class="even">
+&lt;td>Ctrl+R&lt;/td>
+&lt;td>0x12&lt;/td>
+&lt;td>&lt;p>CONFIG_TTY_LAUNCH=y&lt;/p>
+&lt;p>CONFIG_TTY_LAUNCH_CHAR=0x12&lt;/p>&lt;/td>
+&lt;td>&lt;p>创建线程，线程由下面2个配置项指定：&lt;/p>
+&lt;p>CONFIG_TTY_LAUNCH_ENTRYNAME&lt;/p>
+&lt;p>CONFIG_TTY_LAUNCH_ENTRYPOINT&lt;/p>&lt;/td>
+&lt;/tr>
+&lt;tr class="odd">
+&lt;td>Ctrl+Z&lt;/td>
+&lt;td>0x1a&lt;/td>
+&lt;td>&lt;p>CONFIG_TTY_SIGTSTP=y&lt;/p>
+&lt;p>CONFIG_TTY_SIGTSTP_CHAR=0x1a&lt;/p>&lt;/td>
+&lt;td>向当前进程发出SIGTSTP信号&lt;/td>
+&lt;/tr>
+&lt;tr class="even">
+&lt;td>Ctrl+“-”&lt;/td>
+&lt;td>0x1F&lt;/td>
+&lt;td>&lt;p>CONFIG_TTY_FORCE_PANIC=y&lt;/p>
+&lt;p>CONFIG_TTY_FORCE_PANIC_CHAR=0x1F&lt;/p>&lt;/td>
+&lt;td>让系统崩溃（panic），这是为了打印当前系统栈信息等&lt;/td>
+&lt;/tr>
+&lt;/tbody>
+&lt;/table></p>
+<h4 class="anchor anchorTargetStickyNavbar_Vzrq" id=配置和使用让系统崩溃>配置和使用：让系统崩溃<a href=#配置和使用让系统崩溃 class=hash-link aria-label=配置和使用：让系统崩溃的直接链接 title=配置和使用：让系统崩溃的直接链接 translate=no>​</a></h4>
+<p>要想使用组合键让系统崩溃，可以如下配置：</p>
+<p>CONFIG_TTY_FORCE_PANIC=y # 使能这个功能</p>
+<p>CONFIG_TTY_FORCE_PANIC_CHAR=0x1F # 指定特殊字符</p>
+<p>CONFIG_TTY_FORCE_PANIC_REPEAT_COUNT=3 # 收到几次才触发PANIC</p>
+<h4 class="anchor anchorTargetStickyNavbar_Vzrq" id=内部机制-3>内部机制<a href=#内部机制-3 class=hash-link aria-label=内部机制的直接链接 title=内部机制的直接链接 translate=no>​</a></h4>
+<p>参考文件“docs/zh-cn/device_dev_guide/driver/bus_driver/UART/UART.md”：</p>
+<p><img decoding=async loading=lazy src=/assets/images/image239-a27859d6f3d835f5057e6326e540c362.png width=806 height=405 class=img_ev3q /></p>
+<p>对于本课程使用的开发板，流程如下：</p>
+<div class="language-text codeBlockContainer_Ckt0 theme-code-block" style=--prism-color:#393A34;--prism-background-color:#f6f8fa><div class=codeBlockContent_QJqH><pre tabindex=0 class="prism-code language-text codeBlock_bY9V thin-scrollbar" style=color:#393A34;background-color:#f6f8fa><code class=codeBlockLines_e6Vv><div class=token-line style=color:#393A34><span class="token plain">// vendor/allwinnertech/chips/r528/r528_serial.c</span><br/></div><div class=token-line style=color:#393A34><span class="token plain" style=display:inline-block></span><br/></div></code></pre></div></div>
+<p>uart_interrupt</p>
+<div class="language-text codeBlockContainer_Ckt0 theme-code-block" style=--prism-color:#393A34;--prism-background-color:#f6f8fa><div class=codeBlockContent_QJqH><pre tabindex=0 class="prism-code language-text codeBlock_bY9V thin-scrollbar" style=color:#393A34;background-color:#f6f8fa><code class=codeBlockLines_e6Vv><div class=token-line style=color:#393A34><span class="token plain">// nuttx/drivers/serial/serial_io.c</span><br/></div><div class=token-line style=color:#393A34><span class="token plain" style=display:inline-block></span><br/></div></code></pre></div></div>
+<p>uart_recvchars</p>
+<div class="language-text codeBlockContainer_Ckt0 theme-code-block" style=--prism-color:#393A34;--prism-background-color:#f6f8fa><div class=codeBlockContent_QJqH><pre tabindex=0 class="prism-code language-text codeBlock_bY9V thin-scrollbar" style=color:#393A34;background-color:#f6f8fa><code class=codeBlockLines_e6Vv><div class=token-line style=color:#393A34><span class="token plain">// nuttx/drivers/serial/serial.c</span><br/></div><div class=token-line style=color:#393A34><span class="token plain" style=display:inline-block></span><br/></div></code></pre></div></div>
+<p>uart_check_special</p>
+<p>串口接收中断函数里，最终会调用“uart_check_special”函数来检查有没有收到特殊字符，如果收到则如下处理：</p>
+<p><img decoding=async loading=lazy src=/assets/images/image240-73c930dbe53aafb48b2022136d283893.png width=736 height=391 class=img_ev3q /></p>
+<h3 class="anchor anchorTargetStickyNavbar_Vzrq" id=其他命令>其他命令<a href=#其他命令 class=hash-link aria-label=其他命令的直接链接 title=其他命令的直接链接 translate=no>​</a></h3>
+<p>几个常用命令用法如下：</p>
+<p>nsh&amp;gt; help mb</p>
+<p>mb usage: mb &amp;lt;hex-address&amp;gt;[=&amp;lt;hex-value&amp;gt;] [&amp;lt;hex-byte-count&amp;gt;]</p>
+<p>nsh&amp;gt; help mh</p>
+<p>mh usage: mh &amp;lt;hex-address&amp;gt;[=&amp;lt;hex-value&amp;gt;] [&amp;lt;hex-byte-count&amp;gt;]</p>
+<p>nsh&amp;gt; help mw</p>
+<p>mw usage: mw &amp;lt;hex-address&amp;gt;[=&amp;lt;hex-value&amp;gt;] [&amp;lt;hex-byte-count&amp;gt;]</p>
+<p>nsh&amp;gt; help hexdump</p>
+<p>hexdump usage: hexdump &amp;lt;file or device&amp;gt; [skip=&amp;lt;bytes&amp;gt;] [count=&amp;lt;bytes&amp;gt;]</p>
+<p>nsh&amp;gt; help pidof</p>
+<p>pidof usage: pidof &amp;lt;name&amp;gt;</p>
+<p>“mb/mh/mw”命令，分别用来以“字节/半字(2字节)/字(4字节)”为单位读取或写如某个地址。</p>
+<p>示例如下：</p>
+<p>nsh&amp;gt; mb 40000000 # 读0x40000000地址数据，读1个字节</p>
+<p>0x40000000 = 0x67 # 值为0x67</p>
+<p>nsh&amp;gt; mb 40000000=77 # 写0x40000000地址，写1个字节，数值为0x77</p>
+<p>0x40000000 = 0x67 -&amp;gt; 0x77</p>
+<p>nsh&amp;gt; mb 40000000 # 读出验证</p>
+<p>0x40000000 = 0x77</p>
+<p>nsh&amp;gt; mb 40000000 2 # 从0x40000000开始读2个字节</p>
+<p>0x40000000 = 0x77</p>
+<p>0x40000001 = 0x45</p>
+<p>“hexdump”明白可以用来读取文件或驱动程序，“skip=N”表示跳过前面N字节，“count=M”表示读取M字节。比如：</p>
+<p>nsh&amp;gt; hexdump /data/1.wav count=10</p>
+<p>/data/1.wav at 00000000:</p>
+<p>0000: 52 49 46 46 c6 29 00 00 57 41 RIFF.)..WA</p>
+<p>“pidof”用来列出指定名字的进程，比如：</p>
+<p><img decoding=async loading=lazy src=/assets/images/image241-2c52c9d216ebc09c5473d1c0a85e94e4.png width=1358 height=408 class=img_ev3q /></div><footer class="theme-doc-footer docusaurus-mt-lg"><div class="row margin-top--sm theme-doc-footer-edit-meta-row"><div class="col noPrint_WFHX"><a href=https://github.com/100askTeam/openvela-docs/tree/master/docs/08-openvela调试技术/02-nsh中的工具.mdx target=_blank rel="noopener noreferrer" class=theme-edit-this-page><svg fill=currentColor height=20 width=20 viewBox="0 0 40 40" class=iconEdit_Z9Sw aria-hidden=true><g><path d="m34.5 11.7l-3 3.1-6.3-6.3 3.1-3q0.5-0.5 1.2-0.5t1.1 0.5l3.9 3.9q0.5 0.4 0.5 1.1t-0.5 1.2z m-29.5 17.1l18.4-18.5 6.3 6.3-18.4 18.4h-6.3v-6.2z"/></g></svg>编辑此页</a></div><div class="col lastUpdated_JAkA"></div></div></footer></article><nav class="docusaurus-mt-lg pagination-nav" aria-label=文件选项卡><a class="pagination-nav__link pagination-nav__link--prev" href=/docs/category/openvela调试技术><div class=pagination-nav__sublabel>上一页</div><div class=pagination-nav__label>openvela调试技术</div></a><a class="pagination-nav__link pagination-nav__link--next" href=/docs/openvela调试技术/ARM架构简明教程><div class=pagination-nav__sublabel>下一页</div><div class=pagination-nav__label>ARM架构简明教程</div></a></nav></div></div><div class="col col--3"><div class="tableOfContents_bqdL thin-scrollbar theme-doc-toc-desktop"><ul class="table-of-contents table-of-contents__left-border"><li><a href=#ps命令的使用与内部机制 class="table-of-contents__link toc-highlight">ps命令的使用与内部机制</a><li><a href=#top命令的使用与内部机制 class="table-of-contents__link toc-highlight">top命令的使用与内部机制</a><li><a href=#openvela堆的内部机制 class="table-of-contents__link toc-highlight">openvela堆的内部机制</a><li><a href=#memdump和free命令的使用与内部机制 class="table-of-contents__link toc-highlight">memdump和free命令的使用与内部机制</a><li><a href=#ctrl命令的使用与内部机制 class="table-of-contents__link toc-highlight">“ctrl+?”命令的使用与内部机制</a><li><a href=#其他命令 class="table-of-contents__link toc-highlight">其他命令</a></ul></div></div></div></div></main></div></div></div><footer class="theme-layout-footer footer footer--dark"><div class="container container-fluid"><div class="footer__bottom text--center"><div class=footer__copyright>Copyright © 2026 100askTeam, Inc. Built with Docusaurus.</div></div></div></footer></div></body>

@@ -1,0 +1,668 @@
+<!doctype html><html lang=zh-Hans dir=ltr class="docs-wrapper plugin-docs plugin-id-default docs-version-current docs-doc-page docs-doc-id-openvela多任务系统开发/线程通信、同步、互斥" data-has-hydrated=false><head><meta charset=UTF-8><meta name=generator content="Docusaurus v3.10.2"><title data-rh=true>线程通信、同步、互斥 | 东山Π</title><meta data-rh=true name=viewport content="width=device-width, initial-scale=1.0"/><meta data-rh=true name=twitter:card content=summary_large_image /><meta data-rh=true property=og:image content=https://openvela.100ask.org/img/docusaurus-social-card.jpg /><meta data-rh=true name=twitter:image content=https://openvela.100ask.org/img/docusaurus-social-card.jpg /><meta data-rh=true property=og:url content=https://openvela.100ask.org/docs/openvela多任务系统开发/线程通信、同步、互斥 /><meta data-rh=true property=og:locale content=zh_Hans /><meta data-rh=true name=docusaurus_locale content=zh-Hans /><meta data-rh=true name=docsearch:language content=zh-Hans /><meta data-rh=true name=docusaurus_version content=current /><meta data-rh=true name=docusaurus_tag content=docs-default-current /><meta data-rh=true name=docsearch:version content=current /><meta data-rh=true name=docsearch:docusaurus_tag content=docs-default-current /><meta data-rh=true property=og:title content="线程通信、同步、互斥 | 东山Π"/><meta data-rh=true name=description content=怎么解决《2.2使用RTOS的优势与挑战》里提到的问题？ /><meta data-rh=true property=og:description content=怎么解决《2.2使用RTOS的优势与挑战》里提到的问题？ /><link data-rh=true rel=icon href=/img/favicon.ico /><link data-rh=true rel=canonical href=https://openvela.100ask.org/docs/openvela多任务系统开发/线程通信、同步、互斥 /><link data-rh=true rel=alternate href=https://openvela.100ask.org/docs/openvela多任务系统开发/线程通信、同步、互斥 hreflang=zh-Hans /><link data-rh=true rel=alternate href=https://openvela.100ask.org/docs/openvela多任务系统开发/线程通信、同步、互斥 hreflang=x-default /><script data-rh=true type=application/ld+json>{"@context":"https://schema.org","@type":"BreadcrumbList","itemListElement":[{"@type":"ListItem","item":"https://openvela.100ask.org/docs/category/openvela多任务系统开发","name":"openvela多任务系统开发","position":1},{"@type":"ListItem","item":"https://openvela.100ask.org/docs/openvela多任务系统开发/线程通信、同步、互斥","name":"线程通信、同步、互斥","position":2}]}</script><link rel=stylesheet href=/assets/css/styles.f22bb743.css /><script src=/assets/js/runtime~main.4ebc8941.js defer></script><script src=/assets/js/main.8ab7730a.js defer></script></head><body><svg style="display: none;"><defs>
+<symbol id=theme-svg-external-link viewBox="0 0 24 24"><path fill=currentColor d="M21 13v10h-21v-19h12v2h-10v15h17v-8h2zm3-12h-10.988l4.035 4-6.977 7.07 2.828 2.828 6.977-7.07 4.125 4.172v-11z"/></symbol>
+</defs></svg>
+<script>!function(){var t=function(){try{return new URLSearchParams(window.location.search).get("docusaurus-theme")}catch(t){}}()||function(){try{return window.localStorage.getItem("theme-48e")}catch(t){}}();document.documentElement.setAttribute("data-theme",t||(window.matchMedia("(prefers-color-scheme: dark)").matches?"dark":"light")),document.documentElement.setAttribute("data-theme-choice",t||"system")}(),function(){try{for(var[t,e]of new URLSearchParams(window.location.search).entries())if(t.startsWith("docusaurus-data-")){var a=t.replace("docusaurus-data-","data-");document.documentElement.setAttribute(a,e)}}catch(t){}}()</script><div id=__docusaurus><link rel=preload as=image href=/img/logo.svg /><div role=region aria-label=跳到主要内容><a class=skipToContent_fXgn href=#__docusaurus_skipToContent_fallback>跳到主要内容</a></div><nav aria-label=主导航 class="theme-layout-navbar navbar navbar--fixed-top"><div class=navbar__inner><div class="theme-layout-navbar-left navbar__items"><button aria-label=切换导航栏 aria-expanded=false class="navbar__toggle clean-btn" type=button><svg width=30 height=30 viewBox="0 0 30 30" aria-hidden=true><path stroke=currentColor stroke-linecap=round stroke-miterlimit=10 stroke-width=2 d="M4 7h22M4 15h22M4 23h22"/></svg></button><a class=navbar__brand href=/><div class=navbar__logo><img src=/img/logo.svg alt=东山PI class="themedComponent_mlkZ themedComponent--light_NVdE"/><img src=/img/logo.svg alt=东山PI class="themedComponent_mlkZ themedComponent--dark_xIcU"/></div><b class="navbar__title text--truncate">东山Π</b></a><a class="navbar__item navbar__link" href=/docs/openvela开发环境搭建与体验/课程介绍与资料下载>文档</a></div><div class="theme-layout-navbar-right navbar__items navbar__items--right"><a href=https://github.com/100askTeam/openvela-docs target=_blank rel="noopener noreferrer" class="navbar__item navbar__link">GitHub<svg width=13.5 height=13.5 aria-label="(opens in new tab)" class=iconExternalLink_nPIU><use href=#theme-svg-external-link /></svg></a><div class="toggle_vylO colorModeToggle_DEke"><button class="clean-btn toggleButton_gllP toggleButtonDisabled_aARS" type=button disabled title="system mode" aria-label="切换浅色/暗黑模式（当前为system mode）"><svg viewBox="0 0 24 24" width=24 height=24 aria-hidden=true class="toggleIcon_g3eP lightToggleIcon_pyhR"><path fill=currentColor d="M12,9c1.65,0,3,1.35,3,3s-1.35,3-3,3s-3-1.35-3-3S10.35,9,12,9 M12,7c-2.76,0-5,2.24-5,5s2.24,5,5,5s5-2.24,5-5 S14.76,7,12,7L12,7z M2,13l2,0c0.55,0,1-0.45,1-1s-0.45-1-1-1l-2,0c-0.55,0-1,0.45-1,1S1.45,13,2,13z M20,13l2,0c0.55,0,1-0.45,1-1 s-0.45-1-1-1l-2,0c-0.55,0-1,0.45-1,1S19.45,13,20,13z M11,2v2c0,0.55,0.45,1,1,1s1-0.45,1-1V2c0-0.55-0.45-1-1-1S11,1.45,11,2z M11,20v2c0,0.55,0.45,1,1,1s1-0.45,1-1v-2c0-0.55-0.45-1-1-1C11.45,19,11,19.45,11,20z M5.99,4.58c-0.39-0.39-1.03-0.39-1.41,0 c-0.39,0.39-0.39,1.03,0,1.41l1.06,1.06c0.39,0.39,1.03,0.39,1.41,0s0.39-1.03,0-1.41L5.99,4.58z M18.36,16.95 c-0.39-0.39-1.03-0.39-1.41,0c-0.39,0.39-0.39,1.03,0,1.41l1.06,1.06c0.39,0.39,1.03,0.39,1.41,0c0.39-0.39,0.39-1.03,0-1.41 L18.36,16.95z M19.42,5.99c0.39-0.39,0.39-1.03,0-1.41c-0.39-0.39-1.03-0.39-1.41,0l-1.06,1.06c-0.39,0.39-0.39,1.03,0,1.41 s1.03,0.39,1.41,0L19.42,5.99z M7.05,18.36c0.39-0.39,0.39-1.03,0-1.41c-0.39-0.39-1.03-0.39-1.41,0l-1.06,1.06 c-0.39,0.39-0.39,1.03,0,1.41s1.03,0.39,1.41,0L7.05,18.36z"/></svg><svg viewBox="0 0 24 24" width=24 height=24 aria-hidden=true class="toggleIcon_g3eP darkToggleIcon_wfgR"><path fill=currentColor d="M9.37,5.51C9.19,6.15,9.1,6.82,9.1,7.5c0,4.08,3.32,7.4,7.4,7.4c0.68,0,1.35-0.09,1.99-0.27C17.45,17.19,14.93,19,12,19 c-3.86,0-7-3.14-7-7C5,9.07,6.81,6.55,9.37,5.51z M12,3c-4.97,0-9,4.03-9,9s4.03,9,9,9s9-4.03,9-9c0-0.46-0.04-0.92-0.1-1.36 c-0.98,1.37-2.58,2.26-4.4,2.26c-2.98,0-5.4-2.42-5.4-5.4c0-1.81,0.89-3.42,2.26-4.4C12.92,3.04,12.46,3,12,3L12,3z"/></svg><svg viewBox="0 0 24 24" width=24 height=24 aria-hidden=true class="toggleIcon_g3eP systemToggleIcon_QzmC"><path fill=currentColor d="m12 21c4.971 0 9-4.029 9-9s-4.029-9-9-9-9 4.029-9 9 4.029 9 9 9zm4.95-13.95c1.313 1.313 2.05 3.093 2.05 4.95s-0.738 3.637-2.05 4.95c-1.313 1.313-3.093 2.05-4.95 2.05v-14c1.857 0 3.637 0.737 4.95 2.05z"/></svg></button></div><div class=navbarSearchContainer_Bca1><div class="navbar__search searchBarContainer_NW3z" dir=ltr><input placeholder=搜索 aria-label=Search class="navbar__search-input searchInput_YFbd" value="" /><div class="loadingRing_RJI3 searchBarLoadingRing_YnHq"><div></div><div></div><div></div><div></div></div></div></div></div></div><div role=presentation class=navbar-sidebar__backdrop></div></nav><div id=__docusaurus_skipToContent_fallback class="theme-layout-main main-wrapper mainWrapper_z2l0"><div class=docsWrapper_hBAB><button aria-label=回到顶部 class="clean-btn theme-back-to-top-button backToTopButton_sjWU" type=button></button><div class=docRoot_UBD9><aside class="theme-doc-sidebar-container docSidebarContainer_YfHR"><div class=sidebarViewport_aRkj><div class=sidebar_njMd><nav aria-label=文档侧边栏 class="menu thin-scrollbar menu_SIkG"><ul class="theme-doc-sidebar-menu menu__list"><li class="theme-doc-sidebar-item-category theme-doc-sidebar-item-category-level-1 menu__list-item"><div class=menu__list-item-collapsible><a class="categoryLink_byQd menu__link menu__link--sublist" href=/docs/category/openvela开发环境搭建与体验><span class=categoryLinkLabel_W154>openvela开发环境搭建与体验</span></a><button aria-label="折叠侧边栏分类 'openvela开发环境搭建与体验'" aria-expanded=true type=button class="clean-btn menu__caret"></button></div><ul class=menu__list><li class="theme-doc-sidebar-item-link theme-doc-sidebar-item-link-level-2 menu__list-item"><a class=menu__link tabindex=0 href=/docs/openvela开发环境搭建与体验/课程介绍与资料下载><span class=linkLabel_WmDU>课程介绍与资料下载</span></a><li class="theme-doc-sidebar-item-link theme-doc-sidebar-item-link-level-2 menu__list-item"><a class=menu__link tabindex=0 href=/docs/openvela开发环境搭建与体验/搭建开发环境><span class=linkLabel_WmDU>搭建开发环境</span></a><li class="theme-doc-sidebar-item-link theme-doc-sidebar-item-link-level-2 menu__list-item"><a class=menu__link tabindex=0 href=/docs/openvela开发环境搭建与体验/体验openvela><span class=linkLabel_WmDU>体验openvela</span></a><li class="theme-doc-sidebar-item-link theme-doc-sidebar-item-link-level-2 menu__list-item"><a class=menu__link tabindex=0 href=/docs/openvela开发环境搭建与体验/vscode的设置与使用><span class=linkLabel_WmDU>vscode的设置与使用</span></a></ul><li class="theme-doc-sidebar-item-category theme-doc-sidebar-item-category-level-1 menu__list-item"><div class=menu__list-item-collapsible><a class="categoryLink_byQd menu__link menu__link--sublist" href=/docs/category/openvela系统介绍><span class=categoryLinkLabel_W154>openvela系统介绍</span></a><button aria-label="折叠侧边栏分类 'openvela系统介绍'" aria-expanded=true type=button class="clean-btn menu__caret"></button></div><ul class=menu__list><li class="theme-doc-sidebar-item-link theme-doc-sidebar-item-link-level-2 menu__list-item"><a class=menu__link tabindex=0 href=/docs/openvela系统介绍/裸机程序设计模式与缺陷><span class=linkLabel_WmDU>裸机程序设计模式与缺陷</span></a><li class="theme-doc-sidebar-item-link theme-doc-sidebar-item-link-level-2 menu__list-item"><a class=menu__link tabindex=0 href=/docs/openvela系统介绍/使用RTOS的优势与挑战><span class=linkLabel_WmDU>使用RTOS的优势与挑战</span></a><li class="theme-doc-sidebar-item-link theme-doc-sidebar-item-link-level-2 menu__list-item"><a class=menu__link tabindex=0 href=/docs/openvela系统介绍/为何选择openvela><span class=linkLabel_WmDU>为何选择openvela</span></a></ul><li class="theme-doc-sidebar-item-category theme-doc-sidebar-item-category-level-1 menu__list-item"><div class=menu__list-item-collapsible><a class="categoryLink_byQd menu__link menu__link--sublist menu__link--active" href=/docs/category/openvela多任务系统开发><span class=categoryLinkLabel_W154>openvela多任务系统开发</span></a><button aria-label="折叠侧边栏分类 'openvela多任务系统开发'" aria-expanded=true type=button class="clean-btn menu__caret"></button></div><ul class=menu__list><li class="theme-doc-sidebar-item-link theme-doc-sidebar-item-link-level-2 menu__list-item"><a class=menu__link tabindex=0 href=/docs/openvela多任务系统开发/任务、线程、调度><span class=linkLabel_WmDU>任务、线程、调度</span></a><li class="theme-doc-sidebar-item-link theme-doc-sidebar-item-link-level-2 menu__list-item"><a class=menu__link tabindex=0 href=/docs/openvela多任务系统开发/任务与线程上机实验><span class=linkLabel_WmDU>任务与线程上机实验</span></a><li class="theme-doc-sidebar-item-link theme-doc-sidebar-item-link-level-2 menu__list-item"><a class=menu__link tabindex=0 href=/docs/openvela多任务系统开发/openvela多任务系统开发示例><span class=linkLabel_WmDU>openvela多任务系统开发示例</span></a><li class="theme-doc-sidebar-item-link theme-doc-sidebar-item-link-level-2 menu__list-item"><a class="menu__link menu__link--active" aria-current=page tabindex=0 href=/docs/openvela多任务系统开发/线程通信、同步、互斥><span class=linkLabel_WmDU>线程通信、同步、互斥</span></a><li class="theme-doc-sidebar-item-link theme-doc-sidebar-item-link-level-2 menu__list-item"><a class=menu__link tabindex=0 href=/docs/openvela多任务系统开发/进程、线程、调度的内部机制><span class=linkLabel_WmDU>进程、线程、调度的内部机制</span></a><li class="theme-doc-sidebar-item-link theme-doc-sidebar-item-link-level-2 menu__list-item"><a class=menu__link tabindex=0 href=/docs/openvela多任务系统开发/通信互斥同步的内部机制><span class=linkLabel_WmDU>通信/互斥/同步的内部机制</span></a></ul><li class="theme-doc-sidebar-item-category theme-doc-sidebar-item-category-level-1 menu__list-item"><div class=menu__list-item-collapsible><a class="categoryLink_byQd menu__link menu__link--sublist" href=/docs/category/openvela驱动程序开发><span class=categoryLinkLabel_W154>openvela驱动程序开发</span></a><button aria-label="折叠侧边栏分类 'openvela驱动程序开发'" aria-expanded=true type=button class="clean-btn menu__caret"></button></div><ul class=menu__list><li class="theme-doc-sidebar-item-link theme-doc-sidebar-item-link-level-2 menu__list-item"><a class=menu__link tabindex=0 href=/docs/openvela驱动程序开发/基本驱动模型><span class=linkLabel_WmDU>基本驱动模型</span></a><li class="theme-doc-sidebar-item-link theme-doc-sidebar-item-link-level-2 menu__list-item"><a class=menu__link tabindex=0 href=/docs/openvela驱动程序开发/I2C驱动开发><span class=linkLabel_WmDU>I2C驱动开发</span></a><li class="theme-doc-sidebar-item-link theme-doc-sidebar-item-link-level-2 menu__list-item"><a class=menu__link tabindex=0 href=/docs/openvela驱动程序开发/SPI驱动开发><span class=linkLabel_WmDU>SPI驱动开发</span></a></ul><li class="theme-doc-sidebar-item-category theme-doc-sidebar-item-category-level-1 menu__list-item"><div class=menu__list-item-collapsible><a class="categoryLink_byQd menu__link menu__link--sublist" href=/docs/category/openvela文件系统><span class=categoryLinkLabel_W154>openvela文件系统</span></a><button aria-label="折叠侧边栏分类 'openvela文件系统'" aria-expanded=true type=button class="clean-btn menu__caret"></button></div><ul class=menu__list><li class="theme-doc-sidebar-item-link theme-doc-sidebar-item-link-level-2 menu__list-item"><a class=menu__link tabindex=0 href=/docs/openvela文件系统/VFS（虚拟文件系统）的使用><span class=linkLabel_WmDU>VFS（虚拟文件系统）的使用</span></a><li class="theme-doc-sidebar-item-link theme-doc-sidebar-item-link-level-2 menu__list-item"><a class=menu__link tabindex=0 href=/docs/openvela文件系统/文件系统内部实现><span class=linkLabel_WmDU>文件系统内部实现</span></a><li class="theme-doc-sidebar-item-link theme-doc-sidebar-item-link-level-2 menu__list-item"><a class=menu__link tabindex=0 href=/docs/openvela文件系统/常见虚拟文件系统><span class=linkLabel_WmDU>常见虚拟文件系统</span></a><li class="theme-doc-sidebar-item-link theme-doc-sidebar-item-link-level-2 menu__list-item"><a class=menu__link tabindex=0 href=/docs/openvela文件系统/真实文件系统><span class=linkLabel_WmDU>真实文件系统</span></a></ul><li class="theme-doc-sidebar-item-category theme-doc-sidebar-item-category-level-1 menu__list-item"><div class=menu__list-item-collapsible><a class="categoryLink_byQd menu__link menu__link--sublist" href=/docs/category/openvela的启动与构建><span class=categoryLinkLabel_W154>openvela的启动与构建</span></a><button aria-label="折叠侧边栏分类 'openvela的启动与构建'" aria-expanded=true type=button class="clean-btn menu__caret"></button></div><ul class=menu__list><li class="theme-doc-sidebar-item-link theme-doc-sidebar-item-link-level-2 menu__list-item"><a class=menu__link tabindex=0 href=/docs/openvela的启动与构建/openvela系统启动流程><span class=linkLabel_WmDU>openvela系统启动流程</span></a><li class="theme-doc-sidebar-item-link theme-doc-sidebar-item-link-level-2 menu__list-item"><a class=menu__link tabindex=0 href=/docs/openvela的启动与构建/构建脚本的基础知识><span class=linkLabel_WmDU>构建脚本的基础知识</span></a><li class="theme-doc-sidebar-item-link theme-doc-sidebar-item-link-level-2 menu__list-item"><a class=menu__link tabindex=0 href=/docs/openvela的启动与构建/openvela系统构建脚本解析><span class=linkLabel_WmDU>openvela系统构建脚本解析</span></a></ul><li class="theme-doc-sidebar-item-category theme-doc-sidebar-item-category-level-1 menu__list-item"><div class=menu__list-item-collapsible><a class="categoryLink_byQd menu__link menu__link--sublist" href=/docs/category/跨核通信><span class=categoryLinkLabel_W154>跨核通信</span></a><button aria-label="折叠侧边栏分类 '跨核通信'" aria-expanded=true type=button class="clean-btn menu__caret"></button></div><ul class=menu__list><li class="theme-doc-sidebar-item-link theme-doc-sidebar-item-link-level-2 menu__list-item"><a class=menu__link tabindex=0 href=/docs/跨核通信/跨核通信的方法><span class=linkLabel_WmDU>跨核通信的方法</span></a><li class="theme-doc-sidebar-item-link theme-doc-sidebar-item-link-level-2 menu__list-item"><a class=menu__link tabindex=0 href=/docs/跨核通信/RPMSG（远程处理器消息传递）><span class=linkLabel_WmDU>RPMSG（远程处理器消息传递）</span></a><li class="theme-doc-sidebar-item-link theme-doc-sidebar-item-link-level-2 menu__list-item"><a class=menu__link tabindex=0 href=/docs/跨核通信/基于VirtIO的跨核通信><span class=linkLabel_WmDU>基于VirtIO的跨核通信</span></a></ul><li class="theme-doc-sidebar-item-category theme-doc-sidebar-item-category-level-1 menu__list-item"><div class=menu__list-item-collapsible><a class="categoryLink_byQd menu__link menu__link--sublist" href=/docs/category/openvela调试技术><span class=categoryLinkLabel_W154>openvela调试技术</span></a><button aria-label="折叠侧边栏分类 'openvela调试技术'" aria-expanded=true type=button class="clean-btn menu__caret"></button></div><ul class=menu__list><li class="theme-doc-sidebar-item-link theme-doc-sidebar-item-link-level-2 menu__list-item"><a class=menu__link tabindex=0 href=/docs/openvela调试技术/nsh中的工具><span class=linkLabel_WmDU>nsh中的工具</span></a><li class="theme-doc-sidebar-item-link theme-doc-sidebar-item-link-level-2 menu__list-item"><a class=menu__link tabindex=0 href=/docs/openvela调试技术/ARM架构简明教程><span class=linkLabel_WmDU>ARM架构简明教程</span></a><li class="theme-doc-sidebar-item-link theme-doc-sidebar-item-link-level-2 menu__list-item"><a class=menu__link tabindex=0 href=/docs/openvela调试技术/openvela高级调试技术><span class=linkLabel_WmDU>openvela高级调试技术</span></a></ul><li class="theme-doc-sidebar-item-category theme-doc-sidebar-item-category-level-1 menu__list-item"><div class=menu__list-item-collapsible><a class="categoryLink_byQd menu__link menu__link--sublist" href=/docs/category/项目实战><span class=categoryLinkLabel_W154>项目实战</span></a><button aria-label="折叠侧边栏分类 '项目实战'" aria-expanded=true type=button class="clean-btn menu__caret"></button></div><ul class=menu__list><li class="theme-doc-sidebar-item-link theme-doc-sidebar-item-link-level-2 menu__list-item"><a class=menu__link tabindex=0 href=/docs/项目实战/AI聊天机器人程序框架><span class=linkLabel_WmDU>AI聊天机器人程序框架</span></a><li class="theme-doc-sidebar-item-link theme-doc-sidebar-item-link-level-2 menu__list-item"><a class=menu__link tabindex=0 href=/docs/项目实战/语音功能开发><span class=linkLabel_WmDU>语音功能开发</span></a><li class="theme-doc-sidebar-item-link theme-doc-sidebar-item-link-level-2 menu__list-item"><a class=menu__link tabindex=0 href=/docs/项目实战/控制中心功能开发><span class=linkLabel_WmDU>控制中心功能开发</span></a><li class="theme-doc-sidebar-item-link theme-doc-sidebar-item-link-level-2 menu__list-item"><a class=menu__link tabindex=0 href=/docs/项目实战/GUI开发><span class=linkLabel_WmDU>GUI开发</span></a><li class="theme-doc-sidebar-item-link theme-doc-sidebar-item-link-level-2 menu__list-item"><a class=menu__link tabindex=0 href=/docs/项目实战/系统集成><span class=linkLabel_WmDU>系统集成</span></a></ul></ul></nav><button type=button title=收起侧边栏 aria-label=收起侧边栏 class="button button--secondary button--outline collapseSidebarButton_PEFL"><svg width=20 height=20 aria-hidden=true class=collapseSidebarButtonIcon_kv0_><g fill=#7a7a7a><path d="M9.992 10.023c0 .2-.062.399-.172.547l-4.996 7.492a.982.982 0 01-.828.454H1c-.55 0-1-.453-1-1 0-.2.059-.403.168-.551l4.629-6.942L.168 3.078A.939.939 0 010 2.528c0-.548.45-.997 1-.997h2.996c.352 0 .649.18.828.45L9.82 9.472c.11.148.172.347.172.55zm0 0"/><path d="M19.98 10.023c0 .2-.058.399-.168.547l-4.996 7.492a.987.987 0 01-.828.454h-3c-.547 0-.996-.453-.996-1 0-.2.059-.403.168-.551l4.625-6.942-4.625-6.945a.939.939 0 01-.168-.55 1 1 0 01.996-.997h3c.348 0 .649.18.828.45l4.996 7.492c.11.148.168.347.168.55zm0 0"/></g></svg></button></div></div></aside><main class=docMainContainer_TBSr><div class="container padding-top--md padding-bottom--lg"><div class=row><div class="col docItemCol_VOVn"><div class=docItemContainer_Djhp><article><nav class="theme-doc-breadcrumbs breadcrumbsContainer_Z_bl" aria-label=页面路径><ul class=breadcrumbs><li class=breadcrumbs__item><a aria-label=主页面 class=breadcrumbs__link href=/><svg viewBox="0 0 24 24" class=breadcrumbHomeIcon_YNFT><path d="M10 19v-5h4v5c0 .55.45 1 1 1h3c.55 0 1-.45 1-1v-7h1.7c.46 0 .68-.57.33-.87L12.67 3.6c-.38-.34-.96-.34-1.34 0l-8.36 7.53c-.34.3-.13.87.33.87H5v7c0 .55.45 1 1 1h3c.55 0 1-.45 1-1z" fill=currentColor /></svg></a><li class=breadcrumbs__item><a class=breadcrumbs__link href=/docs/category/openvela多任务系统开发><span>openvela多任务系统开发</span></a><li class="breadcrumbs__item breadcrumbs__item--active"><span class=breadcrumbs__link>线程通信、同步、互斥</span></ul></nav><div class="tocCollapsible_ETCw theme-doc-toc-mobile tocMobile_ITEo"><button type=button class="clean-btn tocCollapsibleButton_TO0P">本页总览</button></div><div class="theme-doc-markdown markdown"><header><h1>线程通信、同步、互斥</h1></header><p>怎么解决《2.2使用RTOS的优势与挑战》里提到的问题？</p>
+<p>比如我们的音乐任务里，即使控制线程没有获得用户输入，播放线程也在“空转”——它在不断判断“g_flag”，这使得CPU的利用率很低。这个问题可以使用队列来解决。</p>
+<p>再比如LED任务里，它需要不断轮询按键是否被按下，CPU利用率也很低。可以把程序拆分为2部分：按键检测（在中断里释放信号量），LED操作（获得信号量后操作LED）。</p>
+<h3 class="anchor anchorTargetStickyNavbar_Vzrq" id=app获取数据的4种方式>APP获取数据的4种方式<a href=#app获取数据的4种方式 class=hash-link aria-label=APP获取数据的4种方式的直接链接 title=APP获取数据的4种方式的直接链接 translate=no>​</a></h3>
+<h4 class="anchor anchorTargetStickyNavbar_Vzrq" id=4种方式>4种方式<a href=#4种方式 class=hash-link aria-label=4种方式的直接链接 title=4种方式的直接链接 translate=no>​</a></h4>
+<p>以下图生活场景为例：</p>
+<p><img decoding=async loading=lazy src=/assets/images/image47-c51825c940f1fa0b1e152832678df22b.png width=986 height=783 class=img_ev3q /></p>
+<p>妈妈怎么知道卧室里小孩醒了？</p>
+<ul>
+<li class="">时不时进房间看一下：查询方式</li>
+</ul>
+<p>简单，但是累</p>
+<ul>
+<li class="">进去房间陪小孩一起睡觉，小孩醒了会吵醒她：休眠-唤醒</li>
+</ul>
+<p>不累，但是妈妈干不了活了</p>
+<ul>
+<li class="">妈妈要干很多活，但是可以陪小孩睡一会，定个闹钟：poll方式</li>
+</ul>
+<p>要浪费点时间，但是可以继续干活。</p>
+<p>妈妈要么是被小孩吵醒，要么是被闹钟吵醒。</p>
+<ul>
+<li class="">妈妈在客厅干活，小孩醒了他会自己走出房门告诉妈妈：异步通知</li>
+</ul>
+<p>妈妈、小孩互不耽误。</p>
+<p>这4种方法没有优劣之分，在不同的场合使用不同的方法。</p>
+<p>在前面的项目里，播放线程就是以“查询方式”不断地查询g_flag是否为1。</p>
+<p>后续我们可以把它改造为：</p>
+<ul>
+<li class="">
+<p>使用消息队列的mq_receive：可以即刻返回（NON_BLOCK），也可以休眠-唤醒</p>
+</li>
+<li class="">
+<p>使用消息队列的mq_timedreceive：定个闹钟</p>
+</li>
+<li class="">
+<p>使用消息队列的mq_notify：异步通知</p>
+</li>
+</ul>
+<p>消息队列有这4种使用方式，其他对象比如信号量、互斥量，也有这些使用模式。</p>
+<h4 class="anchor anchorTargetStickyNavbar_Vzrq" id=openvela里常用的机制>openvela里常用的机制<a href=#openvela里常用的机制 class=hash-link aria-label=openvela里常用的机制的直接链接 title=openvela里常用的机制的直接链接 translate=no>​</a></h4>
+<p>openvala中，使用消息队列传递数据，使用信号量进行通知，使用互斥量进行独占式访问，使用信号实现异步通知，如下图所示：</p>
+<p><img decoding=async loading=lazy src=/assets/images/image48-1153eca378c8203003369570af2c1c8e.png width=848 height=537 class=img_ev3q /></p>
+<p>openvela中常用的消息队列、信号量、互斥量、信号，列表如下：</p>
+<div class="language-text codeBlockContainer_Ckt0 theme-code-block" style=--prism-color:#393A34;--prism-background-color:#f6f8fa><div class=codeBlockContent_QJqH><pre tabindex=0 class="prism-code language-text codeBlock_bY9V thin-scrollbar" style=color:#393A34;background-color:#f6f8fa><code class=codeBlockLines_e6Vv><div class=token-line style=color:#393A34><span class="token plain">&lt;table style="width:100%;"></span><br/></div></code></pre></div></div>
+<p>&lt;colgroup>
+&lt;col style="width: 4%" />
+&lt;col style="width: 20%" />
+&lt;col style="width: 18%" />
+&lt;col style="width: 28%" />
+&lt;col style="width: 27%" />
+&lt;/colgroup>
+&lt;tbody>
+&lt;tr class="odd">
+&lt;td>&lt;strong>特性&lt;/strong>&lt;/td>
+&lt;td>&lt;strong>消息队列（Message Queue）&lt;/strong>&lt;/td>
+&lt;td>&lt;strong>信号量（Semaphore）&lt;/strong>&lt;/td>
+&lt;td>&lt;strong>互斥量（Mutex）&lt;/strong>&lt;/td>
+&lt;td>&lt;strong>信号（Signal）&lt;/strong>&lt;/td>
+&lt;/tr>
+&lt;tr class="even">
+&lt;td>&lt;strong>核心作用&lt;/strong>&lt;/td>
+&lt;td>进程 / 线程间传递数据（消息），实现异步通信&lt;/td>
+&lt;td>控制多个进程 / 线程对共享资源的访问数量（如限制并发数）&lt;/td>
+&lt;td>保证同一时间只有一个进程 / 线程访问共享资源（互斥访问）&lt;/td>
+&lt;td>进程 / 线程间的异步事件通知（如异常处理、外部中断）&lt;/td>
+&lt;/tr>
+&lt;tr class="odd">
+&lt;td>&lt;strong>数据传递&lt;/strong>&lt;/td>
+&lt;td>支持传递结构化数据（消息内容），可附带优先级&lt;/td>
+&lt;td>不传递数据，仅通过计数器控制资源访问权限&lt;/td>
+&lt;td>不传递数据，仅标记资源是否被占用&lt;/td>
+&lt;td>可传递信号值（整数），部分信号携带附加信息（如 SIGSEGV 的内存地址）&lt;/td>
+&lt;/tr>
+&lt;tr class="even">
+&lt;td>&lt;strong>使用场景&lt;/strong>&lt;/td>
+&lt;td>&lt;ol type="1">
+&lt;li>&lt;p>进程间需要传递复杂数据（如日志、命令）&lt;/p>&lt;/li>
+&lt;li>&lt;p>异步通信场景（如生产者 - 消费者模型）&lt;/p>&lt;/li>
+&lt;li>&lt;p>解耦发送方和接收方（无需实时响应）&lt;/p>&lt;/li>
+&lt;/ol>&lt;/td>
+&lt;td>&lt;ol type="1">
+&lt;li>&lt;p>限制资源并发访问数（如数据库连接池、线程池）&lt;/p>&lt;/li>
+&lt;li>&lt;p>同步多个线程的执行顺序（如 barrier 机制）&lt;/p>&lt;/li>
+&lt;li>&lt;p>控制任务队列的处理节奏&lt;/p>&lt;/li>
+&lt;/ol>&lt;/td>
+&lt;td>&lt;ol type="1">
+&lt;li>&lt;p>保护共享资源（如全局变量、硬件设备）&lt;/p>&lt;/li>
+&lt;li>&lt;p>防止多个线程同时执行临界区代码&lt;/p>&lt;/li>
+&lt;li>&lt;p>实现独占访问（如单例模式）&lt;/p>&lt;/li>
+&lt;/ol>&lt;/td>
+&lt;td>&lt;ol type="1">
+&lt;li>&lt;p>处理异常事件（如程序崩溃、除零错误）&lt;/p>&lt;/li>
+&lt;li>&lt;p>进程间紧急通知（如终止信号 SIGTERM）&lt;/p>&lt;/li>
+&lt;li>&lt;p>定时任务触发（如 SIGALRM）&lt;/p>&lt;/li>
+&lt;/ol>&lt;/td>
+&lt;/tr>
+&lt;tr class="odd">
+&lt;td>&lt;strong>同步方式&lt;/strong>&lt;/td>
+&lt;td>异步。写队列成功后会即刻返回，无需等待对方处理消息。如果队列满了，在中断上下文或者使用O_NONBLOCK时不会阻塞，其余时候都会阻塞&lt;/td>
+&lt;td>同步（获取信号量失败时阻塞，直到被唤醒）&lt;/td>
+&lt;td>同步（获取锁失败时阻塞，直到锁释放）&lt;/td>
+&lt;td>异步（信号到达时打断程序正常执行，触发信号处理函数）&lt;/td>
+&lt;/tr>
+&lt;tr class="even">
+&lt;td>&lt;strong>资源占用&lt;/strong>&lt;/td>
+&lt;td>较高（需存储消息数据，内核维护队列结构）&lt;/td>
+&lt;td>较低（仅维护一个计数器）&lt;/td>
+&lt;td>较低（维护锁状态和等待队列）&lt;/td>
+&lt;td>极低（仅传递信号值，内核触发回调）&lt;/td>
+&lt;/tr>
+&lt;tr class="odd">
+&lt;td>&lt;strong>典型操作&lt;/strong>&lt;/td>
+&lt;td>创建队列、发送消息（mq_send）、接收消息（mq_receive）、删除队列&lt;/td>
+&lt;td>初始化（sem_init）、P 操作（sem_wait，减计数）、V 操作（sem_post，增计数）&lt;/td>
+&lt;td>初始化（pthread_mutex_init）、加锁（pthread_mutex_lock）、解锁（pthread_mutex_unlock）&lt;/td>
+&lt;td>注册处理函数（signal/sigaction）、发送信号（kill/pthread_kill）、忽略信号&lt;/td>
+&lt;/tr>
+&lt;tr class="even">
+&lt;td>&lt;strong>关键点&lt;/strong>&lt;/td>
+&lt;td>消息可缓存，支持按类型 / 优先级接收，适合数据量较大的通信&lt;/td>
+&lt;td>计数器初始值决定最大并发数（如初始值为 3，表示允许 3 个线程同时访问）&lt;/td>
+&lt;td>具有 “所有权”（只有加锁的线程能解锁），支持递归锁（同一线程可重复加锁）&lt;/td>
+&lt;td>信号处理函数需异步安全（避免使用 printf 等非线程安全函数），部分信号无法捕获（如 SIGKILL）&lt;/td>
+&lt;/tr>
+&lt;tr class="odd">
+&lt;td>&lt;strong>主要区别&lt;/strong>&lt;/td>
+&lt;td>以 “数据传递” 为核心，解决进程间通信问题&lt;/td>
+&lt;td>以 “资源计数” 为核心，解决并发控制问题&lt;/td>
+&lt;td>以 “独占访问” 为核心，解决互斥问题&lt;/td>
+&lt;td>以 “事件通知” 为核心，解决异步响应问题&lt;/td>
+&lt;/tr>
+&lt;/tbody>
+&lt;/table></p>
+<h3 class="anchor anchorTargetStickyNavbar_Vzrq" id=消息队列的使用>消息队列的使用<a href=#消息队列的使用 class=hash-link aria-label=消息队列的使用的直接链接 title=消息队列的使用的直接链接 translate=no>​</a></h3>
+<p>要使用消息队列，需要先创建或打开它，然后就可以往里面写入数据、读出数据了：</p>
+<p><img decoding=async loading=lazy src=/assets/images/image49-188a713351e4ea87f02b78626db9eaf9.png width=865 height=539 class=img_ev3q /></p>
+<h4 class="anchor anchorTargetStickyNavbar_Vzrq" id=api>API<a href=#api class=hash-link aria-label=API的直接链接 title=API的直接链接 translate=no>​</a></h4>
+<p>openvela的消息队列类似于“文件”，使用它时就像“open/read/write/close”一样有如下主要接口函数“mq_open/mq_send/mq_receive/mq_close”，对于发送、接收的功能，额外添加2个函数“mq_timedsend/mq_timedreceive”。</p>
+<p>列表如下：</p>
+<table><thead><tr><th><th><tbody><tr><td>函数名<td>功能描述<tr><td>mq_open<td>创建或打开一个消息队列<tr><td>mq_close<td>关闭消息队列描述符<tr><td>mq_unlink<td>删除消息队列（名称与内核对象解绑）<tr><td>mq_send<td>向消息队列发送消息<tr><td>mq_timedsend<td>在指定超时时间内发送消息<tr><td>mq_receive<td>从消息队列接收消息（获取优先级最高、最早的消息）<tr><td>mq_timedreceive<td>在指定超时时间内接收消息<tr><td>mq_getattr<td>获取消息队列的属性<tr><td>mq_setattr<td>设置消息队列的属性（仅mq_flags字段可修改）<tr><td>mq_notify<td>为消息队列注册一个异步事件通知。当消息队列接收到一条新消息时，系统会向注册的任务发送一个信号。</table>
+<h4 class="anchor anchorTargetStickyNavbar_Vzrq" id=打开关闭>打开/关闭<a href=#打开关闭 class=hash-link aria-label=打开/关闭的直接链接 title=打开/关闭的直接链接 translate=no>​</a></h4>
+<p>mq_open/mq_close/mq_unlink函数管理消息队列的创建、打开、关闭和删除。</p>
+<p>mq_open()用于创建或打开消息队列。此函数打开一个已存在的消息队列，或根据 oflags 参数创建一个新的队列。成功调用后，它返回一个消息队列描述符 (mqd_t)，供后续函数使用。</p>
+<p>函数原型如下：</p>
+<p>mqd_t mq_open(FAR const char *mq_name, int oflags, ...)</p>
+<table><thead><tr><th><th><tbody><tr><td><strong>参数</strong><td><strong>描述</strong><tr><td>mq_name<td>指向消息队列名称的字符串，例如 "/my_queue"。<tr><td>oflags<td>操作标志位，可使用按位或（|）组合。</table>
+<p>oflags 的常用值包括：</p>
+<ul>
+<li class="">
+<p>访问模式（三选一）：</p>
+<ul>
+<li class="">
+<p>O_RDONLY：以只读方式打开。</p>
+</li>
+<li class="">
+<p>O_WRONLY：以只写方式打开。</p>
+</li>
+<li class="">
+<p>O_RDWR：以读写方式打开。</p>
+</li>
+</ul>
+</li>
+<li class="">
+<p>创建标志（可选）：</p>
+<ul>
+<li class="">O_CREAT：如果队列不存在，则创建它。</li>
+</ul>
+</li>
+</ul>
+<p>使用此标志时，mq_open 需要两个额外参数：mode_t mode 和 struct mq_attr *attr。</p>
+<ul>
+<li class="">
+<p>O_EXCL：与 O_CREAT 配合使用，如果队列已存在，则调用失败。</p>
+</li>
+<li class="">
+<p>O_NONBLOCK：以非阻塞模式打开。影响后续的 mq_send() 和 mq_receive() 调用。</p>
+</li>
+</ul>
+<p>注意：mq_open函数里，可以传入属性，比如：</p>
+<div class="language-text codeBlockContainer_Ckt0 theme-code-block" style=--prism-color:#393A34;--prism-background-color:#f6f8fa><div class=codeBlockContent_QJqH><pre tabindex=0 class="prism-code language-text codeBlock_bY9V thin-scrollbar" style=color:#393A34;background-color:#f6f8fa><code class=codeBlockLines_e6Vv><div class=token-line style=color:#393A34><span class="token plain">struct mq_attr attr;</span><br/></div><div class=token-line style=color:#393A34><span class="token plain" style=display:inline-block></span><br/></div></code></pre></div></div>
+<p>attr.mq_maxmsg = 10; // 最大消息数</p>
+<p>attr.mq_msgsize = 1024; // 单条消息最大长度（字节）</p>
+<div class="language-text codeBlockContainer_Ckt0 theme-code-block" style=--prism-color:#393A34;--prism-background-color:#f6f8fa><div class=codeBlockContent_QJqH><pre tabindex=0 class="prism-code language-text codeBlock_bY9V thin-scrollbar" style=color:#393A34;background-color:#f6f8fa><code class=codeBlockLines_e6Vv><div class=token-line style=color:#393A34><span class="token plain">mqd_t mq = mq_open("/myqueue", O_CREAT \| O_RDWR, 0644, &attr);</span><br/></div><div class=token-line style=color:#393A34><span class="token plain" style=display:inline-block></span><br/></div></code></pre></div></div>
+<p>如果不传入attr，那么消息队列默认可以容纳16个消息，每个消息大小是32字节。</p>
+<p>mq_close() - 关闭消息队列。此函数断开调用任务与指定消息队列之间的连接。</p>
+<p>函数原型如下：</p>
+<div class="language-text codeBlockContainer_Ckt0 theme-code-block" style=--prism-color:#393A34;--prism-background-color:#f6f8fa><div class=codeBlockContent_QJqH><pre tabindex=0 class="prism-code language-text codeBlock_bY9V thin-scrollbar" style=color:#393A34;background-color:#f6f8fa><code class=codeBlockLines_e6Vv><div class=token-line style=color:#393A34><span class="token plain">int mq_close(mqd_t mqdes)</span><br/></div><div class=token-line style=color:#393A34><span class="token plain" style=display:inline-block></span><br/></div></code></pre></div></div>
+<p>调用 mq_close() 并不会销毁消息队列本身，仅释放当前任务持有的描述符。其他任务仍可通过 mq_open() 访问该队列。</p>
+<p>mq_unlink() - 删除消息队列。此函数从系统中删除一个消息队列。</p>
+<p>函数原型如下：</p>
+<div class="language-text codeBlockContainer_Ckt0 theme-code-block" style=--prism-color:#393A34;--prism-background-color:#f6f8fa><div class=codeBlockContent_QJqH><pre tabindex=0 class="prism-code language-text codeBlock_bY9V thin-scrollbar" style=color:#393A34;background-color:#f6f8fa><code class=codeBlockLines_e6Vv><div class=token-line style=color:#393A34><span class="token plain">int mq_unlink(FAR const char \*mq_name)</span><br/></div><div class=token-line style=color:#393A34><span class="token plain" style=display:inline-block></span><br/></div></code></pre></div></div>
+<p>该接口会删除名字为 mq_name 的消息队列。当有一个或多个 Task 打开一个消息队列，此时调用 mq_unlink，需要等到所有引用该消息队列的 Task 都执行关闭操作后，才会删除消息队列。</p>
+<p>注意：如果调用 mq_unlink() 时仍有任务打开了该队列，系统会将队列标记为“待删除”状态。系统会等待所有引用该队列的任务都调用 mq_close() 后，才真正释放队列资源。</p>
+<h4 class="anchor anchorTargetStickyNavbar_Vzrq" id=传输函数>传输函数<a href=#传输函数 class=hash-link aria-label=传输函数的直接链接 title=传输函数的直接链接 translate=no>​</a></h4>
+<p>mq_send和mq_timedsend、mq_receive和mq_timedreceive负责在任务间发送和接收消息。</p>
+<p>mq_send() / mq_timedsend() - 发送消息，函数原型如下：</p>
+<div class="language-text codeBlockContainer_Ckt0 theme-code-block" style=--prism-color:#393A34;--prism-background-color:#f6f8fa><div class=codeBlockContent_QJqH><pre tabindex=0 class="prism-code language-text codeBlock_bY9V thin-scrollbar" style=color:#393A34;background-color:#f6f8fa><code class=codeBlockLines_e6Vv><div class=token-line style=color:#393A34><span class="token plain">int mq_send(mqd_t mqdes, const void \*msg, size_t msglen, int prio)</span><br/></div><div class=token-line style=color:#393A34><span class="token plain" style=display:inline-block></span><br/></div><div class=token-line style=color:#393A34><span class="token plain">int mq_timedsend(mqd_t mqdes, const char \*msg, size_t msglen, int prio,</span><br/></div><div class=token-line style=color:#393A34><span class="token plain" style=display:inline-block></span><br/></div><div class=token-line style=color:#393A34><span class="token plain">const struct timespec \*abs_timeout);</span><br/></div><div class=token-line style=color:#393A34><span class="token plain" style=display:inline-block></span><br/></div></code></pre></div></div>
+<p>发送消息的行为特性如下：</p>
+<ul>
+<li class="">
+<p>队列已满：</p>
+<ul>
+<li class="">如果队列已满且未设置 O_NONBLOCK：</li>
+</ul>
+</li>
+</ul>
+<p>mq_send() 会永久阻塞，直到队列有可用空间。</p>
+<p>mq_timedsend() 会阻塞，直到 abs_timeout指定的绝对时间超时。</p>
+<ul>
+<li class="">如果设置了 O_NONBLOCK，函数会立即返回错误，而不会阻塞。</li>
+</ul>
+<p>&lt;!-- --></p>
+<ul>
+<li class="">消息长度： msglen 不能超过队列属性中定义的最大消息长度 (mq_msgsize)。</li>
+</ul>
+<p>mq_receive() / mq_timedreceive()接收消息。这两个函数从指定队列中移除并返回优先级最高、等待时间最长的消息。</p>
+<p>函数原型如下：</p>
+<div class="language-text codeBlockContainer_Ckt0 theme-code-block" style=--prism-color:#393A34;--prism-background-color:#f6f8fa><div class=codeBlockContent_QJqH><pre tabindex=0 class="prism-code language-text codeBlock_bY9V thin-scrollbar" style=color:#393A34;background-color:#f6f8fa><code class=codeBlockLines_e6Vv><div class=token-line style=color:#393A34><span class="token plain">ssize_t mq_receive(mqd_t mqdes, void \*msg, size_t msglen, int \*prio);</span><br/></div><div class=token-line style=color:#393A34><span class="token plain" style=display:inline-block></span><br/></div></code></pre></div></div>
+<p>ssize_t mq_timedreceive(mqd_t mqdes, void *msg, size_t msglen,</p>
+<div class="language-text codeBlockContainer_Ckt0 theme-code-block" style=--prism-color:#393A34;--prism-background-color:#f6f8fa><div class=codeBlockContent_QJqH><pre tabindex=0 class="prism-code language-text codeBlock_bY9V thin-scrollbar" style=color:#393A34;background-color:#f6f8fa><code class=codeBlockLines_e6Vv><div class=token-line style=color:#393A34><span class="token plain">int \*prio, const struct timespec \*abstime);</span><br/></div><div class=token-line style=color:#393A34><span class="token plain" style=display:inline-block></span><br/></div></code></pre></div></div>
+<p>接收消息的行为特性如下：</p>
+<ul>
+<li class="">
+<p>队列为空：</p>
+<ul>
+<li class="">如果队列为空且未设置 O_NONBLOCK：</li>
+</ul>
+</li>
+</ul>
+<p>mq_receive() 会永久阻塞，直到有新消息到达。</p>
+<p>mq_timedreceive() 会阻塞，直到 abstime 指定的绝对时间超时。</p>
+<ul>
+<li class="">如果设置了 O_NONBLOCK，函数会立即返回错误。</li>
+</ul>
+<p>&lt;!-- --></p>
+<ul>
+<li class="">
+<p>多任务等待： 如果有多个任务在等待同一个空队列，当新消息到达时，系统会唤醒等待时间最长且优先级最高的那个任务。</p>
+</li>
+<li class="">
+<p>缓冲区大小： msglen 必须大于或等于队列的最大消息长度 (mq_msgsize)。</p>
+</li>
+</ul>
+<p>abs_timeout结构体定义如下：</p>
+<div class="language-text codeBlockContainer_Ckt0 theme-code-block" style=--prism-color:#393A34;--prism-background-color:#f6f8fa><div class=codeBlockContent_QJqH><pre tabindex=0 class="prism-code language-text codeBlock_bY9V thin-scrollbar" style=color:#393A34;background-color:#f6f8fa><code class=codeBlockLines_e6Vv><div class=token-line style=color:#393A34><span class="token plain">struct timespec {</span><br/></div><div class=token-line style=color:#393A34><span class="token plain" style=display:inline-block></span><br/></div></code></pre></div></div>
+<p>time_t tv_sec; // 秒数（自UTC时间1970-01-01 00:00:00起）</p>
+<div class="language-text codeBlockContainer_Ckt0 theme-code-block" style=--prism-color:#393A34;--prism-background-color:#f6f8fa><div class=codeBlockContent_QJqH><pre tabindex=0 class="prism-code language-text codeBlock_bY9V thin-scrollbar" style=color:#393A34;background-color:#f6f8fa><code class=codeBlockLines_e6Vv><div class=token-line style=color:#393A34><span class="token plain">long tv_nsec; // 纳秒数（范围：0 ~ 999,999,999）</span><br/></div><div class=token-line style=color:#393A34><span class="token plain" style=display:inline-block></span><br/></div><div class=token-line style=color:#393A34><span class="token plain">};</span><br/></div><div class=token-line style=color:#393A34><span class="token plain" style=display:inline-block></span><br/></div></code></pre></div></div>
+<p>时间类型：必须是绝对时间（而非相对时间）。例如，若希望等待 5 秒，需先通过 clock_gettime (CLOCK_REALTIME, &ts) 获取当前系统时间，再将 ts.tv_sec += 5，而非直接设置 tv_sec=5。</p>
+<p>超时行为：若等待时间超过 abs_timeout 指定的时间，函数会返回 - 1 并设置 errno 为 ETIMEDOUT（表示 “操作超时”）。</p>
+<p>注意事项：tv_nsec 的值不能超过 999,999,999，否则会导致时间计算错误（例如，1,000,000,000 纳秒需转换为 1 秒 + 0 纳秒）。</p>
+<h4 class="anchor anchorTargetStickyNavbar_Vzrq" id=属性>属性<a href=#属性 class=hash-link aria-label=属性的直接链接 title=属性的直接链接 translate=no>​</a></h4>
+<p>可以使用下面函数获得、设置消息队列的属性：</p>
+<div class="language-text codeBlockContainer_Ckt0 theme-code-block" style=--prism-color:#393A34;--prism-background-color:#f6f8fa><div class=codeBlockContent_QJqH><pre tabindex=0 class="prism-code language-text codeBlock_bY9V thin-scrollbar" style=color:#393A34;background-color:#f6f8fa><code class=codeBlockLines_e6Vv><div class=token-line style=color:#393A34><span class="token plain">int mq_getattr(mqd_t mqdes, FAR struct mq_attr \*mq_stat);</span><br/></div><div class=token-line style=color:#393A34><span class="token plain" style=display:inline-block></span><br/></div><div class=token-line style=color:#393A34><span class="token plain">int mq_setattr(mqd_t mqdes, FAR const struct mq_attr \*mq_stat,</span><br/></div><div class=token-line style=color:#393A34><span class="token plain" style=display:inline-block></span><br/></div><div class=token-line style=color:#393A34><span class="token plain">FAR struct mq_attr \*oldstat);</span><br/></div><div class=token-line style=color:#393A34><span class="token plain" style=display:inline-block></span><br/></div><div class=token-line style=color:#393A34><span class="token plain">struct mq_attr 结构体包含：</span><br/></div><div class=token-line style=color:#393A34><span class="token plain" style=display:inline-block></span><br/></div></code></pre></div></div>
+<table><thead><tr><th><th><tbody><tr><td><strong>成员</strong><td><strong>描述</strong><tr><td>mq_flags<td>队列的标志（例如 O_NONBLOCK）。<tr><td>mq_maxmsg<td>队列可容纳的最大消息数。<tr><td>mq_msgsize<td>每条消息的最大字节数。<tr><td>mq_curmsgs<td>队列中当前的消息数（仅 mq_getattr() 可获取）。</table>
+<div class="language-text codeBlockContainer_Ckt0 theme-code-block" style=--prism-color:#393A34;--prism-background-color:#f6f8fa><div class=codeBlockContent_QJqH><pre tabindex=0 class="prism-code language-text codeBlock_bY9V thin-scrollbar" style=color:#393A34;background-color:#f6f8fa><code class=codeBlockLines_e6Vv><div class=token-line style=color:#393A34><span class="token plain">**注意**：消息队列的mq_maxmsg、mq_msgsize是在创建时就确定了，无法通过mq_setattr来修改。</span><br/></div><div class=token-line style=color:#393A34><span class="token plain" style=display:inline-block></span><br/></div></code></pre></div></div>
+<h4 class="anchor anchorTargetStickyNavbar_Vzrq" id=通知>通知<a href=#通知 class=hash-link aria-label=通知的直接链接 title=通知的直接链接 translate=no>​</a></h4>
+<p>mq_notify() - 注册异步通知。此函数为消息队列注册一个异步事件通知。当消息队列接收到一条新消息时，系统会向注册的任务发送一个信号。</p>
+<p>函数原型如下：</p>
+<div class="language-text codeBlockContainer_Ckt0 theme-code-block" style=--prism-color:#393A34;--prism-background-color:#f6f8fa><div class=codeBlockContent_QJqH><pre tabindex=0 class="prism-code language-text codeBlock_bY9V thin-scrollbar" style=color:#393A34;background-color:#f6f8fa><code class=codeBlockLines_e6Vv><div class=token-line style=color:#393A34><span class="token plain">int mq_notify(mqd_t mqdes, const struct sigevent \*notification);</span><br/></div><div class=token-line style=color:#393A34><span class="token plain" style=display:inline-block></span><br/></div></code></pre></div></div>
+<p>工作机制：</p>
+<ul>
+<li class="">
+<p>当输入参数 notification 非 NULL 时，mq_notify 会在当前任务与消息队列建立通知关联。</p>
+</li>
+<li class="">
+<p>当一条新消息被放入消息队列时，系统会向该任务发送 notification 中定义的信号。</p>
+</li>
+<li class="">
+<p>一次性通知： 发送信号后，该注册关系会自动解除。您必须重新调用 mq_notify() 才能接收下一次通知。</p>
+</li>
+<li class="">
+<p>当 notification 为 NULL 时，函数会移除已存在的通知关联。</p>
+</li>
+</ul>
+<p>注意：在任何时刻，只有一个任务可以成功注册对某个消息队列的通知。</p>
+<h3 class="anchor anchorTargetStickyNavbar_Vzrq" id=使用消息队列改造音乐任务>使用消息队列改造音乐任务<a href=#使用消息队列改造音乐任务 class=hash-link aria-label=使用消息队列改造音乐任务的直接链接 title=使用消息队列改造音乐任务的直接链接 translate=no>​</a></h3>
+<p>实验源码为：</p>
+<p>3-4-3_使用消息队列改造音乐任务\music</p>
+<p>本节将实现：使用队列在“控制线程”和“播放线程”直接传递数据，如下图所示。</p>
+<p><img decoding=async loading=lazy src=/assets/images/image50-87ae026614c1803cb6a659f70de11fb7.png width=695 height=439 class=img_ev3q /></p>
+<p>main函数里创建了一个消息队列：</p>
+<div class="language-text codeBlockContainer_Ckt0 theme-code-block" style=--prism-color:#393A34;--prism-background-color:#f6f8fa><div class=codeBlockContent_QJqH><pre tabindex=0 class="prism-code language-text codeBlock_bY9V thin-scrollbar" style=color:#393A34;background-color:#f6f8fa><code class=codeBlockLines_e6Vv><div class=token-line style=color:#393A34><span class="token plain">g_mq = mq_open("/myaplay", O_RDWR \| O_CREAT, 0666, &mq_stat);</span><br/></div><div class=token-line style=color:#393A34><span class="token plain" style=display:inline-block></span><br/></div></code></pre></div></div>
+<p>还创建了一个子线程：</p>
+<div class="language-text codeBlockContainer_Ckt0 theme-code-block" style=--prism-color:#393A34;--prism-background-color:#f6f8fa><div class=codeBlockContent_QJqH><pre tabindex=0 class="prism-code language-text codeBlock_bY9V thin-scrollbar" style=color:#393A34;background-color:#f6f8fa><code class=codeBlockLines_e6Vv><div class=token-line style=color:#393A34><span class="token plain">pthread_create(&tid1, NULL, play_thread, NULL);</span><br/></div><div class=token-line style=color:#393A34><span class="token plain" style=display:inline-block></span><br/></div></code></pre></div></div>
+<p>在主线程里根据用户输入的信息写队列：</p>
+<div class="language-text codeBlockContainer_Ckt0 theme-code-block" style=--prism-color:#393A34;--prism-background-color:#f6f8fa><div class=codeBlockContent_QJqH><pre tabindex=0 class="prism-code language-text codeBlock_bY9V thin-scrollbar" style=color:#393A34;background-color:#f6f8fa><code class=codeBlockLines_e6Vv><div class=token-line style=color:#393A34><span class="token plain">while (1)</span><br/></div><div class=token-line style=color:#393A34><span class="token plain" style=display:inline-block></span><br/></div><div class=token-line style=color:#393A34><span class="token plain">{</span><br/></div><div class=token-line style=color:#393A34><span class="token plain" style=display:inline-block></span><br/></div><div class=token-line style=color:#393A34><span class="token plain">printf("enter 0~9 (q to exit): \n");</span><br/></div><div class=token-line style=color:#393A34><span class="token plain" style=display:inline-block></span><br/></div><div class=token-line style=color:#393A34><span class="token plain">scanf("%c", &c);</span><br/></div><div class=token-line style=color:#393A34><span class="token plain" style=display:inline-block></span><br/></div><div class=token-line style=color:#393A34><span class="token plain">if (c == 'q' \|\| c == 'Q')</span><br/></div><div class=token-line style=color:#393A34><span class="token plain" style=display:inline-block></span><br/></div><div class=token-line style=color:#393A34><span class="token plain">return 0;</span><br/></div><div class=token-line style=color:#393A34><span class="token plain" style=display:inline-block></span><br/></div><div class=token-line style=color:#393A34><span class="token plain">if (c \>= '0' && c \&lt;= '9')</span><br/></div><div class=token-line style=color:#393A34><span class="token plain" style=display:inline-block></span><br/></div><div class=token-line style=color:#393A34><span class="token plain">{</span><br/></div><div class=token-line style=color:#393A34><span class="token plain" style=display:inline-block></span><br/></div><div class=token-line style=color:#393A34><span class="token plain">// if (g_flag == 0)</span><br/></div><div class=token-line style=color:#393A34><span class="token plain" style=display:inline-block></span><br/></div><div class=token-line style=color:#393A34><span class="token plain">// g_char = c;</span><br/></div><div class=token-line style=color:#393A34><span class="token plain" style=display:inline-block></span><br/></div><div class=token-line style=color:#393A34><span class="token plain">// g_flag = 1;</span><br/></div><div class=token-line style=color:#393A34><span class="token plain" style=display:inline-block></span><br/></div></code></pre></div></div>
+<p>/* 3. write mq */</p>
+<div class="language-text codeBlockContainer_Ckt0 theme-code-block" style=--prism-color:#393A34;--prism-background-color:#f6f8fa><div class=codeBlockContent_QJqH><pre tabindex=0 class="prism-code language-text codeBlock_bY9V thin-scrollbar" style=color:#393A34;background-color:#f6f8fa><code class=codeBlockLines_e6Vv><div class=token-line style=color:#393A34><span class="token plain">mq_send(g_mq, &c, 1, 0);</span><br/></div><div class=token-line style=color:#393A34><span class="token plain" style=display:inline-block></span><br/></div><div class=token-line style=color:#393A34><span class="token plain">}</span><br/></div><div class=token-line style=color:#393A34><span class="token plain" style=display:inline-block></span><br/></div><div class=token-line style=color:#393A34><span class="token plain">}</span><br/></div><div class=token-line style=color:#393A34><span class="token plain" style=display:inline-block></span><br/></div></code></pre></div></div>
+<p>子线程读取队列，根据队列的数值决定播放哪个wav文件：</p>
+<div class="language-text codeBlockContainer_Ckt0 theme-code-block" style=--prism-color:#393A34;--prism-background-color:#f6f8fa><div class=codeBlockContent_QJqH><pre tabindex=0 class="prism-code language-text codeBlock_bY9V thin-scrollbar" style=color:#393A34;background-color:#f6f8fa><code class=codeBlockLines_e6Vv><div class=token-line style=color:#393A34><span class="token plain">ret = mq_receive(g_mq, &g_char, 1, 0);</span><br/></div><div class=token-line style=color:#393A34><span class="token plain" style=display:inline-block></span><br/></div></code></pre></div></div>
+<p>……</p>
+<div class="language-text codeBlockContainer_Ckt0 theme-code-block" style=--prism-color:#393A34;--prism-background-color:#f6f8fa><div class=codeBlockContent_QJqH><pre tabindex=0 class="prism-code language-text codeBlock_bY9V thin-scrollbar" style=color:#393A34;background-color:#f6f8fa><code class=codeBlockLines_e6Vv><div class=token-line style=color:#393A34><span class="token plain">task_create("aplay", 100, 2048, aplay_main, argv);</span><br/></div><div class=token-line style=color:#393A34><span class="token plain" style=display:inline-block></span><br/></div></code></pre></div></div>
+<h3 class="anchor anchorTargetStickyNavbar_Vzrq" id=信号量的使用>信号量的使用<a href=#信号量的使用 class=hash-link aria-label=信号量的使用的直接链接 title=信号量的使用的直接链接 translate=no>​</a></h3>
+<p>线程之间，可以使用消息队列传递数据；不需要传递数据时，可以使用信号量进行同步。所谓“同步”，就是：A没做完事情，B等待A。这就像我们使用的flag：A执行完毕才设置flag为1；B循环等待flag为1才继续往下运行。</p>
+<p>信号量，就是一个特殊的flag，它是一个整数：用于表示资源的数量。线程A可以增加资源数量，线程B可以等待获得资源——成功获得后资源数量减一。</p>
+<p>要使用信号量，需要先创建或打开它，然后就可以对它执行post/wait操作了：</p>
+<p><img decoding=async loading=lazy src=/assets/images/image51-0135fe05146a001dd8ffba289fd644e8.png width=596 height=374 class=img_ev3q /></p>
+<h4 class="anchor anchorTargetStickyNavbar_Vzrq" id=api-1>API<a href=#api-1 class=hash-link aria-label=API的直接链接 title=API的直接链接 translate=no>​</a></h4>
+<p>以下是 POSIX 信号量接口函数的功能说明表格：</p>
+<table><thead><tr><th><th><tbody><tr><td>函数名<td>功能描述<tr><td>sem_init<td>初始化一个未命名的信号量，设置其初始值和共享属性<tr><td>sem_destroy<td>销毁一个由 sem_init 初始化的未命名信号量，释放相关资源<tr><td>sem_open<td>打开或创建一个命名信号量，返回信号量描述符<tr><td>sem_close<td>关闭一个由 sem_open 打开的命名信号量描述符<tr><td>sem_unlink<td>删除命名信号量的名称，当所有进程关闭该信号量后实际删除<tr><td>sem_wait<td>信号量减 1 操作（P 操作），若信号量值为 0 则阻塞等待<tr><td>sem_trywait<td>信号量减 1 操作（非阻塞版），若信号量值为 0 则立即返回错误<tr><td>sem_timedwait<td>信号量减 1 操作（超时版），若信号量值为 0 则阻塞至超时<tr><td>sem_post<td>信号量加 1 操作（V 操作），若有进程等待则唤醒其中一个<tr><td>sem_getvalue<td>获取当前信号量的值，存储到指定的整数指针中</table>
+<p>这些函数分为两类：一类用于命名信号量（sem_open/sem_close/sem_unlink），可用于不同进程间的同步；另一类用于未命名信号量（sem_init/sem_destroy），主要用于同一进程内的线程同步或共享内存中的进程同步。</p>
+<h4 class="anchor anchorTargetStickyNavbar_Vzrq" id=未命名信号量创建与销毁>未命名信号量创建与销毁<a href=#未命名信号量创建与销毁 class=hash-link aria-label=未命名信号量创建与销毁的直接链接 title=未命名信号量创建与销毁的直接链接 translate=no>​</a></h4>
+<p>sem_init被用于初始化一个未命名的信号量（用于进程内线程间同步）。sem_destroy被用来销毁此信号量。</p>
+<p>函数原型如下：</p>
+<div class="language-text codeBlockContainer_Ckt0 theme-code-block" style=--prism-color:#393A34;--prism-background-color:#f6f8fa><div class=codeBlockContent_QJqH><pre tabindex=0 class="prism-code language-text codeBlock_bY9V thin-scrollbar" style=color:#393A34;background-color:#f6f8fa><code class=codeBlockLines_e6Vv><div class=token-line style=color:#393A34><span class="token plain">int sem_init(sem_t \*sem, int pshared, unsigned int value);</span><br/></div><div class=token-line style=color:#393A34><span class="token plain" style=display:inline-block></span><br/></div><div class=token-line style=color:#393A34><span class="token plain">int sem_destroy(sem_t \*sem);</span><br/></div><div class=token-line style=color:#393A34><span class="token plain" style=display:inline-block></span><br/></div></code></pre></div></div>
+<p>sem_init参数说明：</p>
+<table><thead><tr><th><th><tbody><tr><td>参数<td>描述<tr><td>sem<td>指向要初始化的信号量对象的指针<tr><td>pshared<td>标识信号量的共享范围（0 表示线程间共享，非 0 表示进程间共享）<tr><td>value<td>信号量的初始值</table>
+<p>参数取值详细描述</p>
+<ul>
+<li class="">pshared 的取值：</li>
+</ul>
+<p>0：信号量用于同一进程内的线程间同步。</p>
+<p>非 0：信号量用于不同进程间同步（需放在共享内存中）。</p>
+<ul>
+<li class="">value 的取值：</li>
+</ul>
+<p>初始值为非负整数，通常用于控制并发访问的资源数量。</p>
+<p>若初始值为 0，调用 sem_wait 会阻塞直到有其他线程调用 sem_post。</p>
+<p>sem_destroy参数说明：</p>
+<table><thead><tr><th><th><tbody><tr><td>参数<td>描述<tr><td>sem<td>指向通过 sem_init 初始化的未命名信号量对象的指针</table>
+<p>sem 必须是通过 sem_init 初始化的信号量，且当前没有线程阻塞在该信号量上，否则行为未定义。销毁后再次使用该信号量需重新初始化。</p>
+<h4 class="anchor anchorTargetStickyNavbar_Vzrq" id=命名信号量的创建与销毁>命名信号量的创建与销毁<a href=#命名信号量的创建与销毁 class=hash-link aria-label=命名信号量的创建与销毁的直接链接 title=命名信号量的创建与销毁的直接链接 translate=no>​</a></h4>
+<p>sem_open函数被用来创建或打开一个命名信号量（用于进程间同步）。sem_close 函数用于关闭已打开的命名信号量（减少引用计数，不删除信号量）。sem_unlink函数被用于删除命名信号量（当所有进程关闭该信号量后，系统会彻底释放其资源）。</p>
+<p>函数原型如下：</p>
+<div class="language-text codeBlockContainer_Ckt0 theme-code-block" style=--prism-color:#393A34;--prism-background-color:#f6f8fa><div class=codeBlockContent_QJqH><pre tabindex=0 class="prism-code language-text codeBlock_bY9V thin-scrollbar" style=color:#393A34;background-color:#f6f8fa><code class=codeBlockLines_e6Vv><div class=token-line style=color:#393A34><span class="token plain">sem_t \*sem_open(const char \*name, int oflag, mode_t mode, unsigned int value);</span><br/></div><div class=token-line style=color:#393A34><span class="token plain" style=display:inline-block></span><br/></div><div class=token-line style=color:#393A34><span class="token plain">int sem_close(sem_t \*sem);</span><br/></div><div class=token-line style=color:#393A34><span class="token plain" style=display:inline-block></span><br/></div><div class=token-line style=color:#393A34><span class="token plain">int sem_unlink(const char \*name);</span><br/></div><div class=token-line style=color:#393A34><span class="token plain" style=display:inline-block></span><br/></div></code></pre></div></div>
+<p>sem_open参数说明：</p>
+<table><thead><tr><th><th><tbody><tr><td>参数<td>描述<tr><td>name<td>信号量的名称（格式通常为 "/semname"）<tr><td>oflag<td>打开方式标志（创建或打开已有信号量）<tr><td>mode<td>信号量的权限位（仅当创建新信号量时有效）<tr><td>value<td>信号量的初始值（仅当创建新信号量时有效）</table>
+<p>参数取值详细描述：</p>
+<ul>
+<li class="">
+<p>oflag 的常用值：</p>
+<ul>
+<li class="">基础标志：</li>
+</ul>
+</li>
+</ul>
+<p>O_CREAT：若信号量不存在则创建。</p>
+<p>O_EXCL：与 O_CREAT 同时使用，若信号量已存在则返回错误。</p>
+<ul>
+<li class="">可组合标志（可选）：</li>
+</ul>
+<p>O_RDWR：读写权限（通常信号量操作默认需要此权限）。</p>
+<ul>
+<li class="">
+<p>mode 的取值（八进制数）：</p>
+<ul>
+<li class="">
+<p>0644：所有者可读写，组用户可读，其他用户可读。</p>
+</li>
+<li class="">
+<p>0666：所有者、组用户均可读写，其他用户可读。</p>
+</li>
+</ul>
+</li>
+<li class="">
+<p>value 的取值：信号量的初始值</p>
+</li>
+</ul>
+<p>sem_close参数说明：</p>
+<table><thead><tr><th><th><tbody><tr><td>参数<td>描述<tr><td>sem<td>指向通过 sem_open 打开的信号量对象的指针</table>
+<p>sem 必须是通过 sem_open 返回的有效信号量指针，关闭后再次操作该指针会导致错误。</p>
+<p>sem_unlink参数说明：</p>
+<table><thead><tr><th><th><tbody><tr><td>参数<td>描述<tr><td>name<td>要删除的信号量的名称（与 sem_open 中使用的名称一致）</table>
+<p>name 必须是已存在的命名信号量名称，格式为 "/semname"，否则返回错误。</p>
+<h4 class="anchor anchorTargetStickyNavbar_Vzrq" id=等待信号量>等待信号量<a href=#等待信号量 class=hash-link aria-label=等待信号量的直接链接 title=等待信号量的直接链接 translate=no>​</a></h4>
+<p>信号量的基础操作为等待、释放，也被称为P操作、V操作。</p>
+<p>等待信号量（P 操作）：若信号量值大于 0，则将其减 1 并返回；若值小于或等于0，则阻塞等待或返回错误。</p>
+<p>释放信号量（V 操作）：将信号量值加 1，若有线程阻塞在 sem_wait 上，则唤醒其中一个。</p>
+<p>sem_wait会尝试获得信号量，如果不成功则会“一直等待到成功”。sem_trywait会尝试获得信号量，成功则返回0，不成功也会立刻返回错误。sem_timedwait则引入一个超时时间，如果在这段时间内成功获得信号量则返回0，如果这段时间内都无法获得信号量则返回错误。</p>
+<p>函数原型如下：</p>
+<div class="language-text codeBlockContainer_Ckt0 theme-code-block" style=--prism-color:#393A34;--prism-background-color:#f6f8fa><div class=codeBlockContent_QJqH><pre tabindex=0 class="prism-code language-text codeBlock_bY9V thin-scrollbar" style=color:#393A34;background-color:#f6f8fa><code class=codeBlockLines_e6Vv><div class=token-line style=color:#393A34><span class="token plain">int sem_wait(sem_t \*sem);</span><br/></div><div class=token-line style=color:#393A34><span class="token plain" style=display:inline-block></span><br/></div><div class=token-line style=color:#393A34><span class="token plain">int sem_trywait(sem_t \*sem);</span><br/></div><div class=token-line style=color:#393A34><span class="token plain" style=display:inline-block></span><br/></div><div class=token-line style=color:#393A34><span class="token plain">int sem_timedwait(sem_t \*sem, const struct timespec \*abs_timeout);</span><br/></div><div class=token-line style=color:#393A34><span class="token plain" style=display:inline-block></span><br/></div></code></pre></div></div>
+<p>sem_wait、sem_trywait参数说明：</p>
+<table><thead><tr><th><th><tbody><tr><td>参数<td>描述<tr><td>sem<td>指向已初始化的信号量对象的指针</table>
+<p>sem 必须是通过 sem_init 或 sem_open 初始化的有效信号量指针，否则行为未定义。</p>
+<p>sem_timedwait参数说明：</p>
+<table><thead><tr><th><th><tbody><tr><td>参数<td>描述<tr><td>sem<td>指向已初始化的信号量对象的指针<tr><td>abs_timeout<td>指向绝对时间结构体的指针，指定等待的超时时间上限</table>
+<p>sem 必须是通过 sem_init 或 sem_open 初始化的有效信号量指针，否则行为未定义。</p>
+<p>abs_timeout结构体定义如下：</p>
+<div class="language-text codeBlockContainer_Ckt0 theme-code-block" style=--prism-color:#393A34;--prism-background-color:#f6f8fa><div class=codeBlockContent_QJqH><pre tabindex=0 class="prism-code language-text codeBlock_bY9V thin-scrollbar" style=color:#393A34;background-color:#f6f8fa><code class=codeBlockLines_e6Vv><div class=token-line style=color:#393A34><span class="token plain">struct timespec {</span><br/></div><div class=token-line style=color:#393A34><span class="token plain" style=display:inline-block></span><br/></div></code></pre></div></div>
+<p>time_t tv_sec; // 秒数（自UTC时间1970-01-01 00:00:00起）</p>
+<div class="language-text codeBlockContainer_Ckt0 theme-code-block" style=--prism-color:#393A34;--prism-background-color:#f6f8fa><div class=codeBlockContent_QJqH><pre tabindex=0 class="prism-code language-text codeBlock_bY9V thin-scrollbar" style=color:#393A34;background-color:#f6f8fa><code class=codeBlockLines_e6Vv><div class=token-line style=color:#393A34><span class="token plain">long tv_nsec; // 纳秒数（范围：0 ~ 999,999,999）</span><br/></div><div class=token-line style=color:#393A34><span class="token plain" style=display:inline-block></span><br/></div><div class=token-line style=color:#393A34><span class="token plain">};</span><br/></div><div class=token-line style=color:#393A34><span class="token plain" style=display:inline-block></span><br/></div></code></pre></div></div>
+<p>时间类型：必须是绝对时间（而非相对时间）。例如，若希望等待 5 秒，需先通过 clock_gettime (CLOCK_REALTIME, &ts) 获取当前系统时间，再将 ts.tv_sec += 5，而非直接设置 tv_sec=5。</p>
+<p>超时行为：若等待时间超过 abs_timeout 指定的时间，函数会返回 - 1 并设置 errno 为 ETIMEDOUT（表示 “操作超时”）。</p>
+<p>注意事项：tv_nsec 的值不能超过 999,999,999，否则会导致时间计算错误（例如，1,000,000,000 纳秒需转换为 1 秒 + 0 纳秒）。</p>
+<h4 class="anchor anchorTargetStickyNavbar_Vzrq" id=释放信号量>释放信号量<a href=#释放信号量 class=hash-link aria-label=释放信号量的直接链接 title=释放信号量的直接链接 translate=no>​</a></h4>
+<p>sem_post函数被用于释放信号量（V 操作）：将信号量值加 1，若有线程阻塞在 sem_wait 上，则唤醒其中一个。</p>
+<p>函数原型如下：</p>
+<div class="language-text codeBlockContainer_Ckt0 theme-code-block" style=--prism-color:#393A34;--prism-background-color:#f6f8fa><div class=codeBlockContent_QJqH><pre tabindex=0 class="prism-code language-text codeBlock_bY9V thin-scrollbar" style=color:#393A34;background-color:#f6f8fa><code class=codeBlockLines_e6Vv><div class=token-line style=color:#393A34><span class="token plain">int sem_post(sem_t \*sem);</span><br/></div><div class=token-line style=color:#393A34><span class="token plain" style=display:inline-block></span><br/></div></code></pre></div></div>
+<p>参数说明：</p>
+<table><thead><tr><th><th><tbody><tr><td>参数<td>描述<tr><td>sem<td>指向已初始化的信号量对象的指针</table>
+<p>sem 必须是通过 sem_init 或 sem_open 初始化的有效信号量指针，否则行为未定义。</p>
+<p>调用后信号量值会增加，即使超过初始值也允许（无上限）。</p>
+<h3 class="anchor anchorTargetStickyNavbar_Vzrq" id=使用信号量改造led任务>使用信号量改造LED任务<a href=#使用信号量改造led任务 class=hash-link aria-label=使用信号量改造LED任务的直接链接 title=使用信号量改造LED任务的直接链接 translate=no>​</a></h3>
+<p>在LED任务里，它使用轮询模式获得按键状态。我们把它改造成：</p>
+<ul>
+<li class="">
+<p>主循环里等待信号量</p>
+</li>
+<li class="">
+<p>按键中断里释放信号量</p>
+</li>
+</ul>
+<h4 class="anchor anchorTargetStickyNavbar_Vzrq" id=使用gpio中断>使用GPIO中断<a href=#使用gpio中断 class=hash-link aria-label=使用GPIO中断的直接链接 title=使用GPIO中断的直接链接 translate=no>​</a></h4>
+<p>参考代码：apps/examples/gpio/gpio_main.c</p>
+<p>首先，提供信号处理函数，示例代码为：</p>
+<div class="language-text codeBlockContainer_Ckt0 theme-code-block" style=--prism-color:#393A34;--prism-background-color:#f6f8fa><div class=codeBlockContent_QJqH><pre tabindex=0 class="prism-code language-text codeBlock_bY9V thin-scrollbar" style=color:#393A34;background-color:#f6f8fa><code class=codeBlockLines_e6Vv><div class=token-line style=color:#393A34><span class="token plain">void signal_handler(int signum) {</span><br/></div><div class=token-line style=color:#393A34><span class="token plain" style=display:inline-block></span><br/></div><div class=token-line style=color:#393A34><span class="token plain">}</span><br/></div><div class=token-line style=color:#393A34><span class="token plain" style=display:inline-block></span><br/></div><div class=token-line style=color:#393A34><span class="token plain">signal(SIGINT, signal_handler);</span><br/></div><div class=token-line style=color:#393A34><span class="token plain" style=display:inline-block></span><br/></div></code></pre></div></div>
+<p>然后配置GPIO为中断功能，示例代码如下：</p>
+<div class="language-text codeBlockContainer_Ckt0 theme-code-block" style=--prism-color:#393A34;--prism-background-color:#f6f8fa><div class=codeBlockContent_QJqH><pre tabindex=0 class="prism-code language-text codeBlock_bY9V thin-scrollbar" style=color:#393A34;background-color:#f6f8fa><code class=codeBlockLines_e6Vv><div class=token-line style=color:#393A34><span class="token plain">ret = ioctl(fd_button, GPIOC_SETPINTYPE, GPIO_INTERRUPT_FALLING_PIN);</span><br/></div><div class=token-line style=color:#393A34><span class="token plain" style=display:inline-block></span><br/></div></code></pre></div></div>
+<p>最后注册GPIO信号，示例代码如下：</p>
+<div class="language-text codeBlockContainer_Ckt0 theme-code-block" style=--prism-color:#393A34;--prism-background-color:#f6f8fa><div class=codeBlockContent_QJqH><pre tabindex=0 class="prism-code language-text codeBlock_bY9V thin-scrollbar" style=color:#393A34;background-color:#f6f8fa><code class=codeBlockLines_e6Vv><div class=token-line style=color:#393A34><span class="token plain">struct sigevent notify;</span><br/></div><div class=token-line style=color:#393A34><span class="token plain" style=display:inline-block></span><br/></div></code></pre></div></div>
+<p>notify.sigev_notify = SIGEV_SIGNAL; // 中断函数要发出信号</p>
+<p>notify.sigev_signo = SIGINT; // 发出这个信号</p>
+<div class="language-text codeBlockContainer_Ckt0 theme-code-block" style=--prism-color:#393A34;--prism-background-color:#f6f8fa><div class=codeBlockContent_QJqH><pre tabindex=0 class="prism-code language-text codeBlock_bY9V thin-scrollbar" style=color:#393A34;background-color:#f6f8fa><code class=codeBlockLines_e6Vv><div class=token-line style=color:#393A34><span class="token plain">// 设置GPIO让它发出信号</span><br/></div><div class=token-line style=color:#393A34><span class="token plain" style=display:inline-block></span><br/></div><div class=token-line style=color:#393A34><span class="token plain">ret = ioctl(fd_button, GPIOC_REGISTER, (unsigned long)&amp;notify);</span><br/></div><div class=token-line style=color:#393A34><span class="token plain" style=display:inline-block></span><br/></div></code></pre></div></div>
+<h4 class="anchor anchorTargetStickyNavbar_Vzrq" id=在信号处理函数里post信号量>在信号处理函数里post信号量<a href=#在信号处理函数里post信号量 class=hash-link aria-label=在信号处理函数里post信号量的直接链接 title=在信号处理函数里post信号量的直接链接 translate=no>​</a></h4>
+<p>代码如下：</p>
+<div class="language-text codeBlockContainer_Ckt0 theme-code-block" style=--prism-color:#393A34;--prism-background-color:#f6f8fa><div class=codeBlockContent_QJqH><pre tabindex=0 class="prism-code language-text codeBlock_bY9V thin-scrollbar" style=color:#393A34;background-color:#f6f8fa><code class=codeBlockLines_e6Vv><div class=token-line style=color:#393A34><span class="token plain">static sem_t g_sem;</span><br/></div><div class=token-line style=color:#393A34><span class="token plain" style=display:inline-block></span><br/></div><div class=token-line style=color:#393A34><span class="token plain">void my_signal_handler(int signo)</span><br/></div><div class=token-line style=color:#393A34><span class="token plain" style=display:inline-block></span><br/></div><div class=token-line style=color:#393A34><span class="token plain">{</span><br/></div><div class=token-line style=color:#393A34><span class="token plain" style=display:inline-block></span><br/></div></code></pre></div></div>
+<p>/* post semphore */</p>
+<div class="language-text codeBlockContainer_Ckt0 theme-code-block" style=--prism-color:#393A34;--prism-background-color:#f6f8fa><div class=codeBlockContent_QJqH><pre tabindex=0 class="prism-code language-text codeBlock_bY9V thin-scrollbar" style=color:#393A34;background-color:#f6f8fa><code class=codeBlockLines_e6Vv><div class=token-line style=color:#393A34><span class="token plain">sem_post(&g_sem);</span><br/></div><div class=token-line style=color:#393A34><span class="token plain" style=display:inline-block></span><br/></div><div class=token-line style=color:#393A34><span class="token plain">}</span><br/></div><div class=token-line style=color:#393A34><span class="token plain" style=display:inline-block></span><br/></div></code></pre></div></div>
+<h4 class="anchor anchorTargetStickyNavbar_Vzrq" id=在主循环里等待信号量>在主循环里等待信号量<a href=#在主循环里等待信号量 class=hash-link aria-label=在主循环里等待信号量的直接链接 title=在主循环里等待信号量的直接链接 translate=no>​</a></h4>
+<p>代码如下：</p>
+<div class="language-text codeBlockContainer_Ckt0 theme-code-block" style=--prism-color:#393A34;--prism-background-color:#f6f8fa><div class=codeBlockContent_QJqH><pre tabindex=0 class="prism-code language-text codeBlock_bY9V thin-scrollbar" style=color:#393A34;background-color:#f6f8fa><code class=codeBlockLines_e6Vv><div class=token-line style=color:#393A34><span class="token plain">sem_init(&g_sem, 0, 0);</span><br/></div><div class=token-line style=color:#393A34><span class="token plain" style=display:inline-block></span><br/></div><div class=token-line style=color:#393A34><span class="token plain">while (1)</span><br/></div><div class=token-line style=color:#393A34><span class="token plain" style=display:inline-block></span><br/></div><div class=token-line style=color:#393A34><span class="token plain">{</span><br/></div><div class=token-line style=color:#393A34><span class="token plain" style=display:inline-block></span><br/></div><div class=token-line style=color:#393A34><span class="token plain">if (sem_wait(&g_sem) == 0)</span><br/></div><div class=token-line style=color:#393A34><span class="token plain" style=display:inline-block></span><br/></div><div class=token-line style=color:#393A34><span class="token plain">{</span><br/></div><div class=token-line style=color:#393A34><span class="token plain" style=display:inline-block></span><br/></div><div class=token-line style=color:#393A34><span class="token plain">ret = ioctl(fd_led, GPIOC_WRITE, 0);</span><br/></div><div class=token-line style=color:#393A34><span class="token plain" style=display:inline-block></span><br/></div><div class=token-line style=color:#393A34><span class="token plain">sleep(1);</span><br/></div><div class=token-line style=color:#393A34><span class="token plain" style=display:inline-block></span><br/></div><div class=token-line style=color:#393A34><span class="token plain">ret = ioctl(fd_led, GPIOC_WRITE, 1);</span><br/></div><div class=token-line style=color:#393A34><span class="token plain" style=display:inline-block></span><br/></div><div class=token-line style=color:#393A34><span class="token plain">}</span><br/></div><div class=token-line style=color:#393A34><span class="token plain" style=display:inline-block></span><br/></div><div class=token-line style=color:#393A34><span class="token plain">}</span><br/></div><div class=token-line style=color:#393A34><span class="token plain" style=display:inline-block></span><br/></div></code></pre></div></div>
+<h4 class="anchor anchorTargetStickyNavbar_Vzrq" id=上机操作>上机操作<a href=#上机操作 class=hash-link aria-label=上机操作的直接链接 title=上机操作的直接链接 translate=no>​</a></h4>
+<p>如下启动led程序后，可以通过按键K1操作LED，也可以使用kill命令给led进程发送信号来操作LED。</p>
+<p>按下K1，LED会亮一下；发送信号，LED也会亮一下。</p>
+<p><img decoding=async loading=lazy src=/assets/images/image52-efdd52db1601dc243429ea7adbc2d1c1.png width=1013 height=453 class=img_ev3q /></p>
+<h3 class="anchor anchorTargetStickyNavbar_Vzrq" id=互斥量的使用>互斥量的使用<a href=#互斥量的使用 class=hash-link aria-label=互斥量的使用的直接链接 title=互斥量的使用的直接链接 translate=no>​</a></h3>
+<p>我们使用互斥量来保护临界资源，下面的代码保证了“同一时间”只有一个任务能运行“临界代码”，实现了“互斥操作”：</p>
+<p><img decoding=async loading=lazy src=/assets/images/image53-4fba7de3330cc1833743ed3868b93ed4.png width=665 height=427 class=img_ev3q /></p>
+<h4 class="anchor anchorTargetStickyNavbar_Vzrq" id=为何需要互斥操作>为何需要互斥操作<a href=#为何需要互斥操作 class=hash-link aria-label=为何需要互斥操作的直接链接 title=为何需要互斥操作的直接链接 translate=no>​</a></h4>
+<p>如下实现一个全局变量的累加函数：</p>
+<div class="language-text codeBlockContainer_Ckt0 theme-code-block" style=--prism-color:#393A34;--prism-background-color:#f6f8fa><div class=codeBlockContent_QJqH><pre tabindex=0 class="prism-code language-text codeBlock_bY9V thin-scrollbar" style=color:#393A34;background-color:#f6f8fa><code class=codeBlockLines_e6Vv><div class=token-line style=color:#393A34><span class="token plain">static volatile usigned int g_val ;</span><br/></div><div class=token-line style=color:#393A34><span class="token plain" style=display:inline-block></span><br/></div><div class=token-line style=color:#393A34><span class="token plain">static void add_val(void)</span><br/></div><div class=token-line style=color:#393A34><span class="token plain" style=display:inline-block></span><br/></div><div class=token-line style=color:#393A34><span class="token plain">{</span><br/></div><div class=token-line style=color:#393A34><span class="token plain" style=display:inline-block></span><br/></div><div class=token-line style=color:#393A34><span class="token plain">g_val++;</span><br/></div><div class=token-line style=color:#393A34><span class="token plain" style=display:inline-block></span><br/></div><div class=token-line style=color:#393A34><span class="token plain">}</span><br/></div><div class=token-line style=color:#393A34><span class="token plain" style=display:inline-block></span><br/></div></code></pre></div></div>
+<p>然后创建线程A，它循环调用add_val一千万次；创建线程B，循环调用add_val一千万次。理论上，g_val最终值是2千万。</p>
+<p>上机测试结果为：</p>
+<p>nsh&amp;gt; hello</p>
+<p>exit add_thread</p>
+<p>g_val = 10010648</p>
+<p>原因是“add_val”函数被打断了。把“g_val++”拆分为3个步骤：</p>
+<p>① 读内存，把g_val的值读入CPU寄存器R0</p>
+<p>② R0里的值累加</p>
+<p>③ 把R0的值写入内存g_val</p>
+<p>假设当前g_val的值为1，线程A、B调度过程如下图所示：</p>
+<p>① 线程A调用add_val，刚把g_val的读入R0，就发生了切换</p>
+<p>② 切换的时候会保存线程A运行时的R0，即保存7</p>
+<p>③ 线程B运行完add_val，成功把g_val从7加到了8</p>
+<p>④ 线程A继续运行：内核把之前保存的7先恢复到R0，然后运行add_val函数的②③步，使得g_val的值为8</p>
+<p>这个过程触发了矛盾：线程A、B都调用了add_val各一次，但是g_val只增加了1。</p>
+<p><img decoding=async loading=lazy src=/assets/images/image54-509a49ef56c84724b06423e0a5a2dc9f.png width=1245 height=398 class=img_ev3q /></p>
+<p>原因就是：“add_val”函数里g_val的累加被打断了，线程A在运行“add_val”的过程中，线程B打断了它并且也运行“add_val”。</p>
+<p>我们可以使用信号量来保护“add_val”里对g_val的操作，代码如下：</p>
+<div class="language-text codeBlockContainer_Ckt0 theme-code-block" style=--prism-color:#393A34;--prism-background-color:#f6f8fa><div class=codeBlockContent_QJqH><pre tabindex=0 class="prism-code language-text codeBlock_bY9V thin-scrollbar" style=color:#393A34;background-color:#f6f8fa><code class=codeBlockLines_e6Vv><div class=token-line style=color:#393A34><span class="token plain">static volatile usigned int g_val ;</span><br/></div><div class=token-line style=color:#393A34><span class="token plain" style=display:inline-block></span><br/></div><div class=token-line style=color:#393A34><span class="token plain">static void add_val(void)</span><br/></div><div class=token-line style=color:#393A34><span class="token plain" style=display:inline-block></span><br/></div><div class=token-line style=color:#393A34><span class="token plain">{</span><br/></div><div class=token-line style=color:#393A34><span class="token plain" style=display:inline-block></span><br/></div><div class=token-line style=color:#393A34><span class="token plain">sem_wait(&g_sem);</span><br/></div><div class=token-line style=color:#393A34><span class="token plain" style=display:inline-block></span><br/></div><div class=token-line style=color:#393A34><span class="token plain">g_val++;</span><br/></div><div class=token-line style=color:#393A34><span class="token plain" style=display:inline-block></span><br/></div><div class=token-line style=color:#393A34><span class="token plain">sem_post(&g_sem);</span><br/></div><div class=token-line style=color:#393A34><span class="token plain" style=display:inline-block></span><br/></div><div class=token-line style=color:#393A34><span class="token plain">}</span><br/></div><div class=token-line style=color:#393A34><span class="token plain" style=display:inline-block></span><br/></div></code></pre></div></div>
+<p>上述代码保证了：“同一时间内，只有一个线程能访问g_val”，解决了本节前面提出的Bug。</p>
+<p>本程序里把信号量的最大值限定为1时，可以使用信号量进行互斥操作：</p>
+<ul>
+<li class="">
+<p>线程A想访问共享资源时，要先获得信号量：如果信号量的值为1，则线程A把值减为0，返回成功。</p>
+</li>
+<li class="">
+<p>线程B也想访问同一个共享资源，也要先获得信号量：这时信号量的值为0，线程B阻塞</p>
+</li>
+<li class="">
+<p>线程A可以独占地访问共享资源</p>
+</li>
+<li class="">
+<p>线程A用完共享资源后要释放信号量，这会唤醒线程B</p>
+</li>
+<li class="">
+<p>线程B成功获得信号量，可以独占地使用共享资源</p>
+</li>
+</ul>
+<p>这些共享资源如果不使用互斥方法进行保护，会导致程序问题，这些共享资源就被称为临界资源。</p>
+<h4 class="anchor anchorTargetStickyNavbar_Vzrq" id=信号量导致的优先级反转问题>信号量导致的优先级反转问题<a href=#信号量导致的优先级反转问题 class=hash-link aria-label=信号量导致的优先级反转问题的直接链接 title=信号量导致的优先级反转问题的直接链接 translate=no>​</a></h4>
+<p>上述代码还有问题。使用信号量进行互斥操作时，会导致优先级反转的问题。举例如下：</p>
+<ul>
+<li class="">
+<p>低优先级任务 A 获取信号量，进入临界区。</p>
+</li>
+<li class="">
+<p>高优先级任务 B 启动，尝试获取同一信号量，因资源被占用而阻塞。</p>
+</li>
+<li class="">
+<p>中优先级任务 C 启动，由于其优先级高于任务 A，它抢占了 CPU。</p>
+</li>
+</ul>
+<p>结果：任务 C（以及其他中等优先级任务）持续运行，导致任务 A 无法执行并释放信号量。这使得高优先级任务 B 被中等优先级任务 C 无限期地阻塞，仿佛任务 B 的优先级低于任务 C。这种情况下优先级反转的问题就出现了，最高优先级的任务B反而被中优先级的任务C抢占了CPU。</p>
+<p>使用互斥量（mutex）可以解决优先级反转的问题，互斥量是特殊的、最大值为1的信号量。</p>
+<p>注意：openvela里互斥量能解决优先级反转的前提是配置了“CONFIG_PRIORITY_INHERITANCE”或“CONFIG_PRIORITY_PROTECT”，详情请看《3.6.2 信号量和互斥量的内部机制》。</p>
+<h4 class="anchor anchorTargetStickyNavbar_Vzrq" id=互斥量的创建销毁>互斥量的创建/销毁<a href=#互斥量的创建销毁 class=hash-link aria-label=互斥量的创建/销毁的直接链接 title=互斥量的创建/销毁的直接链接 translate=no>​</a></h4>
+<p>pthread_mutex_init 函数被用来初始化一个互斥锁，为后续的线程同步操作（加锁、解锁）做准备，可初始化普通互斥锁或带有特定属性的互斥锁。</p>
+<p>pthread_mutex_destroy函数被用来销毁已初始化的互斥锁，释放互斥锁占用的资源，销毁后互斥锁不能再进行加锁、解锁操作，除非重新初始化。</p>
+<p>函数原型如下：</p>
+<div class="language-text codeBlockContainer_Ckt0 theme-code-block" style=--prism-color:#393A34;--prism-background-color:#f6f8fa><div class=codeBlockContent_QJqH><pre tabindex=0 class="prism-code language-text codeBlock_bY9V thin-scrollbar" style=color:#393A34;background-color:#f6f8fa><code class=codeBlockLines_e6Vv><div class=token-line style=color:#393A34><span class="token plain">int pthread_mutex_init(pthread_mutex_t \*mutex, const pthread_mutexattr_t \*attr);</span><br/></div><div class=token-line style=color:#393A34><span class="token plain" style=display:inline-block></span><br/></div><div class=token-line style=color:#393A34><span class="token plain">int pthread_mutex_destroy(pthread_mutex_t \*mutex);</span><br/></div><div class=token-line style=color:#393A34><span class="token plain" style=display:inline-block></span><br/></div></code></pre></div></div>
+<p>pthread_mutex_init 函数参数说明：</p>
+<table><thead><tr><th><th><tbody><tr><td>参数<td>描述<tr><td>mutex<td>指向待初始化的互斥锁对象的指针<tr><td>attr<td>指向互斥锁属性对象的指针，若为 NULL 则使用默认属性初始化互斥锁</table>
+<p>参数取值详细描述</p>
+<ul>
+<li class="">
+<p>mutex 必须是有效的 pthread_mutex_t 类型指针，未初始化的互斥锁直接使用会导致行为未定义。</p>
+</li>
+<li class="">
+<p>attr 的取值：</p>
+</li>
+</ul>
+<p>NULL：使用默认属性，初始化后的互斥锁为普通互斥锁，默认属性下线程加锁后需自身解锁，其他线程加锁会阻塞。</p>
+<p>非 NULL：需先通过 pthread_mutexattr_init 初始化属性对象，再设置特定属性（如互斥锁类型、进程共享属性等），最后传入此参数。</p>
+<p>常见的属性设置场景包括：</p>
+<ul>
+<li class="">
+<p>互斥锁类型：通过 pthread_mutexattr_settype 设置为 PTHREAD_MUTEX_NORMAL（普通锁，不检测死锁）、PTHREAD_MUTEX_ERRORCHECK（错误检测锁，检测死锁并返回错误）、PTHREAD_MUTEX_RECURSIVE（递归锁，允许同一线程多次加锁）等。</p>
+</li>
+<li class="">
+<p>进程共享属性：通过 pthread_mutexattr_setpshared 设置为 PTHREAD_PROCESS_PRIVATE（默认，仅进程内线程共享）或 PTHREAD_PROCESS_SHARED（可跨进程共享，需放在共享内存中）。</p>
+</li>
+</ul>
+<p>pthread_mutex_destroy函数参数说明：</p>
+<table><thead><tr><th><th><tbody><tr><td>参数<td>描述<tr><td>mutex<td>指向已初始化的互斥锁对象的指针</table>
+<p>参数取值详细描述：</p>
+<ul>
+<li class="">
+<p>mutex 需为已初始化的有效互斥锁指针，若传入未初始化或已销毁的互斥锁指针，会导致行为未定义。</p>
+</li>
+<li class="">
+<p>销毁前提：互斥锁必须处于未锁定状态，且没有线程阻塞在该互斥锁的加锁操作上，否则函数可能返回错误（如 EBUSY），且销毁操作失败。</p>
+</li>
+<li class="">
+<p>销毁后状态：互斥锁对象变为未初始化状态，若需再次使用，需重新调用 pthread_mutex_init 进行初始化。</p>
+</li>
+</ul>
+<h4 class="anchor anchorTargetStickyNavbar_Vzrq" id=属性初始化与销毁>属性初始化与销毁<a href=#属性初始化与销毁 class=hash-link aria-label=属性初始化与销毁的直接链接 title=属性初始化与销毁的直接链接 translate=no>​</a></h4>
+<p>前面的pthread_mutex_init 函数可以传入一个attr参数，这个参数有专门的初始化函数：pthread_mutexattr_init函数。</p>
+<p>pthread_mutexattr_init函数被用来初始化互斥锁属性对象，为后续设置互斥锁的特定属性（如类型、进程共享性等）做准备，属性对象可用于初始化多个互斥锁。</p>
+<p>pthread_mutexattr_destroy 函数被用来销毁已初始化的互斥锁属性对象，释放属性对象占用的资源，销毁后属性对象不能再用于设置属性或初始化互斥锁，除非重新初始化。</p>
+<p>函数原型如下：</p>
+<div class="language-text codeBlockContainer_Ckt0 theme-code-block" style=--prism-color:#393A34;--prism-background-color:#f6f8fa><div class=codeBlockContent_QJqH><pre tabindex=0 class="prism-code language-text codeBlock_bY9V thin-scrollbar" style=color:#393A34;background-color:#f6f8fa><code class=codeBlockLines_e6Vv><div class=token-line style=color:#393A34><span class="token plain">int pthread_mutexattr_init(pthread_mutexattr_t \*attr);</span><br/></div><div class=token-line style=color:#393A34><span class="token plain" style=display:inline-block></span><br/></div><div class=token-line style=color:#393A34><span class="token plain">int pthread_mutexattr_destroy(pthread_mutexattr_t \*attr);</span><br/></div><div class=token-line style=color:#393A34><span class="token plain" style=display:inline-block></span><br/></div></code></pre></div></div>
+<p>pthread_mutexattr_init函数参数说明：</p>
+<table><thead><tr><th><th><tbody><tr><td>参数<td>描述<tr><td>attr<td>指向待初始化的互斥锁属性对象的指针</table>
+<p>参数取值详细描述</p>
+<ul>
+<li class="">
+<p>attr 必须是有效的 pthread_mutexattr_t 类型指针，未初始化的属性对象直接用于设置属性或初始化互斥锁，会导致行为未定义。</p>
+</li>
+<li class="">
+<p>初始化后状态：属性对象初始化为默认状态，默认属性对应的互斥锁为普通类型（PTHREAD_MUTEX_NORMAL）、进程内私有（PTHREAD_PROCESS_PRIVATE）。</p>
+</li>
+</ul>
+<p>pthread_mutexattr_destroy参数说明：</p>
+<table><thead><tr><th><th><tbody><tr><td>参数<td>描述<tr><td>attr<td>指向已初始化的互斥锁属性对象的指针</table>
+<p>参数取值详细描述</p>
+<ul>
+<li class="">
+<p>attr 需为已初始化的有效互斥锁属性指针，若传入未初始化或已销毁的属性指针，会导致行为未定义。</p>
+</li>
+<li class="">
+<p>销毁影响：属性对象销毁后，之前通过该属性对象初始化的互斥锁不受影响，互斥锁的属性会保持初始化时的设置。</p>
+</li>
+</ul>
+<h4 class="anchor anchorTargetStickyNavbar_Vzrq" id=互斥量的lock操作>互斥量的lock操作<a href=#互斥量的lock操作 class=hash-link aria-label=互斥量的lock操作的直接链接 title=互斥量的lock操作的直接链接 translate=no>​</a></h4>
+<p>pthread_mutex_lock函数被用来对互斥锁进行加锁操作：若互斥锁当前未被锁定，则当前线程成功加锁并继续执行；若互斥锁已被其他线程锁定，则当前线程阻塞，直到互斥锁被解锁后再尝试加锁。</p>
+<p>pthread_mutex_trylock函数尝试对互斥锁进行加锁操作（非阻塞）：若互斥锁当前未被锁定，则当前线程成功加锁并返回成功；若互斥锁已被锁定，则直接返回错误，不阻塞当前线程。</p>
+<p>函数原型如下：</p>
+<div class="language-text codeBlockContainer_Ckt0 theme-code-block" style=--prism-color:#393A34;--prism-background-color:#f6f8fa><div class=codeBlockContent_QJqH><pre tabindex=0 class="prism-code language-text codeBlock_bY9V thin-scrollbar" style=color:#393A34;background-color:#f6f8fa><code class=codeBlockLines_e6Vv><div class=token-line style=color:#393A34><span class="token plain">int pthread_mutex_lock(pthread_mutex_t \*mutex);</span><br/></div><div class=token-line style=color:#393A34><span class="token plain" style=display:inline-block></span><br/></div><div class=token-line style=color:#393A34><span class="token plain">int pthread_mutex_trylock(pthread_mutex_t \*mutex);</span><br/></div><div class=token-line style=color:#393A34><span class="token plain" style=display:inline-block></span><br/></div></code></pre></div></div>
+<p>pthread_mutex_lock函数参数说明：</p>
+<table><thead><tr><th><th><tbody><tr><td>参数<td>描述<tr><td>mutex<td>指向已初始化的互斥锁对象的指针</table>
+<p>参数取值详细描述：</p>
+<ul>
+<li class="">
+<p>mutex 必须是通过 pthread_mutex_init 初始化的有效互斥锁指针，若传入未初始化或已销毁的互斥锁指针，会导致行为未定义。</p>
+</li>
+<li class="">
+<p>不同类型互斥锁的加锁差异：</p>
+</li>
+</ul>
+<p>普通互斥锁（PTHREAD_MUTEX_NORMAL）：若同一线程对已加锁的互斥锁再次加锁，会导致死锁，且函数不会返回错误。</p>
+<p>错误检测锁（PTHREAD_MUTEX_ERRORCHECK）：若同一线程对已加锁的互斥锁再次加锁，函数会返回 EDEADLK 错误，避免死锁。</p>
+<p>递归锁（PTHREAD_MUTEX_RECURSIVE）：允许同一线程多次加锁，加锁次数与解锁次数需一致，最后一次解锁后其他线程才能加锁。</p>
+<p>pthread_mutex_trylock函数参数说明：</p>
+<table><thead><tr><th><th><tbody><tr><td>参数<td>描述<tr><td>mutex<td>指向已初始化的互斥锁对象的指针</table>
+<p>参数取值详细描述：</p>
+<ul>
+<li class="">
+<p>mutex 需为已初始化的有效互斥锁指针，否则行为未定义，与 pthread_mutex_lock 的 mutex 参数要求一致。</p>
+</li>
+<li class="">
+<p>返回值差异：</p>
+</li>
+</ul>
+<p>成功加锁：返回 0。</p>
+<p>互斥锁已被锁定：返回 EBUSY 错误，不会阻塞线程，线程可继续执行其他逻辑，后续可再次尝试加锁。</p>
+<ul>
+<li class="">与 pthread_mutex_lock 的核心区别：前者非阻塞，加锁失败立即返回；后者阻塞，直到加锁成功或出现其他错误。</li>
+</ul>
+<h4 class="anchor anchorTargetStickyNavbar_Vzrq" id=互斥量的unlock操作>互斥量的unlock操作<a href=#互斥量的unlock操作 class=hash-link aria-label=互斥量的unlock操作的直接链接 title=互斥量的unlock操作的直接链接 translate=no>​</a></h4>
+<p>pthread_mutex_unlock函数对互斥锁进行解锁操作：若当前线程是互斥锁的持有线程，则解锁后互斥锁变为未锁定状态，若有其他线程阻塞在该互斥锁的加锁操作上，会唤醒其中一个线程尝试加锁。</p>
+<p>函数原型如下：</p>
+<div class="language-text codeBlockContainer_Ckt0 theme-code-block" style=--prism-color:#393A34;--prism-background-color:#f6f8fa><div class=codeBlockContent_QJqH><pre tabindex=0 class="prism-code language-text codeBlock_bY9V thin-scrollbar" style=color:#393A34;background-color:#f6f8fa><code class=codeBlockLines_e6Vv><div class=token-line style=color:#393A34><span class="token plain">int pthread_mutex_unlock(pthread_mutex_t \*mutex);</span><br/></div><div class=token-line style=color:#393A34><span class="token plain" style=display:inline-block></span><br/></div></code></pre></div></div>
+<p>pthread_mutex_unlock函数参数说明：</p>
+<table><thead><tr><th><th><tbody><tr><td>参数<td>描述<tr><td>mutex<td>指向已初始化且处于锁定状态的互斥锁对象的指针</table>
+<p>参数取值详细描述</p>
+<ul>
+<li class="">
+<p>mutex 必须是已初始化且当前被锁定的有效互斥锁指针，若传入未锁定、未初始化或已销毁的互斥锁指针，会导致行为未定义。</p>
+</li>
+<li class="">
+<p>解锁限制：</p>
+</li>
+</ul>
+<p>普通互斥锁和错误检测锁：仅允许持有互斥锁的线程解锁，若其他线程尝试解锁，错误检测锁会返回 EPERM 错误，普通互斥锁行为未定义。</p>
+<p>递归锁（PTHREAD_MUTEX_RECURSIVE）：需由持有线程按照加锁次数依次解锁，每次解锁会减少锁的计数，当计数减为 0 时，互斥锁才真正变为未锁定状态。</p>
+<h3 class="anchor anchorTargetStickyNavbar_Vzrq" id=信号实例>信号实例<a href=#信号实例 class=hash-link aria-label=信号实例的直接链接 title=信号实例的直接链接 translate=no>​</a></h3>
+<p>信号是在软件层次上对中断机制的模拟，在原理上说，一个任务接收到一个信号，与CPU接收到中断请求是一致的。信号是异步的，任务不必通过任何操作来等待信号的到达，它甚至不知道信号何时会到达。</p>
+<p>信号的来源包括：</p>
+<ul>
+<li class="">
+<p>硬件来源，比如按键触发</p>
+</li>
+<li class="">
+<p>软件来源，比如kill，raise等系统函数，比如一些非法运算操作等</p>
+</li>
+</ul>
+<h4 class="anchor anchorTargetStickyNavbar_Vzrq" id=实例1gpio中断发出信号>实例1：GPIO中断发出信号<a href=#实例1gpio中断发出信号 class=hash-link aria-label=实例1：GPIO中断发出信号的直接链接 title=实例1：GPIO中断发出信号的直接链接 translate=no>​</a></h4>
+<p>在《3.4.5 使用信号量改造LED任务》里面，就用到了信号：GPIO驱动程序里中断函数发出了信号，而APP里为这个信号提供了处理函数。主循环里不知道何时收到信号，信号是“异步”的。</p>
+<p>首先，提供信号处理函数，示例代码为：</p>
+<div class="language-text codeBlockContainer_Ckt0 theme-code-block" style=--prism-color:#393A34;--prism-background-color:#f6f8fa><div class=codeBlockContent_QJqH><pre tabindex=0 class="prism-code language-text codeBlock_bY9V thin-scrollbar" style=color:#393A34;background-color:#f6f8fa><code class=codeBlockLines_e6Vv><div class=token-line style=color:#393A34><span class="token plain">void signal_handler(int signum) {</span><br/></div><div class=token-line style=color:#393A34><span class="token plain" style=display:inline-block></span><br/></div><div class=token-line style=color:#393A34><span class="token plain">}</span><br/></div><div class=token-line style=color:#393A34><span class="token plain" style=display:inline-block></span><br/></div><div class=token-line style=color:#393A34><span class="token plain">signal(SIGINT, signal_handler);</span><br/></div><div class=token-line style=color:#393A34><span class="token plain" style=display:inline-block></span><br/></div></code></pre></div></div>
+<p>然后配置GPIO为中断功能，示例代码如下：</p>
+<div class="language-text codeBlockContainer_Ckt0 theme-code-block" style=--prism-color:#393A34;--prism-background-color:#f6f8fa><div class=codeBlockContent_QJqH><pre tabindex=0 class="prism-code language-text codeBlock_bY9V thin-scrollbar" style=color:#393A34;background-color:#f6f8fa><code class=codeBlockLines_e6Vv><div class=token-line style=color:#393A34><span class="token plain">ret = ioctl(fd_button, GPIOC_SETPINTYPE, GPIO_INTERRUPT_FALLING_PIN);</span><br/></div><div class=token-line style=color:#393A34><span class="token plain" style=display:inline-block></span><br/></div></code></pre></div></div>
+<p>最后注册GPIO信号，示例代码如下：</p>
+<div class="language-text codeBlockContainer_Ckt0 theme-code-block" style=--prism-color:#393A34;--prism-background-color:#f6f8fa><div class=codeBlockContent_QJqH><pre tabindex=0 class="prism-code language-text codeBlock_bY9V thin-scrollbar" style=color:#393A34;background-color:#f6f8fa><code class=codeBlockLines_e6Vv><div class=token-line style=color:#393A34><span class="token plain">struct sigevent notify;</span><br/></div><div class=token-line style=color:#393A34><span class="token plain" style=display:inline-block></span><br/></div></code></pre></div></div>
+<p>notify.sigev_notify = SIGEV_SIGNAL; // 中断函数要发出信号</p>
+<p>notify.sigev_signo = SIGINT; // 发出这个信号</p>
+<div class="language-text codeBlockContainer_Ckt0 theme-code-block" style=--prism-color:#393A34;--prism-background-color:#f6f8fa><div class=codeBlockContent_QJqH><pre tabindex=0 class="prism-code language-text codeBlock_bY9V thin-scrollbar" style=color:#393A34;background-color:#f6f8fa><code class=codeBlockLines_e6Vv><div class=token-line style=color:#393A34><span class="token plain">// 设置GPIO让它发出信号</span><br/></div><div class=token-line style=color:#393A34><span class="token plain" style=display:inline-block></span><br/></div><div class=token-line style=color:#393A34><span class="token plain">ret = ioctl(fd_button, GPIOC_REGISTER, (unsigned long)&amp;notify);</span><br/></div><div class=token-line style=color:#393A34><span class="token plain" style=display:inline-block></span><br/></div></code></pre></div></div>
+<h4 class="anchor anchorTargetStickyNavbar_Vzrq" id=实例2软件发出信号>实例2：软件发出信号<a href=#实例2软件发出信号 class=hash-link aria-label=实例2：软件发出信号的直接链接 title=实例2：软件发出信号的直接链接 translate=no>​</a></h4>
+<p>发送信号的API函数：</p>
+<p>/* 当前任务向指定pid的任务（线程组）发送sig信号 */</p>
+<div class="language-text codeBlockContainer_Ckt0 theme-code-block" style=--prism-color:#393A34;--prism-background-color:#f6f8fa><div class=codeBlockContent_QJqH><pre tabindex=0 class="prism-code language-text codeBlock_bY9V thin-scrollbar" style=color:#393A34;background-color:#f6f8fa><code class=codeBlockLines_e6Vv><div class=token-line style=color:#393A34><span class="token plain">int kill(pid_t pid, int sig);</span><br/></div><div class=token-line style=color:#393A34><span class="token plain" style=display:inline-block></span><br/></div></code></pre></div></div>
+<p>接收方先注册信号处理函数（led.c）：</p>
+<div class="language-text codeBlockContainer_Ckt0 theme-code-block" style=--prism-color:#393A34;--prism-background-color:#f6f8fa><div class=codeBlockContent_QJqH><pre tabindex=0 class="prism-code language-text codeBlock_bY9V thin-scrollbar" style=color:#393A34;background-color:#f6f8fa><code class=codeBlockLines_e6Vv><div class=token-line style=color:#393A34><span class="token plain">signal(SIGINT, my_signal_handler);</span><br/></div><div class=token-line style=color:#393A34><span class="token plain" style=display:inline-block></span><br/></div></code></pre></div></div>
+<p>发送方创建LED进程以便得到对方的PID（music.c）：</p>
+<div class="language-text codeBlockContainer_Ckt0 theme-code-block" style=--prism-color:#393A34;--prism-background-color:#f6f8fa><div class=codeBlockContent_QJqH><pre tabindex=0 class="prism-code language-text codeBlock_bY9V thin-scrollbar" style=color:#393A34;background-color:#f6f8fa><code class=codeBlockLines_e6Vv><div class=token-line style=color:#393A34><span class="token plain">led_pid = task_create("led", 100, 2048, led_main, argv);</span><br/></div><div class=token-line style=color:#393A34><span class="token plain" style=display:inline-block></span><br/></div></code></pre></div></div>
+<p>发送方使用kill函数发送信号（music.c）：</p>
+<div class="language-text codeBlockContainer_Ckt0 theme-code-block" style=--prism-color:#393A34;--prism-background-color:#f6f8fa><div class=codeBlockContent_QJqH><pre tabindex=0 class="prism-code language-text codeBlock_bY9V thin-scrollbar" style=color:#393A34;background-color:#f6f8fa><code class=codeBlockLines_e6Vv><div class=token-line style=color:#393A34><span class="token plain">kill(led_pid, SIGINT);</span><br/></div><div class=token-line style=color:#393A34><span class="token plain" style=display:inline-block></span><br/></div></code></pre></div></div>
+<h4 class="anchor anchorTargetStickyNavbar_Vzrq" id=实例3写队列时发出信号>实例3：写队列时发出信号<a href=#实例3写队列时发出信号 class=hash-link aria-label=实例3：写队列时发出信号的直接链接 title=实例3：写队列时发出信号的直接链接 translate=no>​</a></h4>
+<p>配置内核禁止“CONFIG_DISABLE_MQUEUE_NOTIFICATION”以便使能“信号量能发送信号”，执行如下命令：</p>
+<div class="language-text codeBlockContainer_Ckt0 theme-code-block" style=--prism-color:#393A34;--prism-background-color:#f6f8fa><div class=codeBlockContent_QJqH><pre tabindex=0 class="prism-code language-text codeBlock_bY9V thin-scrollbar" style=color:#393A34;background-color:#f6f8fa><code class=codeBlockLines_e6Vv><div class=token-line style=color:#393A34><span class="token plain">./build.sh vendor/allwinnertech/boards/r528/r528s3-velaevb1/configs/nsh/ menuconfig</span><br/></div><div class=token-line style=color:#393A34><span class="token plain" style=display:inline-block></span><br/></div></code></pre></div></div>
+<p>根据下图进行配置：</p>
+<p><img decoding=async loading=lazy src=/assets/images/image55-4386212e0ef08d38e9081859aaf83db1.png width=438 height=144 class=img_ev3q /></p>
+<p>play_thread里先注册信号处理函数（music.c）：</p>
+<div class="language-text codeBlockContainer_Ckt0 theme-code-block" style=--prism-color:#393A34;--prism-background-color:#f6f8fa><div class=codeBlockContent_QJqH><pre tabindex=0 class="prism-code language-text codeBlock_bY9V thin-scrollbar" style=color:#393A34;background-color:#f6f8fa><code class=codeBlockLines_e6Vv><div class=token-line style=color:#393A34><span class="token plain">signal(SIGUSR1, aplay_signal_handler);</span><br/></div><div class=token-line style=color:#393A34><span class="token plain" style=display:inline-block></span><br/></div></code></pre></div></div>
+<p>然后第1次设置队列，让它能发出信号：</p>
+<div class="language-text codeBlockContainer_Ckt0 theme-code-block" style=--prism-color:#393A34;--prism-background-color:#f6f8fa><div class=codeBlockContent_QJqH><pre tabindex=0 class="prism-code language-text codeBlock_bY9V thin-scrollbar" style=color:#393A34;background-color:#f6f8fa><code class=codeBlockLines_e6Vv><div class=token-line style=color:#393A34><span class="token plain">struct sigevent notification;</span><br/></div><div class=token-line style=color:#393A34><span class="token plain" style=display:inline-block></span><br/></div></code></pre></div></div>
+<p>/* let mq, send signal to play_thread when get msg from mq */</p>
+<p>notification.sigev_notify = SIGEV_SIGNAL; // 要发出信号</p>
+<p>notification.sigev_signo = SIGUSR1; // 发出这个信号</p>
+<div class="language-text codeBlockContainer_Ckt0 theme-code-block" style=--prism-color:#393A34;--prism-background-color:#f6f8fa><div class=codeBlockContent_QJqH><pre tabindex=0 class="prism-code language-text codeBlock_bY9V thin-scrollbar" style=color:#393A34;background-color:#f6f8fa><code class=codeBlockLines_e6Vv><div class=token-line style=color:#393A34><span class="token plain">mq_notify(g_mq, &amp;notification);</span><br/></div><div class=token-line style=color:#393A34><span class="token plain" style=display:inline-block></span><br/></div></code></pre></div></div>
+<p>以后主线程（music.c）写消息时，会向play_thread发信号SIGUSR1：</p>
+<div class="language-text codeBlockContainer_Ckt0 theme-code-block" style=--prism-color:#393A34;--prism-background-color:#f6f8fa><div class=codeBlockContent_QJqH><pre tabindex=0 class="prism-code language-text codeBlock_bY9V thin-scrollbar" style=color:#393A34;background-color:#f6f8fa><code class=codeBlockLines_e6Vv><div class=token-line style=color:#393A34><span class="token plain">if (c \>= '0' && c \&lt;= '9')</span><br/></div><div class=token-line style=color:#393A34><span class="token plain" style=display:inline-block></span><br/></div><div class=token-line style=color:#393A34><span class="token plain">{</span><br/></div><div class=token-line style=color:#393A34><span class="token plain" style=display:inline-block></span><br/></div><div class=token-line style=color:#393A34><span class="token plain">// if (g_flag == 0)</span><br/></div><div class=token-line style=color:#393A34><span class="token plain" style=display:inline-block></span><br/></div><div class=token-line style=color:#393A34><span class="token plain">// g_char = c;</span><br/></div><div class=token-line style=color:#393A34><span class="token plain" style=display:inline-block></span><br/></div><div class=token-line style=color:#393A34><span class="token plain">// g_flag = 1;</span><br/></div><div class=token-line style=color:#393A34><span class="token plain" style=display:inline-block></span><br/></div></code></pre></div></div>
+<p>/* 3. write mq */</p>
+<div class="language-text codeBlockContainer_Ckt0 theme-code-block" style=--prism-color:#393A34;--prism-background-color:#f6f8fa><div class=codeBlockContent_QJqH><pre tabindex=0 class="prism-code language-text codeBlock_bY9V thin-scrollbar" style=color:#393A34;background-color:#f6f8fa><code class=codeBlockLines_e6Vv><div class=token-line style=color:#393A34><span class="token plain">mq_send(g_mq, &c, 1, 0);</span><br/></div><div class=token-line style=color:#393A34><span class="token plain" style=display:inline-block></span><br/></div><div class=token-line style=color:#393A34><span class="token plain">kill(led_pid, SIGINT);</span><br/></div><div class=token-line style=color:#393A34><span class="token plain" style=display:inline-block></span><br/></div><div class=token-line style=color:#393A34><span class="token plain">}</span><br/></div><div class=token-line style=color:#393A34><span class="token plain" style=display:inline-block></span><br/></div></code></pre></div></div>
+<p>play_thread的信号处理函数被调用，它再次使用mq_notify让队列以后还能发出信号，然后读取队列、播放音乐：</p>
+<div class="language-text codeBlockContainer_Ckt0 theme-code-block" style=--prism-color:#393A34;--prism-background-color:#f6f8fa><div class=codeBlockContent_QJqH><pre tabindex=0 class="prism-code language-text codeBlock_bY9V thin-scrollbar" style=color:#393A34;background-color:#f6f8fa><code class=codeBlockLines_e6Vv><div class=token-line style=color:#393A34><span class="token plain">void aplay_signal_handler(int sig)</span><br/></div><div class=token-line style=color:#393A34><span class="token plain" style=display:inline-block></span><br/></div><div class=token-line style=color:#393A34><span class="token plain">{</span><br/></div><div class=token-line style=color:#393A34><span class="token plain" style=display:inline-block></span><br/></div><div class=token-line style=color:#393A34><span class="token plain">char file\[32\];</span><br/></div><div class=token-line style=color:#393A34><span class="token plain" style=display:inline-block></span><br/></div><div class=token-line style=color:#393A34><span class="token plain">char \* argv\[3\] = {"/aplay", file, NULL};</span><br/></div><div class=token-line style=color:#393A34><span class="token plain" style=display:inline-block></span><br/></div><div class=token-line style=color:#393A34><span class="token plain">// if (g_flag)</span><br/></div><div class=token-line style=color:#393A34><span class="token plain" style=display:inline-block></span><br/></div><div class=token-line style=color:#393A34><span class="token plain">struct sigevent notification;</span><br/></div><div class=token-line style=color:#393A34><span class="token plain" style=display:inline-block></span><br/></div></code></pre></div></div>
+<p>/* let mq, send signal to play_thread when get msg from mq */</p>
+<p>notification.sigev_notify = SIGEV_SIGNAL; // 要发出信号</p>
+<p>notification.sigev_signo = SIGUSR1; // 发出这个信号</p>
+<div class="language-text codeBlockContainer_Ckt0 theme-code-block" style=--prism-color:#393A34;--prism-background-color:#f6f8fa><div class=codeBlockContent_QJqH><pre tabindex=0 class="prism-code language-text codeBlock_bY9V thin-scrollbar" style=color:#393A34;background-color:#f6f8fa><code class=codeBlockLines_e6Vv><div class=token-line style=color:#393A34><span class="token plain">mq_notify(g_mq, &amp;notification);</span><br/></div><div class=token-line style=color:#393A34><span class="token plain" style=display:inline-block></span><br/></div></code></pre></div></div>
+<p>/* 4. read mq */</p>
+<div class="language-text codeBlockContainer_Ckt0 theme-code-block" style=--prism-color:#393A34;--prism-background-color:#f6f8fa><div class=codeBlockContent_QJqH><pre tabindex=0 class="prism-code language-text codeBlock_bY9V thin-scrollbar" style=color:#393A34;background-color:#f6f8fa><code class=codeBlockLines_e6Vv><div class=token-line style=color:#393A34><span class="token plain">printf("to recv msg \n");</span><br/></div><div class=token-line style=color:#393A34><span class="token plain" style=display:inline-block></span><br/></div><div class=token-line style=color:#393A34><span class="token plain">int ret = mq_receive(g_mq, &g_char, 1, 0);</span><br/></div><div class=token-line style=color:#393A34><span class="token plain" style=display:inline-block></span><br/></div><div class=token-line style=color:#393A34><span class="token plain">printf("recv msg: %c\n", g_char);</span><br/></div><div class=token-line style=color:#393A34><span class="token plain" style=display:inline-block></span><br/></div></code></pre></div></div></div><footer class="theme-doc-footer docusaurus-mt-lg"><div class="row margin-top--sm theme-doc-footer-edit-meta-row"><div class="col noPrint_WFHX"><a href=https://github.com/100askTeam/openvela-docs/tree/master/docs/03-openvela多任务系统开发/05-线程通信、同步、互斥.mdx target=_blank rel="noopener noreferrer" class=theme-edit-this-page><svg fill=currentColor height=20 width=20 viewBox="0 0 40 40" class=iconEdit_Z9Sw aria-hidden=true><g><path d="m34.5 11.7l-3 3.1-6.3-6.3 3.1-3q0.5-0.5 1.2-0.5t1.1 0.5l3.9 3.9q0.5 0.4 0.5 1.1t-0.5 1.2z m-29.5 17.1l18.4-18.5 6.3 6.3-18.4 18.4h-6.3v-6.2z"/></g></svg>编辑此页</a></div><div class="col lastUpdated_JAkA"></div></div></footer></article><nav class="docusaurus-mt-lg pagination-nav" aria-label=文件选项卡><a class="pagination-nav__link pagination-nav__link--prev" href=/docs/openvela多任务系统开发/openvela多任务系统开发示例><div class=pagination-nav__sublabel>上一页</div><div class=pagination-nav__label>openvela多任务系统开发示例</div></a><a class="pagination-nav__link pagination-nav__link--next" href=/docs/openvela多任务系统开发/进程、线程、调度的内部机制><div class=pagination-nav__sublabel>下一页</div><div class=pagination-nav__label>进程、线程、调度的内部机制</div></a></nav></div></div><div class="col col--3"><div class="tableOfContents_bqdL thin-scrollbar theme-doc-toc-desktop"><ul class="table-of-contents table-of-contents__left-border"><li><a href=#app获取数据的4种方式 class="table-of-contents__link toc-highlight">APP获取数据的4种方式</a><li><a href=#消息队列的使用 class="table-of-contents__link toc-highlight">消息队列的使用</a><li><a href=#使用消息队列改造音乐任务 class="table-of-contents__link toc-highlight">使用消息队列改造音乐任务</a><li><a href=#信号量的使用 class="table-of-contents__link toc-highlight">信号量的使用</a><li><a href=#使用信号量改造led任务 class="table-of-contents__link toc-highlight">使用信号量改造LED任务</a><li><a href=#互斥量的使用 class="table-of-contents__link toc-highlight">互斥量的使用</a><li><a href=#信号实例 class="table-of-contents__link toc-highlight">信号实例</a></ul></div></div></div></div></main></div></div></div><footer class="theme-layout-footer footer footer--dark"><div class="container container-fluid"><div class="footer__bottom text--center"><div class=footer__copyright>Copyright © 2026 100askTeam, Inc. Built with Docusaurus.</div></div></div></footer></div></body>
